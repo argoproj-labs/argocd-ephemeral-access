@@ -1,0 +1,23 @@
+# permissions for end users to view accessrequests.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-ephemeral-access
+    app.kubernetes.io/managed-by: kustomize
+  name: accessrequest-viewer-role
+rules:
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests/status
+  verbs:
+  - get

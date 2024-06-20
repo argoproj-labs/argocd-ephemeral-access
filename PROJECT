@@ -7,4 +7,14 @@ layout:
 - go.kubebuilder.io/v4
 projectName: argocd-ephemeral-access
 repo: github.com/argoproj-labs/ephemeral-access
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: argoproj-labs.io
+  group: ephemeral-access
+  kind: AccessRequest
+  path: github.com/argoproj-labs/ephemeral-access/api/v1alpha1
+  version: v1alpha1
 version: "3"
