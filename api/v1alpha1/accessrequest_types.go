@@ -50,7 +50,7 @@ type AccessRequestSpec struct {
 	// Application defines the Argo CD Application to assign the elevated
 	// permission
 	Application TargetApplication `json:"application"`
-	// Subject defines the list of subjects for this access request
+	// Subjects defines the list of subjects for this access request
 	Subjects []Subject `json:"subjects"`
 }
 

@@ -61,7 +61,7 @@ spec:
                   will be granted once approved
                 type: string
               subjects:
-                description: Subject defines the list of subjects for this access
+                description: Subjects defines the list of subjects for this access
                   request
                 items:
                   description: Subject defines the user details to get elevated permissions
