@@ -57,7 +57,7 @@ spec:
                 type: object
               duration:
                 description: |-
-                  Duration defines the ammount of type that the elevated access
+                  Duration defines the ammount of time that the elevated access
                   will be granted once approved
                 type: string
               subjects:
@@ -90,7 +90,7 @@ spec:
           status:
             description: AccessRequestStatus defines the observed state of AccessRequest
             properties:
-              expireDate:
+              expiresAt:
                 format: date-time
                 type: string
               history:
@@ -110,7 +110,7 @@ spec:
                       - requested
                       - granted
                       - expired
-                      - refused
+                      - denied
                       type: string
                     transitionTime:
                       description: TransitionTime is the time the transition is observed
@@ -129,7 +129,7 @@ spec:
                 - requested
                 - granted
                 - expired
-                - refused
+                - denied
                 type: string
             required:
             - status

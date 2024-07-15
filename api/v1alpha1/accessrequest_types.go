@@ -22,7 +22,7 @@ import (
 
 // Status defines the different stages a given access request can be
 // at a given time.
-// +kubebuilder:validation:Enum=requested;granted;expired;refused
+// +kubebuilder:validation:Enum=requested;granted;expired;denied
 type Status string
 
 const (
@@ -35,13 +35,13 @@ const (
 	// ExpiredStatus is the stage that defines the access request as expired
 	ExpiredStatus Status = "expired"
 
-	// RefusedStatus is the stage that defines the access request as refused
-	RefusedStatus Status = "refused"
+	// DeniedStatus is the stage that defines the access request as refused
+	DeniedStatus Status = "denied"
 )
 
 // AccessRequestSpec defines the desired state of AccessRequest
 type AccessRequestSpec struct {
-	// Duration defines the ammount of type that the elevated access
+	// Duration defines the ammount of time that the elevated access
 	// will be granted once approved
 	Duration metav1.Duration `json:"duration"`
 	// TargetRoleName defines the role name the user will be assigned
@@ -72,9 +72,9 @@ type Subject struct {
 
 // AccessRequestStatus defines the observed state of AccessRequest
 type AccessRequestStatus struct {
-	Status     Status                 `json:"status"`
-	ExpireDate *metav1.Time           `json:"expireDate,omitempty"`
-	History    []AccessRequetsHistory `json:"history,omitempty"`
+	Status    Status                 `json:"status"`
+	ExpiresAt *metav1.Time           `json:"expiresAt,omitempty"`
+	History   []AccessRequetsHistory `json:"history,omitempty"`
 }
 
 // AccessRequetsHistory contain the history of all status transitions associated
