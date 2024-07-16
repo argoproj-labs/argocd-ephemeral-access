@@ -39,17 +39,32 @@ type AccessRequestReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the AccessRequest object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.18.2/pkg/reconcile
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	var accessRequest ephemeralaccessv1alpha1.AccessRequest
+	if err := r.Get(ctx, req.NamespacedName, &accessRequest); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// accessRequest.Spec.Subjects[0].Username
+
+	// 1. verify if accessrequest is expired and status is "granted"
+	// 1.1 if so, remove the user from the elevated role
+	// 1.2 update the accessrequest status to "expired"
+	// 1.3 return
+	// 2. verify if user has the necessary access to be promoted
+	// 2.1 if they don't, update the accessrequest status to "denied"
+	// 2.2 return
+	// 3. verify if CR is approved
+	// 4. retrieve the Application
+	// 5. retrieve the AppProject
+	// 6. assign user in the desired role in the AppProject
+	// 7. update the accessrequest status to "granted"
+	// 8. set the RequeueAfter in Result
 
 	return ctrl.Result{}, nil
 }
