@@ -39,13 +39,99 @@ spec:
           spec:
             description: AccessRequestSpec defines the desired state of AccessRequest
             properties:
-              foo:
-                description: Foo is an example field of AccessRequest. Edit accessrequest_types.go
-                  to remove/update
+              application:
+                description: |-
+                  Application defines the Argo CD Application to assign the elevated
+                  permission
+                properties:
+                  name:
+                    description: Name refers to the Argo CD Application name
+                    type: string
+                  namespace:
+                    description: Namespace refers to the namespace where the Argo
+                      CD Application lives
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              duration:
+                description: |-
+                  Duration defines the ammount of time that the elevated access
+                  will be granted once approved
                 type: string
+              subjects:
+                description: Subjects defines the list of subjects for this access
+                  request
+                items:
+                  description: Subject defines the user details to get elevated permissions
+                    assigned
+                  properties:
+                    username:
+                      description: Username refers to the entity requesting the elevated
+                        permission
+                      type: string
+                  required:
+                  - username
+                  type: object
+                type: array
+              targetRoleName:
+                description: |-
+                  TargetRoleName defines the role name the user will be assigned
+                  to once the access is approved
+                type: string
+            required:
+            - application
+            - duration
+            - subjects
+            - targetRoleName
             type: object
           status:
             description: AccessRequestStatus defines the observed state of AccessRequest
+            properties:
+              expiresAt:
+                format: date-time
+                type: string
+              history:
+                items:
+                  description: |-
+                    AccessRequetsHistory contain the history of all status transitions associated
+                    with this access request
+                  properties:
+                    details:
+                      description: Details may contain detailed information about
+                        the transition
+                      type: string
+                    status:
+                      description: Status is the new status assigned to this access
+                        request
+                      enum:
+                      - requested
+                      - granted
+                      - expired
+                      - denied
+                      type: string
+                    transitionTime:
+                      description: TransitionTime is the time the transition is observed
+                      format: date-time
+                      type: string
+                  required:
+                  - status
+                  - transitionTime
+                  type: object
+                type: array
+              status:
+                description: |-
+                  Status defines the different stages a given access request can be
+                  at a given time.
+                enum:
+                - requested
+                - granted
+                - expired
+                - denied
+                type: string
+            required:
+            - status
             type: object
         type: object
     served: true

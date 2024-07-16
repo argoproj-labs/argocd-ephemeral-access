@@ -38,7 +38,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
 		accessrequest := &ephemeralaccessv1alpha1.AccessRequest{}
 
@@ -47,11 +47,17 @@ var _ = Describe("AccessRequest Controller", func() {
 			err := k8sClient.Get(ctx, typeNamespacedName, accessrequest)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &ephemeralaccessv1alpha1.AccessRequest{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "",
+						APIVersion: "",
 					},
-					// TODO(user): Specify other spec details if needed.
+					ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: "default"},
+					Spec: ephemeralaccessv1alpha1.AccessRequestSpec{
+						Duration:       metav1.Duration{},
+						TargetRoleName: "",
+						Application:    ephemeralaccessv1alpha1.TargetApplication{},
+						Subjects:       []ephemeralaccessv1alpha1.Subject{},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}

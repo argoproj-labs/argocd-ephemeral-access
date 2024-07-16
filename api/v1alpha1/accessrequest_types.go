@@ -20,28 +20,76 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// Status defines the different stages a given access request can be
+// at a given time.
+// +kubebuilder:validation:Enum=requested;granted;expired;denied
+type Status string
+
+const (
+	// RequestedStatus is the stage that defines the access request as pending
+	RequestedStatus Status = "requested"
+
+	// GrantedStatus is the stage that defines the access request as granted
+	GrantedStatus Status = "granted"
+
+	// ExpiredStatus is the stage that defines the access request as expired
+	ExpiredStatus Status = "expired"
+
+	// DeniedStatus is the stage that defines the access request as refused
+	DeniedStatus Status = "denied"
+)
 
 // AccessRequestSpec defines the desired state of AccessRequest
 type AccessRequestSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Duration defines the ammount of time that the elevated access
+	// will be granted once approved
+	Duration metav1.Duration `json:"duration"`
+	// TargetRoleName defines the role name the user will be assigned
+	// to once the access is approved
+	TargetRoleName string `json:"targetRoleName"`
+	// Application defines the Argo CD Application to assign the elevated
+	// permission
+	Application TargetApplication `json:"application"`
+	// Subjects defines the list of subjects for this access request
+	Subjects []Subject `json:"subjects"`
+}
 
-	// Foo is an example field of AccessRequest. Edit accessrequest_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+// TargetRoleName defines the role name the user will be assigned
+// to once the access is approved
+type TargetApplication struct {
+	// Name refers to the Argo CD Application name
+	Name string `json:"name"`
+	// Namespace refers to the namespace where the Argo CD Application lives
+	Namespace string `json:"namespace"`
+}
+
+// Subject defines the user details to get elevated permissions assigned
+type Subject struct {
+	// Username refers to the entity requesting the elevated permission
+	Username string `json:"username"`
 }
 
 // AccessRequestStatus defines the observed state of AccessRequest
 type AccessRequestStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Status    Status                 `json:"status"`
+	ExpiresAt *metav1.Time           `json:"expiresAt,omitempty"`
+	History   []AccessRequetsHistory `json:"history,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
+// AccessRequetsHistory contain the history of all status transitions associated
+// with this access request
+type AccessRequetsHistory struct {
+	// TransitionTime is the time the transition is observed
+	TransitionTime metav1.Time `json:"transitionTime"`
+	// Status is the new status assigned to this access request
+	Status Status `json:"status"`
+	// Details may contain detailed information about the transition
+	Details *string `json:"details,omitempty"`
+}
 
 // AccessRequest is the Schema for the accessrequests API
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 type AccessRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -50,9 +98,8 @@ type AccessRequest struct {
 	Status AccessRequestStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // AccessRequestList contains a list of AccessRequest
+// +kubebuilder:object:root=true
 type AccessRequestList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
