@@ -65,9 +65,8 @@ type TargetApplication struct {
 
 // Subject defines the user details to get elevated permissions assigned
 type Subject struct {
-	// GroupClaim refers to the necessary OIDC 'groups' claim the user needs to
-	// have associated with their ID Token
-	GroupsClaim string `json:"groupsClaim"`
+	// Username refers to the entity requesting the elevated permission
+	Username string `json:"username"`
 }
 
 // AccessRequestStatus defines the observed state of AccessRequest
