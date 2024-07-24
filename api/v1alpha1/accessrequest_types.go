@@ -132,6 +132,16 @@ func (ar *AccessRequest) Validate() error {
 	return nil
 }
 
+// IsExpired will return true if this AccessRequest is expired. Otherwise
+// it returns false.
+func (ar *AccessRequest) IsExpired() bool {
+	if ar.Status.ExpiresAt != nil &&
+		ar.Status.ExpiresAt.Time.After(time.Now()) {
+		return true
+	}
+	return false
+}
+
 // AccessRequestList contains a list of AccessRequest
 // +kubebuilder:object:root=true
 type AccessRequestList struct {

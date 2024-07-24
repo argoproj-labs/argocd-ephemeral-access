@@ -71,8 +71,8 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		WithValues("controller", "AccessRequest", "reconcile", req.NamespacedName)
 
 	logger.Info("retrieving AccessRequest k8s state")
-	var ar api.AccessRequest
-	if err := r.Get(ctx, req.NamespacedName, &ar); err != nil {
+	ar := &api.AccessRequest{}
+	if err := r.Get(ctx, req.NamespacedName, ar); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
@@ -81,7 +81,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// check if the object is being deleted and properly handle it
-	deleted, err := r.handleFinalizer(ctx, &ar)
+	deleted, err := r.handleFinalizer(ctx, ar)
 	if err != nil {
 		logger.Error(err, "handleFinalizer error")
 		return ctrl.Result{}, fmt.Errorf("error handling finalizer: %w", err)
@@ -101,29 +101,28 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// initialize the status if not done yet
 	if ar.Status.RequestState == "" {
 		ar.UpdateStatus(api.RequestedStatus, "")
-		r.Status().Update(ctx, &ar)
+		r.Status().Update(ctx, ar)
 	}
 
-	// check if the access is expired
-	expired, err := r.handleAccessExpired(ctx, &ar)
-	if err != nil {
-		logger.Error(err, "handleAccessExpired error")
-		return ctrl.Result{}, fmt.Errorf("error handling access expired: %w", err)
-	}
-	// Stop the reconciliation if the access is expired
-	if expired {
+	if ar.IsExpired() {
+		err := r.handleAccessExpired(ctx, ar)
+		if err != nil {
+			logger.Error(err, "handleAccessExpired error")
+			return ctrl.Result{}, fmt.Errorf("error handling access expired: %w", err)
+		}
+		// Stop the reconciliation if the access is expired
 		logger.Info("AccessRequest expired")
 		return ctrl.Result{}, nil
 	}
 
 	// check subject is sudoer
-	status, err := r.handlePermission(ctx, &ar)
+	status, err := r.handlePermission(ctx, ar)
 	if err != nil {
 		logger.Error(err, "handlePermission error")
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
 
-	return buildResult(status, &ar), nil
+	return buildResult(status, ar), nil
 }
 
 // buildResult will verify the given status and determine when this access
@@ -137,7 +136,7 @@ func buildResult(status api.Status, ar *api.AccessRequest) ctrl.Result {
 		result.RequeueAfter = time.Minute * 3
 	case api.GrantedStatus:
 		result.Requeue = true
-		result.RequeueAfter = ar.Spec.Duration.Duration
+		result.RequeueAfter = ar.Status.ExpiresAt.Sub(time.Now())
 	}
 	return result
 }
@@ -197,27 +196,18 @@ func (r *AccessRequestReconciler) Allowed(ctx context.Context, ar *api.AccessReq
 	return AllowedResponse{}, nil
 }
 
-// handleAccessExpired will verify if the given AccessRequest is expired. If
-// so, it will remove the Argo CD access for the subject and update the
-// AccessRequest status field. It will return a boolean to determine if the
-// given AccessRequest is expired. Note that if there is an error, the returned
-// boolean must be ignored.
-func (r *AccessRequestReconciler) handleAccessExpired(ctx context.Context, ar *api.AccessRequest) (bool, error) {
-	expired := false
-	if ar.Status.ExpiresAt != nil &&
-		ar.Status.ExpiresAt.Time.After(time.Now()) {
-
-		err := r.removeArgoCDAccess(ar)
-		if err != nil {
-			return expired, fmt.Errorf("error removing access for expired request: %w", err)
-		}
-		err = r.updateStatusWithRetry(ctx, ar, api.ExpiredStatus, "")
-		if err != nil {
-			return expired, fmt.Errorf("error updating access request status to expired: %w", err)
-		}
-		expired = true
+// handleAccessExpired will remove the Argo CD access for the subject and update the
+// AccessRequest status field.
+func (r *AccessRequestReconciler) handleAccessExpired(ctx context.Context, ar *api.AccessRequest) error {
+	err := r.removeArgoCDAccess(ar)
+	if err != nil {
+		return fmt.Errorf("error removing access for expired request: %w", err)
 	}
-	return expired, nil
+	err = r.updateStatusWithRetry(ctx, ar, api.ExpiredStatus, "")
+	if err != nil {
+		return fmt.Errorf("error updating access request status to expired: %w", err)
+	}
+	return nil
 }
 
 // handleFinalizer will check if the AccessRequest is being deleted and
