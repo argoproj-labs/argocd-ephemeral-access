@@ -95,7 +95,7 @@ spec:
               history:
                 items:
                   description: |-
-                    AccessRequetsHistory contain the history of all status transitions associated
+                    AccessRequestHistory contain the history of all status transitions associated
                     with this access request
                   properties:
                     details:
@@ -103,8 +103,8 @@ spec:
                         the transition
                       type: string
                     status:
-                      description: Status is the new status assigned to this access
-                        request
+                      description: RequestState is the new status assigned to this
+                        access request
                       enum:
                       - requested
                       - granted
@@ -120,7 +120,7 @@ spec:
                   - transitionTime
                   type: object
                 type: array
-              status:
+              requestState:
                 description: |-
                   Status defines the different stages a given access request can be
                   at a given time.
@@ -130,8 +130,6 @@ spec:
                 - expired
                 - denied
                 type: string
-            required:
-            - status
             type: object
         type: object
     served: true

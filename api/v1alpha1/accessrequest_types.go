@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -71,18 +73,18 @@ type Subject struct {
 
 // AccessRequestStatus defines the observed state of AccessRequest
 type AccessRequestStatus struct {
-	Status    Status                 `json:"status"`
-	ExpiresAt *metav1.Time           `json:"expiresAt,omitempty"`
-	History   []AccessRequetsHistory `json:"history,omitempty"`
+	RequestState Status                 `json:"requestState,omitempty"`
+	ExpiresAt    *metav1.Time           `json:"expiresAt,omitempty"`
+	History      []AccessRequestHistory `json:"history,omitempty"`
 }
 
-// AccessRequetsHistory contain the history of all status transitions associated
+// AccessRequestHistory contain the history of all status transitions associated
 // with this access request
-type AccessRequetsHistory struct {
+type AccessRequestHistory struct {
 	// TransitionTime is the time the transition is observed
 	TransitionTime metav1.Time `json:"transitionTime"`
-	// Status is the new status assigned to this access request
-	Status Status `json:"status"`
+	// RequestState is the new status assigned to this access request
+	RequestState Status `json:"status"`
 	// Details may contain detailed information about the transition
 	Details *string `json:"details,omitempty"`
 }
@@ -96,6 +98,48 @@ type AccessRequest struct {
 
 	Spec   AccessRequestSpec   `json:"spec,omitempty"`
 	Status AccessRequestStatus `json:"status,omitempty"`
+}
+
+// UpdateStatus will update this AccessRequest status field based on
+// the given status and details. This function should only depend on the
+// objects provided by this package. If any additional dependency is needed
+// than this function should be moved to another package.
+func (ar *AccessRequest) UpdateStatus(newStatus Status, details string) {
+	status := ar.Status.DeepCopy()
+	status.RequestState = newStatus
+
+	// set the expiresAt only when transitioning to GrantedStatus
+	if newStatus == GrantedStatus && status.ExpiresAt == nil {
+		expiresAt := metav1.NewTime(time.Now().Add(ar.Spec.Duration.Duration))
+		status.ExpiresAt = &expiresAt
+	}
+
+	var detailsPtr *string
+	if details != "" {
+		detailsPtr = &details
+	}
+	history := AccessRequestHistory{
+		TransitionTime: metav1.Now(),
+		RequestState:   newStatus,
+		Details:        detailsPtr,
+	}
+	status.History = append(status.History, history)
+	ar.Status = *status
+}
+
+// TODO
+func (ar *AccessRequest) Validate() error {
+	return nil
+}
+
+// IsExpired will return true if this AccessRequest is expired. Otherwise
+// it returns false.
+func (ar *AccessRequest) IsExpired() bool {
+	if ar.Status.ExpiresAt != nil &&
+		ar.Status.ExpiresAt.Time.After(time.Now()) {
+		return true
+	}
+	return false
 }
 
 // AccessRequestList contains a list of AccessRequest
