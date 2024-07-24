@@ -73,9 +73,9 @@ type Subject struct {
 
 // AccessRequestStatus defines the observed state of AccessRequest
 type AccessRequestStatus struct {
-	Status    Status                 `json:"status,omitempty"`
-	ExpiresAt *metav1.Time           `json:"expiresAt,omitempty"`
-	History   []AccessRequestHistory `json:"history,omitempty"`
+	RequestState Status                 `json:"requestState,omitempty"`
+	ExpiresAt    *metav1.Time           `json:"expiresAt,omitempty"`
+	History      []AccessRequestHistory `json:"history,omitempty"`
 }
 
 // AccessRequestHistory contain the history of all status transitions associated
@@ -83,8 +83,8 @@ type AccessRequestStatus struct {
 type AccessRequestHistory struct {
 	// TransitionTime is the time the transition is observed
 	TransitionTime metav1.Time `json:"transitionTime"`
-	// Status is the new status assigned to this access request
-	Status Status `json:"status"`
+	// RequestState is the new status assigned to this access request
+	RequestState Status `json:"status"`
 	// Details may contain detailed information about the transition
 	Details *string `json:"details,omitempty"`
 }
@@ -101,15 +101,17 @@ type AccessRequest struct {
 }
 
 // UpdateStatus will update this AccessRequest status field based on
-// the given status and details
-func (ar *AccessRequest) UpdateStatus(status Status, details string) {
-	result := ar.Status.DeepCopy()
-	result.Status = status
+// the given status and details. This function should only depend on the
+// objects provided by this package. If any additional dependency is needed
+// than this function should be moved to another package.
+func (ar *AccessRequest) UpdateStatus(newStatus Status, details string) {
+	status := ar.Status.DeepCopy()
+	status.RequestState = newStatus
 
 	// set the expiresAt only when transitioning to GrantedStatus
-	if status == GrantedStatus && result.ExpiresAt == nil {
+	if newStatus == GrantedStatus && status.ExpiresAt == nil {
 		expiresAt := metav1.NewTime(time.Now().Add(ar.Spec.Duration.Duration))
-		result.ExpiresAt = &expiresAt
+		status.ExpiresAt = &expiresAt
 	}
 
 	var detailsPtr *string
@@ -118,11 +120,16 @@ func (ar *AccessRequest) UpdateStatus(status Status, details string) {
 	}
 	history := AccessRequestHistory{
 		TransitionTime: metav1.Now(),
-		Status:         status,
+		RequestState:   newStatus,
 		Details:        detailsPtr,
 	}
-	result.History = append(result.History, history)
-	ar.Status = *result
+	status.History = append(status.History, history)
+	ar.Status = *status
+}
+
+// TODO
+func (ar *AccessRequest) Validate() error {
+	return nil
 }
 
 // AccessRequestList contains a list of AccessRequest

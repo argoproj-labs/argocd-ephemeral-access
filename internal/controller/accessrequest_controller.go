@@ -51,19 +51,21 @@ const (
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 //
-// 1. verify if accessrequest is expired and status is "granted"
-// 1.1 if so, remove the user from the elevated role
-// 1.2 update the accessrequest status to "expired"
-// 1.3 return
-// 2. verify if user has the necessary access to be promoted
-// 2.1 if they don't, update the accessrequest status to "denied"
-// 2.2 return
-// 3. verify if CR is approved
-// 4. retrieve the Application
-// 5. retrieve the AppProject
-// 6. assign user in the desired role in the AppProject
-// 7. update the accessrequest status to "granted"
-// 8. set the RequeueAfter in Result
+// 1. handle finalizer
+// 2. validate AccessRequest
+// 3. verify if accessrequest is expired and status is "granted"
+// 3.1 if so, remove the user from the elevated role
+// 3.2 update the accessrequest status to "expired"
+// 3.3 return
+// 4. verify if user has the necessary access to be promoted
+// 4.1 if they don't, update the accessrequest status to "denied"
+// 4.2 return
+// 5. verify if CR is approved
+// 6. retrieve the Application
+// 7. retrieve the AppProject
+// 8. assign user in the desired role in the AppProject
+// 9. update the accessrequest status to "granted"
+// 10. set the RequeueAfter in Result
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx).
 		WithValues("controller", "AccessRequest", "reconcile", req.NamespacedName)
@@ -90,8 +92,14 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
+	err = ar.Validate()
+	if err != nil {
+		logger.Info("validation error: %s", err)
+		return ctrl.Result{}, fmt.Errorf("error validating the AccessRequest: %w", err)
+	}
+
 	// initialize the status if not done yet
-	if ar.Status.Status == "" {
+	if ar.Status.RequestState == "" {
 		ar.UpdateStatus(api.RequestedStatus, "")
 		r.Status().Update(ctx, &ar)
 	}
@@ -191,7 +199,9 @@ func (r *AccessRequestReconciler) Allowed(ctx context.Context, ar *api.AccessReq
 
 // handleAccessExpired will verify if the given AccessRequest is expired. If
 // so, it will remove the Argo CD access for the subject and update the
-// AccessRequest status field.
+// AccessRequest status field. It will return a boolean to determine if the
+// given AccessRequest is expired. Note that if there is an error, the returned
+// boolean must be ignored.
 func (r *AccessRequestReconciler) handleAccessExpired(ctx context.Context, ar *api.AccessRequest) (bool, error) {
 	expired := false
 	if ar.Status.ExpiresAt != nil &&
@@ -217,7 +227,6 @@ func (r *AccessRequestReconciler) handleAccessExpired(ctx context.Context, ar *a
 // was deleted.
 func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.AccessRequest) (bool, error) {
 
-	deleted := false
 	// examine DeletionTimestamp to determine if object is under deletion
 	if ar.ObjectMeta.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, so if it does not have the
@@ -233,36 +242,36 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 
 			})
 			if err != nil {
-				return deleted, fmt.Errorf("error adding finalizer: %w", err)
+				return false, fmt.Errorf("error adding finalizer: %w", err)
 			}
 		}
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(ar, AccessRequestFinalizerName) {
-			// execute the cleanup procedure before removing the finalizer
-			if err := r.removeArgoCDAccess(ar); err != nil {
-				// if fail to delete the external dependency here, return with error
-				// so that it can be retried.
-				return deleted, fmt.Errorf("error cleaning up Argo CD access: %w", err)
-			}
-
-			// remove our finalizer from the list and update it.
-			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
-				if err != nil {
-					return err
-				}
-				controllerutil.RemoveFinalizer(ar, AccessRequestFinalizerName)
-				return r.Update(ctx, ar)
-
-			})
-			if err != nil {
-				return deleted, fmt.Errorf("error removing finalizer: %w", err)
-			}
-		}
-		deleted = true
+		return false, nil
 	}
-	return deleted, nil
+
+	// The object is being deleted
+	if controllerutil.ContainsFinalizer(ar, AccessRequestFinalizerName) {
+		// execute the cleanup procedure before removing the finalizer
+		if err := r.removeArgoCDAccess(ar); err != nil {
+			// if fail to delete the external dependency here, return with error
+			// so that it can be retried.
+			return false, fmt.Errorf("error cleaning up Argo CD access: %w", err)
+		}
+
+		// remove our finalizer from the list and update it.
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
+			if err != nil {
+				return err
+			}
+			controllerutil.RemoveFinalizer(ar, AccessRequestFinalizerName)
+			return r.Update(ctx, ar)
+
+		})
+		if err != nil {
+			return false, fmt.Errorf("error removing finalizer: %w", err)
+		}
+	}
+	return true, nil
 }
 
 // TODO
