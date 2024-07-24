@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -71,14 +73,14 @@ type Subject struct {
 
 // AccessRequestStatus defines the observed state of AccessRequest
 type AccessRequestStatus struct {
-	Status    Status                 `json:"status"`
+	Status    Status                 `json:"status,omitempty"`
 	ExpiresAt *metav1.Time           `json:"expiresAt,omitempty"`
-	History   []AccessRequetsHistory `json:"history,omitempty"`
+	History   []AccessRequestHistory `json:"history,omitempty"`
 }
 
-// AccessRequetsHistory contain the history of all status transitions associated
+// AccessRequestHistory contain the history of all status transitions associated
 // with this access request
-type AccessRequetsHistory struct {
+type AccessRequestHistory struct {
 	// TransitionTime is the time the transition is observed
 	TransitionTime metav1.Time `json:"transitionTime"`
 	// Status is the new status assigned to this access request
@@ -96,6 +98,31 @@ type AccessRequest struct {
 
 	Spec   AccessRequestSpec   `json:"spec,omitempty"`
 	Status AccessRequestStatus `json:"status,omitempty"`
+}
+
+// UpdateStatus will update this AccessRequest status field based on
+// the given status and details
+func (ar *AccessRequest) UpdateStatus(status Status, details string) {
+	result := ar.Status.DeepCopy()
+	result.Status = status
+
+	// set the expiresAt only when transitioning to GrantedStatus
+	if status == GrantedStatus && result.ExpiresAt == nil {
+		expiresAt := metav1.NewTime(time.Now().Add(ar.Spec.Duration.Duration))
+		result.ExpiresAt = &expiresAt
+	}
+
+	var detailsPtr *string
+	if details != "" {
+		detailsPtr = &details
+	}
+	history := AccessRequestHistory{
+		TransitionTime: metav1.Now(),
+		Status:         status,
+		Details:        detailsPtr,
+	}
+	result.History = append(result.History, history)
+	ar.Status = *result
 }
 
 // AccessRequestList contains a list of AccessRequest
