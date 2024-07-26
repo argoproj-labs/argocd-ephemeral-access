@@ -26,6 +26,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	// "github.com/onsi/gomega/gexec"
+
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,6 +46,8 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
+var cancel context.CancelFunc
+var ctx context.Context
 
 func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -79,6 +83,8 @@ var _ = BeforeSuite(func() {
 
 	// +kubebuilder:scaffold:scheme
 
+	ctx, cancel = context.WithCancel(context.Background())
+
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
@@ -96,12 +102,13 @@ var _ = BeforeSuite(func() {
 
 	go func() {
 		defer GinkgoRecover()
-		err = k8sManager.Start(context.Background())
+		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred(), "failed to start k8s manager")
 	}()
 })
 
 var _ = AfterSuite(func() {
+	cancel()
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
