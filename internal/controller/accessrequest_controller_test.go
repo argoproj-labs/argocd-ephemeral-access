@@ -64,7 +64,8 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
+			// TODO(user): Cleanup logic after each test, like removing the
+			// resource instance.
 			resource := &ephemeralaccessv1alpha1.AccessRequest{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())

@@ -11,6 +11,9 @@ spec:
     kind: AccessRequest
     listKind: AccessRequestList
     plural: accessrequests
+    shortNames:
+    - areq
+    - areqs
     singular: accessrequest
   scope: Namespaced
   versions:
