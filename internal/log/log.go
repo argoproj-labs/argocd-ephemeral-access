@@ -13,35 +13,49 @@ const (
 	DEBUG = 2
 )
 
-type log struct {
+// logWrapper provides more expressive methods than the ones provided
+// by the logr.Logger interface abstracting away the usage of numeric
+// log levels.
+type logWrapper struct {
 	Logger logr.Logger
 }
 
-func New(l logr.Logger) *log {
-	return &log{
+// New will initialize a new log wrapper with the provided logger.
+func New(l logr.Logger) *logWrapper {
+	return &logWrapper{
 		Logger: l,
 	}
 }
 
-func NewFromContext(ctx context.Context, keysAndValues ...interface{}) *log {
+// NewFromContext will initialize a new log wrapper extracting the logger
+// from the given context.
+func NewFromContext(ctx context.Context, keysAndValues ...interface{}) *logWrapper {
 	l := k8slog.FromContext(ctx, keysAndValues...)
-	return &log{
+	return &logWrapper{
 		Logger: l,
 	}
 }
 
-func (l *log) Info(msg string, keysAndValues ...any) {
+// Info logs a non-error message with info level. If provided, the given
+// key/value pairs are added in the log entry context.
+func (l *logWrapper) Info(msg string, keysAndValues ...any) {
 	l.Logger.V(INFO).Info(msg, keysAndValues...)
 }
 
-func (l *log) Warn(msg string, keysAndValues ...any) {
+// Warn logs a non-error message with warn level. If provided, the given
+// key/value pairs are added in the log entry context.
+func (l *logWrapper) Warn(msg string, keysAndValues ...any) {
 	l.Logger.V(WARN).Info(msg, keysAndValues...)
 }
 
-func (l *log) Debug(msg string, keysAndValues ...any) {
+// Debug logs a non-error message with debug level. If provided, the given
+// key/value pairs are added in the log entry context.
+func (l *logWrapper) Debug(msg string, keysAndValues ...any) {
 	l.Logger.V(DEBUG).Info(msg, keysAndValues...)
 }
 
-func (l *log) Error(err error, msg string, keysAndValues ...any) {
+// Error logs an error message. If provided, the given
+// key/value pairs are added in the log entry context.
+func (l *logWrapper) Error(err error, msg string, keysAndValues ...any) {
 	l.Logger.Error(err, msg, keysAndValues...)
 }
