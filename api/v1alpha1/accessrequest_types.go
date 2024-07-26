@@ -132,11 +132,11 @@ func (ar *AccessRequest) Validate() error {
 	return nil
 }
 
-// IsExpired will return true if this AccessRequest is expired. Otherwise
-// it returns false.
-func (ar *AccessRequest) IsExpired() bool {
+// IsExpiring will return true if this AccessRequest is expired by
+// verifying the .status.ExpiresAt field. Otherwise it returns false.
+func (ar *AccessRequest) IsExpiring() bool {
 	if ar.Status.ExpiresAt != nil &&
-		ar.Status.ExpiresAt.Time.After(time.Now()) {
+		ar.Status.ExpiresAt.Time.Before(time.Now()) {
 		return true
 	}
 	return false

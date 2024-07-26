@@ -27,9 +27,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/internal/log"
 )
 
 // AccessRequestReconciler reconciles a AccessRequest object
@@ -67,23 +67,23 @@ const (
 // 9. update the accessrequest status to "granted"
 // 10. set the RequeueAfter in Result
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx).
-		WithValues("controller", "AccessRequest", "reconcile", req.NamespacedName)
+	logger := log.NewFromContext(ctx)
+	logger.Info("Reconciliation started", "bla", "bli")
 
-	logger.Info("retrieving AccessRequest k8s state")
 	ar := &api.AccessRequest{}
 	if err := r.Get(ctx, req.NamespacedName, ar); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		logger.Error(err, "error retrieving AccessRequest from k8s")
+		logger.Error(err, "Error retrieving AccessRequest from k8s")
 		return ctrl.Result{}, err
 	}
 
 	// check if the object is being deleted and properly handle it
+	logger.Debug("Handling finalizer")
 	deleted, err := r.handleFinalizer(ctx, ar)
 	if err != nil {
-		logger.Error(err, "handleFinalizer error")
+		logger.Error(err, "HandleFinalizer error")
 		return ctrl.Result{}, fmt.Errorf("error handling finalizer: %w", err)
 	}
 	// stop the reconciliation as the object was deleted
@@ -92,22 +92,29 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
+	logger.Debug("Validating AccessRequest")
 	err = ar.Validate()
 	if err != nil {
-		logger.Info("validation error: %s", err)
+		logger.Info("Validation error: %s", err)
 		return ctrl.Result{}, fmt.Errorf("error validating the AccessRequest: %w", err)
 	}
 
 	// initialize the status if not done yet
 	if ar.Status.RequestState == "" {
+		logger.Debug("Initializing status")
 		ar.UpdateStatus(api.RequestedStatus, "")
 		r.Status().Update(ctx, ar)
 	}
 
-	if ar.IsExpired() {
+	if reconciliationConcluded(ar) {
+		logger.Info("Reconciliation concluded", "status", ar.Status.RequestState)
+		return ctrl.Result{}, nil
+	}
+
+	if ar.IsExpiring() {
 		err := r.handleAccessExpired(ctx, ar)
 		if err != nil {
-			logger.Error(err, "handleAccessExpired error")
+			logger.Error(err, "HandleAccessExpired error")
 			return ctrl.Result{}, fmt.Errorf("error handling access expired: %w", err)
 		}
 		// Stop the reconciliation if the access is expired
@@ -116,13 +123,25 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// check subject is sudoer
+	logger.Debug("Handling permission")
 	status, err := r.handlePermission(ctx, ar)
 	if err != nil {
-		logger.Error(err, "handlePermission error")
+		logger.Error(err, "HandlePermission error")
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
 
 	return buildResult(status, ar), nil
+}
+
+// reconciliationConcluded will check the status of the given AccessRequest
+// to determine if the reconciliation is concluded.
+func reconciliationConcluded(ar *api.AccessRequest) bool {
+	switch ar.Status.RequestState {
+	case api.DeniedStatus, api.ExpiredStatus:
+		return true
+	default:
+		return false
+	}
 }
 
 // buildResult will verify the given status and determine when this access
@@ -159,9 +178,12 @@ func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.
 	if err != nil {
 		return "", fmt.Errorf("error updating AppProject RBAC: %w", err)
 	}
-	err = r.updateStatusWithRetry(ctx, ar, api.GrantedStatus, resp.Message)
-	if err != nil {
-		return "", fmt.Errorf("error updating access request status to granted: %w", err)
+	// only update the status if transitioning to granted
+	if ar.Status.RequestState != api.GrantedStatus {
+		err = r.updateStatusWithRetry(ctx, ar, api.GrantedStatus, resp.Message)
+		if err != nil {
+			return "", fmt.Errorf("error updating access request status to granted: %w", err)
+		}
 	}
 	return api.GrantedStatus, nil
 }
@@ -193,7 +215,7 @@ type AllowedResponse struct {
 
 // TODO
 func (r *AccessRequestReconciler) Allowed(ctx context.Context, ar *api.AccessRequest) (AllowedResponse, error) {
-	return AllowedResponse{}, nil
+	return AllowedResponse{Allowed: true}, nil
 }
 
 // handleAccessExpired will remove the Argo CD access for the subject and update the
@@ -266,7 +288,7 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 
 // TODO
 func (r *AccessRequestReconciler) removeArgoCDAccess(ar *api.AccessRequest) error {
-	return fmt.Errorf("cleanupArgoCDAccess not implemented")
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
