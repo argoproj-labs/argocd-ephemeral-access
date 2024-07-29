@@ -22,10 +22,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/v1alpha1"
+	api "github.com/argoproj-labs/ephemeral-access/api/v1alpha1"
 )
 
 var _ = Describe("AccessRequest Controller", func() {
@@ -34,42 +35,69 @@ var _ = Describe("AccessRequest Controller", func() {
 		duration = time.Second * 10
 		interval = time.Millisecond * 250
 	)
-	Context("When reconciling a resource", func() {
+	Context("Reconciling a resource", Ordered, func() {
 		const resourceName = "test-resource"
 
 		ctx := context.Background()
+		accessrequest := &api.AccessRequest{}
 
-		// typeNamespacedName := types.NamespacedName{
-		// 	Name:      resourceName,
-		// 	Namespace: "default",
-		// }
-		accessrequest := &ephemeralaccessv1alpha1.AccessRequest{}
-
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind AccessRequest")
-			accessrequest = &ephemeralaccessv1alpha1.AccessRequest{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "",
-					APIVersion: "",
-				},
-				ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: "default"},
-				Spec: ephemeralaccessv1alpha1.AccessRequestSpec{
-					Duration:       metav1.Duration{},
-					TargetRoleName: "",
-					Application:    ephemeralaccessv1alpha1.TargetApplication{},
-					Subjects:       []ephemeralaccessv1alpha1.Subject{},
-				},
-			}
-		})
-
-		AfterEach(func() {
-			By("Cleanup the specific resource instance AccessRequest")
-			Expect(k8sClient.Delete(ctx, accessrequest)).To(Succeed())
-		})
-		It("Should set the status successfully ", func() {
-			By("Reconciling the created resource")
-			err := k8sClient.Create(ctx, accessrequest)
-			Expect(err).NotTo(HaveOccurred())
+		When("Creating an AccessRequest", func() {
+			BeforeEach(func() {
+				By("creating the custom resource for the Kind AccessRequest")
+				accessrequest = &api.AccessRequest{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "",
+						APIVersion: "",
+					},
+					ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: "default"},
+					Spec: api.AccessRequestSpec{
+						Duration:       metav1.Duration{},
+						TargetRoleName: "",
+						Application:    api.TargetApplication{},
+						Subjects:       []api.Subject{},
+					},
+				}
+			})
+			AfterAll(func() {
+				By("Delete the AccessRequest in k8s")
+				Expect(k8sClient.Delete(ctx, accessrequest)).To(Succeed())
+			})
+			It("Applies the resource in k8s", func() {
+				accessrequest.Spec.Duration = metav1.Duration{Duration: time.Second * 5}
+				err := k8sClient.Create(ctx, accessrequest)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("Verify if it is created", func() {
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(accessrequest), accessrequest)
+					Expect(err).NotTo(HaveOccurred())
+					return accessrequest.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+				Expect(accessrequest.Status.History).NotTo(BeEmpty())
+				Expect(accessrequest.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
+			})
+			It("Checks if the intermediate status is Granted", func() {
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(accessrequest), accessrequest)
+					Expect(err).NotTo(HaveOccurred())
+					return accessrequest.Status.RequestState
+				}, timeout, interval).Should(Equal(api.GrantedStatus))
+				Expect(accessrequest.Status.ExpiresAt).NotTo(BeNil())
+				Expect(accessrequest.Status.History).Should(HaveLen(2))
+				Expect(accessrequest.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
+				Expect(accessrequest.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
+			})
+			It("Checks if the final status is Expired", func() {
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(accessrequest), accessrequest)
+					Expect(err).NotTo(HaveOccurred())
+					return accessrequest.Status.RequestState
+				}, timeout, interval).Should(Equal(api.ExpiredStatus))
+				Expect(accessrequest.Status.History).Should(HaveLen(3))
+				Expect(accessrequest.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
+				Expect(accessrequest.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
+				Expect(accessrequest.Status.History[2].RequestState).To(Equal(api.ExpiredStatus))
+			})
 		})
 	})
 })

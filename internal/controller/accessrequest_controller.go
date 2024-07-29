@@ -193,6 +193,10 @@ func (r *AccessRequestReconciler) updateStatusWithRetry(ctx context.Context, ar 
 		if err != nil {
 			return err
 		}
+		// if it is already updated skip
+		if ar.Status.RequestState == status {
+			return nil
+		}
 		ar.UpdateStatus(status, details)
 		return r.Status().Update(ctx, ar)
 	})
