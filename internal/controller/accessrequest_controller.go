@@ -68,7 +68,7 @@ const (
 // 10. set the RequeueAfter in Result
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.NewFromContext(ctx)
-	logger.Info("Reconciliation started", "bla", "bli")
+	logger.Info("Reconciliation started")
 
 	ar := &api.AccessRequest{}
 	if err := r.Get(ctx, req.NamespacedName, ar); err != nil {
@@ -83,7 +83,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger.Debug("Handling finalizer")
 	deleted, err := r.handleFinalizer(ctx, ar)
 	if err != nil {
-		logger.Error(err, "HandleFinalizer error")
 		return ctrl.Result{}, fmt.Errorf("error handling finalizer: %w", err)
 	}
 	// stop the reconciliation as the object was deleted
@@ -194,6 +193,10 @@ func (r *AccessRequestReconciler) updateStatusWithRetry(ctx context.Context, ar 
 		if err != nil {
 			return err
 		}
+		// if it is already updated skip
+		if ar.Status.RequestState == status {
+			return nil
+		}
 		ar.UpdateStatus(status, details)
 		return r.Status().Update(ctx, ar)
 	})
@@ -273,7 +276,7 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
 			if err != nil {
-				return err
+				return client.IgnoreNotFound(err)
 			}
 			controllerutil.RemoveFinalizer(ar, AccessRequestFinalizerName)
 			return r.Update(ctx, ar)
