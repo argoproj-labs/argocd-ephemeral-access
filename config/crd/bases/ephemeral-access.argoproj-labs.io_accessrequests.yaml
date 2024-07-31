@@ -42,17 +42,17 @@ spec:
           spec:
             description: AccessRequestSpec defines the desired state of AccessRequest
             properties:
-              application:
+              appProject:
                 description: |-
-                  Application defines the Argo CD Application to assign the elevated
+                  AppProject defines the Argo CD AppProject to assign the elevated
                   permission
                 properties:
                   name:
-                    description: Name refers to the Argo CD Application name
+                    description: Name refers to the Argo CD AppProject name
                     type: string
                   namespace:
                     description: Namespace refers to the namespace where the Argo
-                      CD Application lives
+                      CD AppProject lives
                     type: string
                 required:
                 - name
@@ -84,7 +84,7 @@ spec:
                   to once the access is approved
                 type: string
             required:
-            - application
+            - appProject
             - duration
             - subjects
             - targetRoleName

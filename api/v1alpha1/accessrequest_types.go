@@ -49,19 +49,19 @@ type AccessRequestSpec struct {
 	// TargetRoleName defines the role name the user will be assigned
 	// to once the access is approved
 	TargetRoleName string `json:"targetRoleName"`
-	// Application defines the Argo CD Application to assign the elevated
+	// AppProject defines the Argo CD AppProject to assign the elevated
 	// permission
-	Application TargetApplication `json:"application"`
+	AppProject TargetAppProject `json:"appProject"`
 	// Subjects defines the list of subjects for this access request
 	Subjects []Subject `json:"subjects"`
 }
 
-// TargetRoleName defines the role name the user will be assigned
-// to once the access is approved
-type TargetApplication struct {
-	// Name refers to the Argo CD Application name
+// TargetAppProject defines the Argo CD AppProject to assign the elevated
+// permission
+type TargetAppProject struct {
+	// Name refers to the Argo CD AppProject name
 	Name string `json:"name"`
-	// Namespace refers to the namespace where the Argo CD Application lives
+	// Namespace refers to the namespace where the Argo CD AppProject lives
 	Namespace string `json:"namespace"`
 }
 

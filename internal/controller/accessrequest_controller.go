@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	argocd "github.com/argoproj-labs/ephemeral-access/api/appproject/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/log"
 )
@@ -47,6 +48,7 @@ const (
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests/finalizers,verbs=update
+// +kubebuilder:rbac:groups=argoproj.io,resources=appproject,verbs=get;list;watch;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -173,7 +175,7 @@ func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.
 		return api.DeniedStatus, nil
 	}
 
-	err = r.updateAppProjectRBAC(ctx, ar)
+	err = r.grantArgoCDAccess(ctx, ar)
 	if err != nil {
 		return "", fmt.Errorf("error updating AppProject RBAC: %w", err)
 	}
@@ -203,12 +205,112 @@ func (r *AccessRequestReconciler) updateStatusWithRetry(ctx context.Context, ar 
 }
 
 // TODO
-func (r *AccessRequestReconciler) updateAppProjectRBAC(ctx context.Context, ar *api.AccessRequest) error {
-	// 1. retrieve the Application
-	// 2. verify if CR is approved
-	// 3. retrieve the AppProject
-	// 4. assign user in the desired role in the AppProject
-	return nil
+func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *api.AccessRequest) error {
+	project := &argocd.AppProject{}
+	objKey := client.ObjectKey{
+		Namespace: ar.Spec.AppProject.Namespace,
+		Name:      ar.Spec.AppProject.Name,
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, objKey, project)
+		if err != nil {
+			return fmt.Errorf("error getting Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+		}
+		roleFound := false
+		for _, role := range project.Spec.Roles {
+			if role.Name == ar.Spec.TargetRoleName {
+				roleFound = true
+				removeSubjectsFromRole(&role, ar.Spec.Subjects)
+			}
+		}
+		if roleFound {
+			err := r.Update(ctx, project)
+			if err != nil {
+				return fmt.Errorf("error updating Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+			}
+		}
+		return nil
+	})
+}
+func removeSubjectsFromRole(role *argocd.ProjectRole, subjects []api.Subject) {
+	groups := []string{}
+	for _, group := range role.Groups {
+		remove := false
+		for _, subject := range subjects {
+			if group == subject.Username {
+				remove = true
+			}
+		}
+		if !remove {
+			groups = append(groups, group)
+		}
+	}
+	role.Groups = groups
+}
+
+// TODO
+func (r *AccessRequestReconciler) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest) error {
+	project := &argocd.AppProject{}
+	objKey := client.ObjectKey{
+		Namespace: ar.Spec.AppProject.Namespace,
+		Name:      ar.Spec.AppProject.Name,
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, objKey, project)
+		if err != nil {
+			return fmt.Errorf("error getting Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+		}
+		roleFound := false
+		roleUpdated := false
+		for _, role := range project.Spec.Roles {
+			if role.Name == ar.Spec.TargetRoleName {
+				roleFound = true
+				roleUpdated = addSubjectsInRole(&role, ar.Spec.Subjects)
+			}
+		}
+		if !roleFound {
+			addRoleInProject(project, ar.Spec.Subjects)
+		}
+		if !roleFound || roleUpdated {
+			err := r.Update(ctx, project)
+			if err != nil {
+				return fmt.Errorf("error updating Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+			}
+		}
+		return nil
+	})
+}
+
+func addRoleInProject(project *argocd.AppProject, subjects []api.Subject) {
+	groups := []string{}
+	for _, subject := range subjects {
+		groups = append(groups, subject.Username)
+	}
+	role := argocd.ProjectRole{
+		Name:        "EphemeralAccessGeneratedRole",
+		Description: "auto-generated role by the ephemeral access controller",
+		// TODO
+		Policies: []string{},
+		Groups:   groups,
+	}
+	project.Spec.Roles = append(project.Spec.Roles, role)
+}
+
+func addSubjectsInRole(role *argocd.ProjectRole, subjects []api.Subject) bool {
+	updated := false
+	for _, subject := range subjects {
+		hasAccess := false
+		for _, groupClaim := range role.Groups {
+			if groupClaim == subject.Username {
+				hasAccess = true
+			}
+		}
+		if !hasAccess {
+			updated = true
+			role.Groups = append(role.Groups, subject.Username)
+		}
+	}
+	return updated
 }
 
 type AllowedResponse struct {
@@ -217,6 +319,8 @@ type AllowedResponse struct {
 }
 
 // TODO
+// 1. verify if user is sudoer
+// 2. verify if CR is approved
 func (r *AccessRequestReconciler) Allowed(ctx context.Context, ar *api.AccessRequest) (AllowedResponse, error) {
 	return AllowedResponse{Allowed: true}, nil
 }
@@ -224,7 +328,7 @@ func (r *AccessRequestReconciler) Allowed(ctx context.Context, ar *api.AccessReq
 // handleAccessExpired will remove the Argo CD access for the subject and update the
 // AccessRequest status field.
 func (r *AccessRequestReconciler) handleAccessExpired(ctx context.Context, ar *api.AccessRequest) error {
-	err := r.removeArgoCDAccess(ar)
+	err := r.removeArgoCDAccess(ctx, ar)
 	if err != nil {
 		return fmt.Errorf("error removing access for expired request: %w", err)
 	}
@@ -266,7 +370,7 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 	// The object is being deleted
 	if controllerutil.ContainsFinalizer(ar, AccessRequestFinalizerName) {
 		// execute the cleanup procedure before removing the finalizer
-		if err := r.removeArgoCDAccess(ar); err != nil {
+		if err := r.removeArgoCDAccess(ctx, ar); err != nil {
 			// if fail to delete the external dependency here, return with error
 			// so that it can be retried.
 			return false, fmt.Errorf("error cleaning up Argo CD access: %w", err)
@@ -287,11 +391,6 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 		}
 	}
 	return true, nil
-}
-
-// TODO
-func (r *AccessRequestReconciler) removeArgoCDAccess(ar *api.AccessRequest) error {
-	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

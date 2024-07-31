@@ -53,7 +53,7 @@ var _ = Describe("AccessRequest Controller", func() {
 					Spec: api.AccessRequestSpec{
 						Duration:       metav1.Duration{},
 						TargetRoleName: "",
-						Application:    api.TargetApplication{},
+						AppProject:     api.TargetAppProject{},
 						Subjects:       []api.Subject{},
 					},
 				}

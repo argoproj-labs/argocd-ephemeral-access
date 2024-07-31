@@ -6,8 +6,8 @@ metadata:
 spec:
   duration: '1m'
   targetRoleName: ephemeral-write-access
-  application: 
-    name: someArgoCDApplication
-    namespace: applicationNamespace
+  appProject: 
+    name: some-argocd-appproject
+    namespace: some-namespace
   subjects:
     - username: some_user@fakedomain.com
