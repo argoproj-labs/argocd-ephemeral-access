@@ -8,7 +8,6 @@ import (
 // * who can access these applications (roles, OIDC group claims bindings)
 // * and what they can do (RBAC policies)
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=appprojects,shortName=appproj;appprojs
 type AppProject struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
