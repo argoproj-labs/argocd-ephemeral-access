@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argocd "github.com/argoproj-labs/ephemeral-access/api/appproject/v1alpha1"
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/log"
 )

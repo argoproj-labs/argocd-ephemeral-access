@@ -5,6 +5,7 @@
 domain: argoproj-labs.io
 layout:
 - go.kubebuilder.io/v4
+multigroup: true
 projectName: argocd-ephemeral-access
 repo: github.com/argoproj-labs/ephemeral-access
 resources:
