@@ -43,6 +43,7 @@ const (
 	// AccessRequestFinalizerName defines the name of the AccessRequest finalizer
 	// managed by this controller
 	AccessRequestFinalizerName = "accessrequest.ephemeral-access.argoproj-labs.io/finalizer"
+	FieldOwnerEphemeralAccess  = "ephemeral-access-controller"
 )
 
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
@@ -69,12 +70,13 @@ const (
 // 9. update the accessrequest status to "granted"
 // 10. set the RequeueAfter in Result
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.NewFromContext(ctx)
+	logger := log.FromContext(ctx)
 	logger.Info("Reconciliation started")
 
 	ar := &api.AccessRequest{}
 	if err := r.Get(ctx, req.NamespacedName, ar); err != nil {
 		if apierrors.IsNotFound(err) {
+			logger.Debug("Object deleted")
 			return ctrl.Result{}, nil
 		}
 		logger.Error(err, "Error retrieving AccessRequest from k8s")
@@ -89,8 +91,13 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	// stop the reconciliation as the object was deleted
 	if deleted {
-		logger.Info("Object deleted")
+		logger.Debug("Object deleted")
 		return ctrl.Result{}, nil
+	}
+	if reconciliationConcluded(ar) {
+		result := ctrl.Result{}
+		logger.Info("Reconciliation not required", "status", ar.Status.RequestState, "result", result)
+		return result, nil
 	}
 
 	logger.Debug("Validating AccessRequest")
@@ -107,22 +114,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.Status().Update(ctx, ar)
 	}
 
-	if reconciliationConcluded(ar) {
-		logger.Info("Reconciliation concluded", "status", ar.Status.RequestState)
-		return ctrl.Result{}, nil
-	}
-
-	if ar.IsExpiring() {
-		err := r.handleAccessExpired(ctx, ar)
-		if err != nil {
-			logger.Error(err, "HandleAccessExpired error")
-			return ctrl.Result{}, fmt.Errorf("error handling access expired: %w", err)
-		}
-		// Stop the reconciliation if the access is expired
-		logger.Info("AccessRequest expired")
-		return ctrl.Result{}, nil
-	}
-
 	// check subject is sudoer
 	logger.Debug("Handling permission")
 	status, err := r.handlePermission(ctx, ar)
@@ -131,7 +122,9 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
 
-	return buildResult(status, ar), nil
+	result := buildResult(status, ar)
+	logger.Info("Reconciliation concluded", "status", status, "result", result)
+	return result, nil
 }
 
 // reconciliationConcluded will check the status of the given AccessRequest
@@ -152,7 +145,7 @@ func buildResult(status api.Status, ar *api.AccessRequest) ctrl.Result {
 	switch status {
 	case api.RequestedStatus:
 		result.Requeue = true
-		// TODO add a controller configuration
+		// TODO add a controller requeue configuration
 		result.RequeueAfter = time.Minute * 3
 	case api.GrantedStatus:
 		result.Requeue = true
@@ -162,6 +155,16 @@ func buildResult(status api.Status, ar *api.AccessRequest) ctrl.Result {
 }
 
 func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.AccessRequest) (api.Status, error) {
+	logger := log.FromContext(ctx)
+
+	if ar.IsExpiring() {
+		logger.Info("AccessRequest is expired")
+		err := r.handleAccessExpired(ctx, ar)
+		if err != nil {
+			return "", fmt.Errorf("error handling access expired: %w", err)
+		}
+		return api.ExpiredStatus, nil
+	}
 
 	resp, err := r.Allowed(ctx, ar)
 	if err != nil {
@@ -175,37 +178,44 @@ func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.
 		return api.DeniedStatus, nil
 	}
 
-	err = r.grantArgoCDAccess(ctx, ar)
+	details := ""
+	status, err := r.grantArgoCDAccess(ctx, ar)
 	if err != nil {
-		return "", fmt.Errorf("error updating AppProject RBAC: %w", err)
+		details = fmt.Sprintf("Error granting Argo CD Access: %s", err)
 	}
-	// only update the status if transitioning to granted
-	if ar.Status.RequestState != api.GrantedStatus {
-		err = r.updateStatusWithRetry(ctx, ar, api.GrantedStatus, resp.Message)
+	// only update status if the current state is different
+	if ar.Status.RequestState != status {
+		err = r.updateStatusWithRetry(ctx, ar, status, details)
 		if err != nil {
 			return "", fmt.Errorf("error updating access request status to granted: %w", err)
 		}
 	}
-	return api.GrantedStatus, nil
+	return status, nil
 }
 
 func (r *AccessRequestReconciler) updateStatusWithRetry(ctx context.Context, ar *api.AccessRequest, status api.Status, details string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
-		if err != nil {
-			return err
-		}
-		// if it is already updated skip
-		if ar.Status.RequestState == status {
-			return nil
-		}
-		ar.UpdateStatus(status, details)
-		return r.Status().Update(ctx, ar)
+		return r.updateStatus(ctx, ar, status, details)
 	})
+}
+
+func (r *AccessRequestReconciler) updateStatus(ctx context.Context, ar *api.AccessRequest, status api.Status, details string) error {
+	err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
+	if err != nil {
+		return err
+	}
+	// if it is already updated skip
+	if ar.Status.RequestState == status {
+		return nil
+	}
+	ar.UpdateStatus(status, details)
+	return r.Status().Update(ctx, ar)
 }
 
 // TODO
 func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *api.AccessRequest) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Removing Argo CD Access")
 	project := &argocd.AppProject{}
 	objKey := client.ObjectKey{
 		Namespace: ar.Spec.AppProject.Namespace,
@@ -214,103 +224,118 @@ func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *ap
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, objKey, project)
 		if err != nil {
-			return fmt.Errorf("error getting Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+			e := fmt.Errorf("error getting Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+			return client.IgnoreNotFound(e)
 		}
-		roleFound := false
-		for _, role := range project.Spec.Roles {
-			if role.Name == ar.Spec.TargetRoleName {
-				roleFound = true
-				removeSubjectsFromRole(&role, ar.Spec.Subjects)
-			}
-		}
-		if roleFound {
-			err := r.Update(ctx, project)
-			if err != nil {
-				return fmt.Errorf("error updating Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
-			}
+		patch := client.MergeFromWithOptions(project.DeepCopy(), client.MergeFromWithOptimisticLock{})
+
+		logger.Debug("Removing subjects from role")
+		removeSubjectsFromRole(project, ar)
+
+		logger.Debug("Patching AppProject")
+		opts := []client.PatchOption{client.FieldOwner(FieldOwnerEphemeralAccess)}
+		err = r.Patch(ctx, project, patch, opts...)
+		if err != nil {
+			return fmt.Errorf("error patching Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
 		}
 		return nil
 	})
 }
-func removeSubjectsFromRole(role *argocd.ProjectRole, subjects []api.Subject) {
-	groups := []string{}
-	for _, group := range role.Groups {
-		remove := false
-		for _, subject := range subjects {
-			if group == subject.Username {
-				remove = true
+func removeSubjectsFromRole(project *argocd.AppProject, ar *api.AccessRequest) {
+	for idx, role := range project.Spec.Roles {
+		if role.Name == ar.Spec.TargetRoleName {
+			groups := []string{}
+			for _, group := range role.Groups {
+				remove := false
+				for _, subject := range ar.Spec.Subjects {
+					if group == subject.Username {
+						remove = true
+					}
+				}
+				if !remove {
+					groups = append(groups, group)
+				}
 			}
-		}
-		if !remove {
-			groups = append(groups, group)
+			project.Spec.Roles[idx].Groups = groups
 		}
 	}
-	role.Groups = groups
 }
 
 // TODO
-func (r *AccessRequestReconciler) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest) error {
+func (r *AccessRequestReconciler) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest) (api.Status, error) {
+	logger := log.FromContext(ctx)
+	logger.Info("Granting Argo CD Access")
 	project := &argocd.AppProject{}
 	objKey := client.ObjectKey{
 		Namespace: ar.Spec.AppProject.Namespace,
 		Name:      ar.Spec.AppProject.Name,
 	}
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, objKey, project)
 		if err != nil {
-			return fmt.Errorf("error getting Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+			return fmt.Errorf("error getting Argo CD Project %s/%s: %s", objKey.Namespace, objKey.Name, err)
 		}
-		roleFound := false
-		roleUpdated := false
-		for _, role := range project.Spec.Roles {
-			if role.Name == ar.Spec.TargetRoleName {
-				roleFound = true
-				roleUpdated = addSubjectsInRole(&role, ar.Spec.Subjects)
-			}
-		}
-		if !roleFound {
-			addRoleInProject(project, ar.Spec.Subjects)
-		}
-		if !roleFound || roleUpdated {
-			err := r.Update(ctx, project)
+		patch := client.MergeFromWithOptions(project.DeepCopy(), client.MergeFromWithOptimisticLock{})
+
+		logger.Debug("Adding subjects in role")
+		projectUpdated := addSubjectsInRole(project, ar)
+		if projectUpdated {
+			logger.Debug("Patching AppProject")
+			opts := []client.PatchOption{client.FieldOwner("ephemeral-access-controller")}
+			err := r.Patch(ctx, project, patch, opts...)
 			if err != nil {
-				return fmt.Errorf("error updating Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+				return fmt.Errorf("error patching Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
 			}
 		}
 		return nil
 	})
+	if err != nil {
+		return api.DeniedStatus, err
+	}
+	return api.GrantedStatus, nil
 }
 
-func addRoleInProject(project *argocd.AppProject, subjects []api.Subject) {
+func addSubjectsInRole(project *argocd.AppProject, ar *api.AccessRequest) bool {
+	modified := false
+	roleFound := false
+
+	for idx, role := range project.Spec.Roles {
+		if role.Name == ar.Spec.TargetRoleName {
+			roleFound = true
+			for _, subject := range ar.Spec.Subjects {
+				hasAccess := false
+				for _, groupClaim := range role.Groups {
+					if groupClaim == subject.Username {
+						hasAccess = true
+					}
+				}
+				if !hasAccess {
+					modified = true
+					project.Spec.Roles[idx].Groups = append(project.Spec.Roles[idx].Groups, subject.Username)
+				}
+			}
+		}
+	}
+	if !roleFound {
+		addRoleInProject(project, ar)
+		modified = true
+	}
+	return modified
+}
+
+func addRoleInProject(project *argocd.AppProject, ar *api.AccessRequest) {
 	groups := []string{}
-	for _, subject := range subjects {
+	for _, subject := range ar.Spec.Subjects {
 		groups = append(groups, subject.Username)
 	}
 	role := argocd.ProjectRole{
-		Name:        "EphemeralAccessGeneratedRole",
+		Name:        ar.Spec.TargetRoleName,
 		Description: "auto-generated role by the ephemeral access controller",
 		// TODO
 		Policies: []string{},
 		Groups:   groups,
 	}
 	project.Spec.Roles = append(project.Spec.Roles, role)
-}
-
-func addSubjectsInRole(role *argocd.ProjectRole, subjects []api.Subject) bool {
-	updated := false
-	for _, subject := range subjects {
-		hasAccess := false
-		for _, groupClaim := range role.Groups {
-			if groupClaim == subject.Username {
-				hasAccess = true
-			}
-		}
-		if !hasAccess {
-			updated = true
-			role.Groups = append(role.Groups, subject.Username)
-		}
-	}
-	return updated
 }
 
 type AllowedResponse struct {

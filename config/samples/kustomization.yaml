@@ -1,5 +1,4 @@
 ## Append samples of your project ##
 resources:
 - ephemeral-access_v1alpha1_accessrequest.yaml
-- argoproj.io_appproject.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
