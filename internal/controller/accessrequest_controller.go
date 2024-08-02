@@ -154,6 +154,16 @@ func buildResult(status api.Status, ar *api.AccessRequest) ctrl.Result {
 	return result
 }
 
+// handlePermission will analyse the given ar and proceed with granting
+// or removing Argo CD access for the subjects listed in the AccessRequest.
+// The following validations will be executed:
+//  1. Check if the given ar is expired. If so, subjects will be removed from
+//     the Argo CD role.
+//  2. Check if the subjects are allowed to be assigned in the given AccessRequest
+//     target role. If so, it will proceed with grating Argo CD access. Otherwise
+//     it will return DeniedStatus.
+//
+// It will update the AccessRequest status accordingly with the situation.
 func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.AccessRequest) (api.Status, error) {
 	logger := log.FromContext(ctx)
 
@@ -171,7 +181,7 @@ func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.
 		return "", fmt.Errorf("error verifying if subject is allowed: %w", err)
 	}
 	if !resp.Allowed {
-		err = r.updateStatusWithRetry(ctx, ar, api.DeniedStatus, resp.Message)
+		err = r.updateStatus(ctx, ar, api.DeniedStatus, resp.Message)
 		if err != nil {
 			return "", fmt.Errorf("error updating access request status to denied: %w", err)
 		}
@@ -185,7 +195,7 @@ func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.
 	}
 	// only update status if the current state is different
 	if ar.Status.RequestState != status {
-		err = r.updateStatusWithRetry(ctx, ar, status, details)
+		err = r.updateStatus(ctx, ar, status, details)
 		if err != nil {
 			return "", fmt.Errorf("error updating access request status to granted: %w", err)
 		}
@@ -193,17 +203,24 @@ func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.
 	return status, nil
 }
 
+// updateStatusWithRetry will retrieve the latest AccessRequest state before
+// attempting to update its status. In case of conflict error, it will retry
+// using the DefaultRetry backoff which has the following configs:
+//
+//	Steps: 5, Duration: 10 milliseconds, Factor: 1.0, Jitter: 0.1
 func (r *AccessRequestReconciler) updateStatusWithRetry(ctx context.Context, ar *api.AccessRequest, status api.Status, details string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
+		if err != nil {
+			return err
+		}
 		return r.updateStatus(ctx, ar, status, details)
 	})
 }
 
+// updateStatus will update the given AccessRequest status field with the
+// given status and details.
 func (r *AccessRequestReconciler) updateStatus(ctx context.Context, ar *api.AccessRequest, status api.Status, details string) error {
-	err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
-	if err != nil {
-		return err
-	}
 	// if it is already updated skip
 	if ar.Status.RequestState == status {
 		return nil
@@ -212,7 +229,11 @@ func (r *AccessRequestReconciler) updateStatus(ctx context.Context, ar *api.Acce
 	return r.Status().Update(ctx, ar)
 }
 
-// TODO
+// removeArgoCDAccess will remove the subjects in the given AccessRequest from
+// the given ar.TargetRoleName from the Argo CD project referenced in the
+// ar.Spec.AppProject. The AppProject update will be executed via a patch with
+// optimistic lock enabled. It will retry in case of AppProject conflict is
+// identied.
 func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *api.AccessRequest) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Removing Argo CD Access")
@@ -241,6 +262,10 @@ func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *ap
 		return nil
 	})
 }
+
+// removeSubjectsFromRole will iterate ovet the roles in the given project and
+// remove the subjects from the given AccessRequest from the role specified in
+// the ar.TargetRoleName.
 func removeSubjectsFromRole(project *argocd.AppProject, ar *api.AccessRequest) {
 	for idx, role := range project.Spec.Roles {
 		if role.Name == ar.Spec.TargetRoleName {
@@ -261,7 +286,11 @@ func removeSubjectsFromRole(project *argocd.AppProject, ar *api.AccessRequest) {
 	}
 }
 
-// TODO
+// grantArgoCDAccess will associate the given AccessRequest subjects in the
+// Argo CD AppProject specified in the ar.Spec.AppProject in the role defined
+// in ar.TargetRoleName. The AppProject update will be executed via a patch with
+// optimistic lock enabled. It Will retry in case of AppProject conflict is
+// identied.
 func (r *AccessRequestReconciler) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest) (api.Status, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Granting Argo CD Access")
@@ -295,6 +324,8 @@ func (r *AccessRequestReconciler) grantArgoCDAccess(ctx context.Context, ar *api
 	return api.GrantedStatus, nil
 }
 
+// addSubjectsInRole will associate the given AccessRequest subjects in the
+// specific role in the given project.
 func addSubjectsInRole(project *argocd.AppProject, ar *api.AccessRequest) bool {
 	modified := false
 	roleFound := false
@@ -323,6 +354,8 @@ func addSubjectsInRole(project *argocd.AppProject, ar *api.AccessRequest) bool {
 	return modified
 }
 
+// addRoleInProject will initialize the role owned by the ephemeral-access
+// controller and associate it in the given project.
 func addRoleInProject(project *argocd.AppProject, ar *api.AccessRequest) {
 	groups := []string{}
 	for _, subject := range ar.Spec.Subjects {
@@ -338,12 +371,15 @@ func addRoleInProject(project *argocd.AppProject, ar *api.AccessRequest) {
 	project.Spec.Roles = append(project.Spec.Roles, role)
 }
 
+// AllowedResponse defines the response that will be returned by permission
+// verifier plugins.
 type AllowedResponse struct {
 	Allowed bool
 	Message string
 }
 
 // TODO
+// 0. implement the plugin system
 // 1. verify if user is sudoer
 // 2. verify if CR is approved
 func (r *AccessRequestReconciler) Allowed(ctx context.Context, ar *api.AccessRequest) (AllowedResponse, error) {
@@ -357,7 +393,7 @@ func (r *AccessRequestReconciler) handleAccessExpired(ctx context.Context, ar *a
 	if err != nil {
 		return fmt.Errorf("error removing access for expired request: %w", err)
 	}
-	err = r.updateStatusWithRetry(ctx, ar, api.ExpiredStatus, "")
+	err = r.updateStatus(ctx, ar, api.ExpiredStatus, "")
 	if err != nil {
 		return fmt.Errorf("error updating access request status to expired: %w", err)
 	}
