@@ -111,7 +111,7 @@ var _ = Describe("AccessRequest Controller", func() {
 			To(Succeed())
 	}
 
-	Context("Reconciling a resource", Ordered, func() {
+	Context("Reconciling an AccessRequest", Ordered, func() {
 		const (
 			namespace    = "default"
 			resourceName = "test-resource-01"
@@ -119,19 +119,19 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		var f *fixture
 
-		When("Creating an AccessRequest", func() {
+		When("The subject has the necessary access", func() {
 			AfterAll(func() {
 				tearDown(namespace, f)
 			})
 			BeforeAll(func() {
 				f = setup(resourceName, appprojectName, namespace)
 			})
-			It("Applies the accessrequest resource in k8s", func() {
+			It("Applies the access request resource in k8s", func() {
 				f.accessrequest.Spec.Duration = metav1.Duration{Duration: time.Second * 5}
 				err := k8sClient.Create(ctx, f.accessrequest)
 				Expect(err).NotTo(HaveOccurred())
 			})
-			It("Verify if it is created", func() {
+			It("Verify if the access request is created", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
@@ -141,7 +141,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History).NotTo(BeEmpty())
 				Expect(ar.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
 			})
-			It("Checks if the intermediate status is Granted", func() {
+			It("Checks if the access is eventually granted", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
@@ -153,7 +153,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
 				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 			})
-			It("Checks if subject is added in the role", func() {
+			It("Checks if subject is added in Argo CD role", func() {
 				appProj, err := dynClient.Resource(appprojectResource).
 					Namespace(namespace).Get(ctx, appprojectName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
@@ -182,7 +182,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 				Expect(ar.Status.History[2].RequestState).To(Equal(api.ExpiredStatus))
 			})
-			It("Checks if subject is removed from the role", func() {
+			It("Checks if subject is removed from Argo CD role", func() {
 				appProj, err := dynClient.Resource(appprojectResource).
 					Namespace(namespace).Get(ctx, appprojectName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
