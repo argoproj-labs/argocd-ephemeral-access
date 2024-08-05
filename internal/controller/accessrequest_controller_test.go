@@ -38,7 +38,7 @@ var appprojectResource = schema.GroupVersionResource{
 	Resource: "appprojects",
 }
 
-func newAccessRequest(name, namespace, appprojectName string) *api.AccessRequest {
+func newAccessRequest(name, namespace, appprojectName, roleName, subject string) *api.AccessRequest {
 	return &api.AccessRequest{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "AccessRequest",
@@ -50,12 +50,16 @@ func newAccessRequest(name, namespace, appprojectName string) *api.AccessRequest
 		},
 		Spec: api.AccessRequestSpec{
 			Duration:       metav1.Duration{},
-			TargetRoleName: "",
+			TargetRoleName: roleName,
 			AppProject: api.TargetAppProject{
 				Name:      appprojectName,
 				Namespace: namespace,
 			},
-			Subjects: []api.Subject{},
+			Subjects: []api.Subject{
+				{
+					Username: subject,
+				},
+			},
 		},
 	}
 }
@@ -66,6 +70,8 @@ var _ = Describe("AccessRequest Controller", func() {
 		duration       = time.Second * 10
 		interval       = time.Millisecond * 250
 		appprojectName = "sample-test-project"
+		roleName       = "super-user"
+		subject        = "some-user"
 	)
 
 	type fixture struct {
@@ -73,7 +79,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		appproj       *unstructured.Unstructured
 	}
 
-	setup := func(accessRequestName, appprojName, namespace string) *fixture {
+	setup := func(arName, projName, namespace string) *fixture {
 		By("Create the AppProject initial state")
 		appprojYaml := testdata.AppProjectYaml
 		appproj, err := utils.YamlToUnstructured(appprojYaml)
@@ -86,7 +92,7 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 		Expect(err).NotTo(HaveOccurred())
 
-		ar := newAccessRequest(accessRequestName, namespace, appprojName)
+		ar := newAccessRequest(arName, namespace, projName, roleName, subject)
 
 		return &fixture{
 			accessrequest: ar,
@@ -147,6 +153,23 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
 				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 			})
+			It("Checks if subject is added in the role", func() {
+				appProj, err := dynClient.Resource(appprojectResource).
+					Namespace(namespace).Get(ctx, appprojectName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(appProj).NotTo(BeNil())
+				roles, found, err := unstructured.NestedSlice(appProj.Object, "spec", "roles")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(found).To(BeTrue())
+				Expect(roles).To(HaveLen(3))
+				role := roles[2]
+				roleObj := role.(map[string]interface{})
+				subjects, found, err := unstructured.NestedSlice(roleObj, "groups")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(found).To(BeTrue())
+				Expect(subjects).To(HaveLen(1))
+				Expect(subjects[0]).To(Equal(subject))
+			})
 			It("Checks if the final status is Expired", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
@@ -158,6 +181,22 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
 				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 				Expect(ar.Status.History[2].RequestState).To(Equal(api.ExpiredStatus))
+			})
+			It("Checks if subject is removed from the role", func() {
+				appProj, err := dynClient.Resource(appprojectResource).
+					Namespace(namespace).Get(ctx, appprojectName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(appProj).NotTo(BeNil())
+				roles, found, err := unstructured.NestedSlice(appProj.Object, "spec", "roles")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(found).To(BeTrue())
+				Expect(roles).To(HaveLen(3))
+				role := roles[2]
+				roleObj := role.(map[string]interface{})
+				subjects, found, err := unstructured.NestedSlice(roleObj, "groups")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(found).To(BeFalse())
+				Expect(subjects).To(HaveLen(0))
 			})
 		})
 	})
