@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,6 +88,14 @@ type AccessRequestHistory struct {
 	RequestState Status `json:"status"`
 	// Details may contain detailed information about the transition
 	Details *string `json:"details,omitempty"`
+}
+
+func (h AccessRequestHistory) String() string {
+	details := ""
+	if h.Details != nil {
+		details = *h.Details
+	}
+	return fmt.Sprintf("{TransitionTime: %s, RequestState: %s, Details: %s }", h.TransitionTime.String(), h.RequestState, details)
 }
 
 // AccessRequest is the Schema for the accessrequests API

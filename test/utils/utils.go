@@ -17,12 +17,15 @@ limitations under the License.
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -137,4 +140,26 @@ func GetProjectDir() (string, error) {
 	}
 	wd = strings.Replace(wd, "/test/e2e", "", -1)
 	return wd, nil
+}
+
+func ToUnstructured(val interface{}) (*unstructured.Unstructured, error) {
+	data, err := json.Marshal(val)
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[string]interface{})
+	err = json.Unmarshal(data, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: res}, nil
+}
+
+func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
+	obj := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte(yamlStr), &obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: obj}, nil
 }
