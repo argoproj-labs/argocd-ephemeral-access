@@ -7,6 +7,11 @@ import (
 // AppProject provides a logical grouping of applications, providing controls for:
 // * who can access these applications (roles, OIDC group claims bindings)
 // * and what they can do (RBAC policies)
+// This CRD is owned by the Argo CD controller and only partially defined here
+// declaring the field that this controller cares about ("roles"). This allows
+// the ephemeral access controller to send patch operations mutating just the
+// necessary field. Another advantage in this approach is to avoid importing the
+// entire Argo CD project with many unnecessary dependencies in this controller.
 // +kubebuilder:object:root=true
 type AppProject struct {
 	metav1.TypeMeta   `json:",inline"`

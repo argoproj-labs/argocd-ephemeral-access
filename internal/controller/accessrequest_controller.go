@@ -275,6 +275,7 @@ func removeSubjectsFromRole(project *argocd.AppProject, ar *api.AccessRequest) {
 				for _, subject := range ar.Spec.Subjects {
 					if group == subject.Username {
 						remove = true
+						break
 					}
 				}
 				if !remove {
@@ -338,6 +339,7 @@ func addSubjectsInRole(project *argocd.AppProject, ar *api.AccessRequest) bool {
 				for _, groupClaim := range role.Groups {
 					if groupClaim == subject.Username {
 						hasAccess = true
+						break
 					}
 				}
 				if !hasAccess {
