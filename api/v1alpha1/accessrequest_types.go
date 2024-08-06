@@ -49,11 +49,18 @@ type AccessRequestSpec struct {
 	Duration metav1.Duration `json:"duration"`
 	// TargetRoleName defines the role name the user will be assigned
 	// to once the access is approved
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:MaxLength=512
 	TargetRoleName string `json:"targetRoleName"`
 	// Application defines the Argo CD Application to assign the elevated
 	// permission
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Application TargetApplication `json:"application"`
 	// Subjects defines the list of subjects for this access request
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Subjects []Subject `json:"subjects"`
 }
 
