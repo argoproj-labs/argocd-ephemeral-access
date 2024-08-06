@@ -4,6 +4,13 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
-  name: accessrequest-sample
+  name: some-application-username
+  namespace: ephemeral
 spec:
-  # TODO(user): Add fields here
+  duration: '1m'
+  targetRoleName: ephemeral-write-access
+  appProject: 
+    name: some-argocd-appproject
+    namespace: some-namespace
+  subjects:
+    - username: some_user@fakedomain.com

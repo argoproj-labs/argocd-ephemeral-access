@@ -133,6 +133,8 @@ spec:
                 - expired
                 - denied
                 type: string
+              targetProject:
+                type: string
             type: object
         type: object
     served: true

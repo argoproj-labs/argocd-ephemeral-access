@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: some-application
+spec:
+  destination:
+    namespace: some-namespace
+    server: https://someserver.io
+  project: sample-test-project
+  source:
+    path: .
+    repoURL: https://github.com/some-user/some-repo
+    targetRevision: main

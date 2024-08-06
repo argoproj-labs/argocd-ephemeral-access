@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,8 +57,8 @@ type AccessRequestSpec struct {
 	Subjects []Subject `json:"subjects"`
 }
 
-// TargetRoleName defines the role name the user will be assigned
-// to once the access is approved
+// TargetApplication defines the Argo CD AppProject to assign the elevated
+// permission
 type TargetApplication struct {
 	// Name refers to the Argo CD Application name
 	Name string `json:"name"`
@@ -73,9 +74,10 @@ type Subject struct {
 
 // AccessRequestStatus defines the observed state of AccessRequest
 type AccessRequestStatus struct {
-	RequestState Status                 `json:"requestState,omitempty"`
-	ExpiresAt    *metav1.Time           `json:"expiresAt,omitempty"`
-	History      []AccessRequestHistory `json:"history,omitempty"`
+	RequestState  Status                 `json:"requestState,omitempty"`
+	TargetProject string                 `json:"targetProject,omitempty"`
+	ExpiresAt     *metav1.Time           `json:"expiresAt,omitempty"`
+	History       []AccessRequestHistory `json:"history,omitempty"`
 }
 
 // AccessRequestHistory contain the history of all status transitions associated
@@ -87,6 +89,14 @@ type AccessRequestHistory struct {
 	RequestState Status `json:"status"`
 	// Details may contain detailed information about the transition
 	Details *string `json:"details,omitempty"`
+}
+
+func (h AccessRequestHistory) String() string {
+	details := ""
+	if h.Details != nil {
+		details = *h.Details
+	}
+	return fmt.Sprintf("{TransitionTime: %s, RequestState: %s, Details: %s }", h.TransitionTime.String(), h.RequestState, details)
 }
 
 // AccessRequest is the Schema for the accessrequests API
