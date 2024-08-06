@@ -46,7 +46,7 @@ type JWTToken struct {
 	ID        string `json:"id,omitempty" protobuf:"bytes,3,opt,name=id"`
 }
 
-// AccessRequestList contains a list of AccessRequest
+// AccessRequestList contains a list of AppProjects
 // +kubebuilder:object:root=true
 type AppProjectList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -54,6 +54,32 @@ type AppProjectList struct {
 	Items           []AppProject `json:"items"`
 }
 
+// ApplicationSpec is a partial representation of the Argo CD Application
+// resource.
+// +kubebuilder:object:root=true
+type Application struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+	Spec              ApplicationSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+}
+
+// ApplicationSpec is a partial representation of the Argo CD ApplicationSpec
+// resource. It just defines the project field which is an information required
+// by ephemeral-access controller.
+type ApplicationSpec struct {
+	// Project is a reference to the project this application belongs to.
+	// The empty string means that application belongs to the 'default' project.
+	Project string `json:"project" protobuf:"bytes,1,name=project"`
+}
+
+// ApplicationList contains a list of Applications
+// +kubebuilder:object:root=true
+type ApplicationList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []Application `json:"items"`
+}
+
 func init() {
-	SchemeBuilder.Register(&AppProject{}, &AppProjectList{})
+	SchemeBuilder.Register(&Application{}, &ApplicationList{}, &AppProject{}, &AppProjectList{})
 }

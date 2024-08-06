@@ -50,19 +50,19 @@ type AccessRequestSpec struct {
 	// TargetRoleName defines the role name the user will be assigned
 	// to once the access is approved
 	TargetRoleName string `json:"targetRoleName"`
-	// AppProject defines the Argo CD AppProject to assign the elevated
+	// Application defines the Argo CD Application to assign the elevated
 	// permission
-	AppProject TargetAppProject `json:"appProject"`
+	Application TargetApplication `json:"appProject"`
 	// Subjects defines the list of subjects for this access request
 	Subjects []Subject `json:"subjects"`
 }
 
-// TargetAppProject defines the Argo CD AppProject to assign the elevated
+// TargetApplication defines the Argo CD AppProject to assign the elevated
 // permission
-type TargetAppProject struct {
-	// Name refers to the Argo CD AppProject name
+type TargetApplication struct {
+	// Name refers to the Argo CD Application name
 	Name string `json:"name"`
-	// Namespace refers to the namespace where the Argo CD AppProject lives
+	// Namespace refers to the namespace where the Argo CD Application lives
 	Namespace string `json:"namespace"`
 }
 
@@ -74,9 +74,10 @@ type Subject struct {
 
 // AccessRequestStatus defines the observed state of AccessRequest
 type AccessRequestStatus struct {
-	RequestState Status                 `json:"requestState,omitempty"`
-	ExpiresAt    *metav1.Time           `json:"expiresAt,omitempty"`
-	History      []AccessRequestHistory `json:"history,omitempty"`
+	RequestState  Status                 `json:"requestState,omitempty"`
+	TargetProject string                 `json:"targetProject,omitempty"`
+	ExpiresAt     *metav1.Time           `json:"expiresAt,omitempty"`
+	History       []AccessRequestHistory `json:"history,omitempty"`
 }
 
 // AccessRequestHistory contain the history of all status transitions associated

@@ -50,6 +50,7 @@ const (
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests/finalizers,verbs=update
 // +kubebuilder:rbac:groups=argoproj.io,resources=appproject,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=argoproj.io,resources=application,verbs=get
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -101,22 +102,29 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	logger.Debug("Validating AccessRequest")
+	// TODO implement a validation webhook to make fields immutable
 	err = ar.Validate()
 	if err != nil {
 		logger.Info("Validation error: %s", err)
 		return ctrl.Result{}, fmt.Errorf("error validating the AccessRequest: %w", err)
 	}
 
+	application, err := r.getApplication(ctx, ar)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("error getting Argo CD Application: %w", err)
+	}
+
 	// initialize the status if not done yet
 	if ar.Status.RequestState == "" {
 		logger.Debug("Initializing status")
 		ar.UpdateStatus(api.RequestedStatus, "")
+		ar.Status.TargetProject = application.Spec.Project
 		r.Status().Update(ctx, ar)
 	}
 
 	// check subject is sudoer
 	logger.Debug("Handling permission")
-	status, err := r.handlePermission(ctx, ar)
+	status, err := r.handlePermission(ctx, ar, application)
 	if err != nil {
 		logger.Error(err, "HandlePermission error")
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
@@ -164,7 +172,7 @@ func buildResult(status api.Status, ar *api.AccessRequest) ctrl.Result {
 //     it will return DeniedStatus.
 //
 // It will update the AccessRequest status accordingly with the situation.
-func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.AccessRequest) (api.Status, error) {
+func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.AccessRequest, app *argocd.Application) (api.Status, error) {
 	logger := log.FromContext(ctx)
 
 	if ar.IsExpiring() {
@@ -176,7 +184,7 @@ func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.
 		return api.ExpiredStatus, nil
 	}
 
-	resp, err := r.Allowed(ctx, ar)
+	resp, err := r.Allowed(ctx, ar, app)
 	if err != nil {
 		return "", fmt.Errorf("error verifying if subject is allowed: %w", err)
 	}
@@ -229,6 +237,19 @@ func (r *AccessRequestReconciler) updateStatus(ctx context.Context, ar *api.Acce
 	return r.Status().Update(ctx, ar)
 }
 
+func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.AccessRequest) (*argocd.Application, error) {
+	application := &argocd.Application{}
+	objKey := client.ObjectKey{
+		Namespace: ar.Spec.Application.Namespace,
+		Name:      ar.Spec.Application.Name,
+	}
+	err := r.Get(ctx, objKey, application)
+	if err != nil {
+		return nil, err
+	}
+	return application, nil
+}
+
 // removeArgoCDAccess will remove the subjects in the given AccessRequest from
 // the given ar.TargetRoleName from the Argo CD project referenced in the
 // ar.Spec.AppProject. The AppProject update will be executed via a patch with
@@ -237,10 +258,11 @@ func (r *AccessRequestReconciler) updateStatus(ctx context.Context, ar *api.Acce
 func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *api.AccessRequest) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Removing Argo CD Access")
+
 	project := &argocd.AppProject{}
 	objKey := client.ObjectKey{
-		Namespace: ar.Spec.AppProject.Namespace,
-		Name:      ar.Spec.AppProject.Name,
+		Namespace: ar.Spec.Application.Namespace,
+		Name:      ar.Status.TargetProject,
 	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, objKey, project)
@@ -266,6 +288,7 @@ func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *ap
 // removeSubjectsFromRole will iterate ovet the roles in the given project and
 // remove the subjects from the given AccessRequest from the role specified in
 // the ar.TargetRoleName.
+// TODO revoke JWT tokens on every removal
 func removeSubjectsFromRole(project *argocd.AppProject, ar *api.AccessRequest) {
 	for idx, role := range project.Spec.Roles {
 		if role.Name == ar.Spec.TargetRoleName {
@@ -297,8 +320,8 @@ func (r *AccessRequestReconciler) grantArgoCDAccess(ctx context.Context, ar *api
 	logger.Info("Granting Argo CD Access")
 	project := &argocd.AppProject{}
 	objKey := client.ObjectKey{
-		Namespace: ar.Spec.AppProject.Namespace,
-		Name:      ar.Spec.AppProject.Name,
+		Namespace: ar.Spec.Application.Namespace,
+		Name:      ar.Status.TargetProject,
 	}
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := r.Get(ctx, objKey, project)
@@ -384,7 +407,7 @@ type AllowedResponse struct {
 // 0. implement the plugin system
 // 1. verify if user is sudoer
 // 2. verify if CR is approved
-func (r *AccessRequestReconciler) Allowed(ctx context.Context, ar *api.AccessRequest) (AllowedResponse, error) {
+func (r *AccessRequestReconciler) Allowed(ctx context.Context, ar *api.AccessRequest, app *argocd.Application) (AllowedResponse, error) {
 	return AllowedResponse{Allowed: true}, nil
 }
 

@@ -38,7 +38,13 @@ var appprojectResource = schema.GroupVersionResource{
 	Resource: "appprojects",
 }
 
-func newAccessRequest(name, namespace, appprojectName, roleName, subject string) *api.AccessRequest {
+var appResource = schema.GroupVersionResource{
+	Group:    "argoproj.io",
+	Version:  "v1alpha1",
+	Resource: "applications",
+}
+
+func newAccessRequest(name, namespace, appName, roleName, subject string) *api.AccessRequest {
 	return &api.AccessRequest{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "AccessRequest",
@@ -51,8 +57,8 @@ func newAccessRequest(name, namespace, appprojectName, roleName, subject string)
 		Spec: api.AccessRequestSpec{
 			Duration:       metav1.Duration{},
 			TargetRoleName: roleName,
-			AppProject: api.TargetAppProject{
-				Name:      appprojectName,
+			Application: api.TargetApplication{
+				Name:      appName,
 				Namespace: namespace,
 			},
 			Subjects: []api.Subject{
@@ -70,6 +76,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		duration       = time.Second * 10
 		interval       = time.Millisecond * 250
 		appprojectName = "sample-test-project"
+		appName        = "some-application"
 		roleName       = "super-user"
 		subject        = "some-user"
 	)
@@ -79,12 +86,22 @@ var _ = Describe("AccessRequest Controller", func() {
 		appproj       *unstructured.Unstructured
 	}
 
-	setup := func(arName, projName, namespace string) *fixture {
+	setup := func(arName, appName, namespace string) *fixture {
+		By("Create the Application initial state")
+		appYaml := testdata.ApplicationYaml
+		app, err := utils.YamlToUnstructured(appYaml)
+		Expect(err).NotTo(HaveOccurred())
+		_, err = dynClient.Resource(appResource).
+			Namespace(namespace).
+			Apply(ctx, appName, app, metav1.ApplyOptions{
+				FieldManager: "argocd-controller",
+			})
+		Expect(err).NotTo(HaveOccurred())
+
 		By("Create the AppProject initial state")
 		appprojYaml := testdata.AppProjectYaml
 		appproj, err := utils.YamlToUnstructured(appprojYaml)
 		Expect(err).NotTo(HaveOccurred())
-
 		_, err = dynClient.Resource(appprojectResource).
 			Namespace(namespace).
 			Apply(ctx, appprojectName, appproj, metav1.ApplyOptions{
@@ -92,7 +109,7 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 		Expect(err).NotTo(HaveOccurred())
 
-		ar := newAccessRequest(arName, namespace, projName, roleName, subject)
+		ar := newAccessRequest(arName, namespace, appName, roleName, subject)
 
 		return &fixture{
 			accessrequest: ar,
@@ -124,7 +141,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				tearDown(namespace, f)
 			})
 			BeforeAll(func() {
-				f = setup(resourceName, appprojectName, namespace)
+				f = setup(resourceName, appName, namespace)
 			})
 			It("Applies the access request resource in k8s", func() {
 				f.accessrequest.Spec.Duration = metav1.Duration{Duration: time.Second * 5}

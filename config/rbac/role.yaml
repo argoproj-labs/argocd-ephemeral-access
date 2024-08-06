@@ -7,6 +7,12 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
+  - application
+  verbs:
+  - get
+- apiGroups:
+  - argoproj.io
+  resources:
   - appproject
   verbs:
   - get
