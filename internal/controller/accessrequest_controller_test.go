@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -72,13 +73,9 @@ func newAccessRequest(name, namespace, appName, roleName, subject string) *api.A
 
 var _ = Describe("AccessRequest Controller", func() {
 	const (
-		timeout        = time.Second * 10
-		duration       = time.Second * 10
-		interval       = time.Millisecond * 250
-		appprojectName = "sample-test-project"
-		appName        = "some-application"
-		roleName       = "super-user"
-		subject        = "some-user"
+		timeout  = time.Second * 10
+		duration = time.Second * 10
+		interval = time.Millisecond * 250
 	)
 
 	type fixture struct {
@@ -86,14 +83,21 @@ var _ = Describe("AccessRequest Controller", func() {
 		appproj       *unstructured.Unstructured
 	}
 
-	setup := func(arName, appName, namespace string) *fixture {
+	type resources struct {
+		arName, appName, namespace, appProjName, roleName, subject string
+	}
+
+	setup := func(r resources) *fixture {
 		By("Create the Application initial state")
 		appYaml := testdata.ApplicationYaml
 		app, err := utils.YamlToUnstructured(appYaml)
 		Expect(err).NotTo(HaveOccurred())
+		app.SetName(r.appName)
+		app.SetNamespace(r.namespace)
+		unstructured.SetNestedField(app.Object, r.appProjName, "spec", "project")
 		_, err = dynClient.Resource(appResource).
-			Namespace(namespace).
-			Apply(ctx, appName, app, metav1.ApplyOptions{
+			Namespace(r.namespace).
+			Apply(ctx, r.appName, app, metav1.ApplyOptions{
 				FieldManager: "argocd-controller",
 			})
 		Expect(err).NotTo(HaveOccurred())
@@ -101,15 +105,17 @@ var _ = Describe("AccessRequest Controller", func() {
 		By("Create the AppProject initial state")
 		appprojYaml := testdata.AppProjectYaml
 		appproj, err := utils.YamlToUnstructured(appprojYaml)
+		appproj.SetName(r.appProjName)
+		appproj.SetNamespace(r.namespace)
 		Expect(err).NotTo(HaveOccurred())
 		_, err = dynClient.Resource(appprojectResource).
-			Namespace(namespace).
-			Apply(ctx, appprojectName, appproj, metav1.ApplyOptions{
+			Namespace(r.namespace).
+			Apply(ctx, r.appProjName, appproj, metav1.ApplyOptions{
 				FieldManager: "argocd-controller",
 			})
 		Expect(err).NotTo(HaveOccurred())
 
-		ar := newAccessRequest(arName, namespace, appName, roleName, subject)
+		ar := newAccessRequest(r.arName, r.namespace, r.appName, r.roleName, r.subject)
 
 		return &fixture{
 			accessrequest: ar,
@@ -117,38 +123,51 @@ var _ = Describe("AccessRequest Controller", func() {
 		}
 	}
 
-	tearDown := func(namespace string, f *fixture) {
+	tearDown := func(r resources, f *fixture) {
 		By("Delete the AccessRequest in k8s")
 		Expect(k8sClient.Delete(ctx, f.accessrequest)).To(Succeed())
 
 		By("Delete the AppProject in k8s")
 		Expect(dynClient.Resource(appprojectResource).
-			Namespace(namespace).
-			Delete(ctx, appprojectName, metav1.DeleteOptions{})).
+			Namespace(r.namespace).
+			Delete(ctx, r.appProjName, metav1.DeleteOptions{})).
 			To(Succeed())
 	}
 
 	Context("Reconciling an AccessRequest", Ordered, func() {
 		const (
-			namespace    = "default"
-			resourceName = "test-resource-01"
+			namespace      = "default"
+			arName         = "test-ar-01"
+			appprojectName = "sample-test-project"
+			appName        = "some-application"
+			roleName       = "super-user"
+			subject        = "some-user"
 		)
 
 		var f *fixture
+		var r resources
 
 		When("The subject has the necessary access", func() {
 			AfterAll(func() {
-				tearDown(namespace, f)
+				tearDown(r, f)
 			})
 			BeforeAll(func() {
-				f = setup(resourceName, appName, namespace)
+				r = resources{
+					arName:      arName,
+					appName:     appName,
+					namespace:   namespace,
+					appProjName: appprojectName,
+					roleName:    roleName,
+					subject:     subject,
+				}
+				f = setup(r)
 			})
-			It("Applies the access request resource in k8s", func() {
+			It("will applies the access request resource in k8s", func() {
 				f.accessrequest.Spec.Duration = metav1.Duration{Duration: time.Second * 5}
 				err := k8sClient.Create(ctx, f.accessrequest)
 				Expect(err).NotTo(HaveOccurred())
 			})
-			It("Verify if the access request is created", func() {
+			It("will verify if the access request is created", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
@@ -158,7 +177,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History).NotTo(BeEmpty())
 				Expect(ar.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
 			})
-			It("Checks if the access is eventually granted", func() {
+			It("will validate if the access is eventually granted", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
@@ -170,7 +189,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
 				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 			})
-			It("Checks if subject is added in Argo CD role", func() {
+			It("will validate if subject is added in Argo CD role", func() {
 				appProj, err := dynClient.Resource(appprojectResource).
 					Namespace(namespace).Get(ctx, appprojectName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
@@ -187,7 +206,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(subjects).To(HaveLen(1))
 				Expect(subjects[0]).To(Equal(subject))
 			})
-			It("Checks if the final status is Expired", func() {
+			It("will validate if the final status is Expired", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
@@ -199,7 +218,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 				Expect(ar.Status.History[2].RequestState).To(Equal(api.ExpiredStatus))
 			})
-			It("Checks if subject is removed from Argo CD role", func() {
+			It("will validate if subject is removed from Argo CD role", func() {
 				appProj, err := dynClient.Resource(appprojectResource).
 					Namespace(namespace).Get(ctx, appprojectName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
@@ -214,6 +233,95 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(found).To(BeFalse())
 				Expect(subjects).To(HaveLen(0))
+			})
+		})
+	})
+
+	Context("Reconciling an AccessRequest", Ordered, func() {
+		const (
+			namespace      = "default"
+			arName         = "test-ar-02"
+			appprojectName = "sample-test-project-02"
+			appName        = "some-application"
+			roleName       = "super-user"
+			subject        = "some-user"
+		)
+
+		var f *fixture
+		var r resources
+
+		When("protected fields values change after applied", func() {
+			AfterAll(func() {
+				tearDown(r, f)
+			})
+			BeforeAll(func() {
+				r = resources{
+					arName:      arName,
+					appName:     appName,
+					namespace:   namespace,
+					appProjName: appprojectName,
+					roleName:    roleName,
+					subject:     subject,
+				}
+				f = setup(r)
+			})
+			It("will apply the access request resource in k8s", func() {
+				f.accessrequest.Spec.Duration = metav1.Duration{Duration: time.Second * 5}
+				err := k8sClient.Create(ctx, f.accessrequest)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will verify if the access request is created", func() {
+				ar := &api.AccessRequest{}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+					Expect(err).NotTo(HaveOccurred())
+					return ar.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+				Expect(ar.Status.History).NotTo(BeEmpty())
+				Expect(ar.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
+			})
+			It("will return immutable error on attempt to change the target role", func() {
+				ar := &api.AccessRequest{}
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+				Expect(err).NotTo(HaveOccurred())
+				ar.Spec.TargetRoleName = "NOT-ALLOWED"
+
+				err = k8sClient.Update(ctx, ar)
+
+				Expect(err).ToNot(BeNil())
+				e, ok := err.(*errors.StatusError)
+				Expect(ok).To(BeTrue(), "returned error type is not errors.StatusError")
+				Expect(string(e.ErrStatus.Reason)).To(Equal("Invalid"))
+				Expect(e.ErrStatus.Message).To(ContainSubstring("Value is immutable"))
+			})
+			It("will return immutable error on attempt to change the Application", func() {
+				ar := &api.AccessRequest{}
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+				Expect(err).NotTo(HaveOccurred())
+				ar.Spec.Application.Name = "NOT-ALLOWED"
+				ar.Spec.Application.Namespace = "NOT-ALLOWED"
+
+				err = k8sClient.Update(ctx, ar)
+
+				Expect(err).ToNot(BeNil())
+				e, ok := err.(*errors.StatusError)
+				Expect(ok).To(BeTrue(), "returned error type is not errors.StatusError")
+				Expect(string(e.ErrStatus.Reason)).To(Equal("Invalid"))
+				Expect(e.ErrStatus.Message).To(ContainSubstring("Value is immutable"))
+			})
+			It("will return immutable error on attempt to change the Subject", func() {
+				ar := &api.AccessRequest{}
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+				Expect(err).NotTo(HaveOccurred())
+				ar.Spec.Subjects[0].Username = "NOT-ALLOWED"
+
+				err = k8sClient.Update(ctx, ar)
+
+				Expect(err).ToNot(BeNil())
+				e, ok := err.(*errors.StatusError)
+				Expect(ok).To(BeTrue(), "returned error type is not errors.StatusError")
+				Expect(string(e.ErrStatus.Reason)).To(Equal("Invalid"))
+				Expect(e.ErrStatus.Message).To(ContainSubstring("Value is immutable"))
 			})
 		})
 	})
