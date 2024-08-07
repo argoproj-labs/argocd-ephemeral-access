@@ -58,6 +58,9 @@ spec:
                 - name
                 - namespace
                 type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               duration:
                 description: |-
                   Duration defines the ammount of time that the elevated access
@@ -78,11 +81,18 @@ spec:
                   - username
                   type: object
                 type: array
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               targetRoleName:
                 description: |-
                   TargetRoleName defines the role name the user will be assigned
                   to once the access is approved
+                maxLength: 512
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
             required:
             - application
             - duration

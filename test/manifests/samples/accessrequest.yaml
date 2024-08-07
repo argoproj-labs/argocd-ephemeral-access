@@ -9,8 +9,8 @@ metadata:
 spec:
   duration: '1m'
   targetRoleName: ephemeral-write-access
-  appProject: 
-    name: sample-test-project
+  application: 
+    name: some-application
     namespace: ephemeral
   subjects:
     - username: some_user@fakedomain.com
