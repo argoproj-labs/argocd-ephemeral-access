@@ -291,7 +291,7 @@ func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *ap
 // TODO revoke JWT tokens on every removal
 func removeSubjectsFromRole(project *argocd.AppProject, ar *api.AccessRequest) {
 	for idx, role := range project.Spec.Roles {
-		if role.Name == ar.Spec.TargetRoleName {
+		if role.Name == ar.Spec.RoleTemplateName {
 			groups := []string{}
 			for _, group := range role.Groups {
 				remove := false
@@ -355,7 +355,7 @@ func addSubjectsInRole(project *argocd.AppProject, ar *api.AccessRequest) bool {
 	roleFound := false
 
 	for idx, role := range project.Spec.Roles {
-		if role.Name == ar.Spec.TargetRoleName {
+		if role.Name == ar.Spec.RoleTemplateName {
 			roleFound = true
 			for _, subject := range ar.Spec.Subjects {
 				hasAccess := false
@@ -387,7 +387,7 @@ func addRoleInProject(project *argocd.AppProject, ar *api.AccessRequest) {
 		groups = append(groups, subject.Username)
 	}
 	role := argocd.ProjectRole{
-		Name:        ar.Spec.TargetRoleName,
+		Name:        ar.Spec.RoleTemplateName,
 		Description: "auto-generated role by the ephemeral access controller",
 		// TODO
 		Policies: []string{},

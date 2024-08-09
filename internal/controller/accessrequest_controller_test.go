@@ -56,8 +56,8 @@ func newAccessRequest(name, namespace, appName, roleName, subject string) *api.A
 			Namespace: namespace,
 		},
 		Spec: api.AccessRequestSpec{
-			Duration:       metav1.Duration{},
-			TargetRoleName: roleName,
+			Duration:         metav1.Duration{},
+			RoleTemplateName: roleName,
 			Application: api.TargetApplication{
 				Name:      appName,
 				Namespace: namespace,
@@ -284,7 +284,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				ar := &api.AccessRequest{}
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
 				Expect(err).NotTo(HaveOccurred())
-				ar.Spec.TargetRoleName = "NOT-ALLOWED"
+				ar.Spec.RoleTemplateName = "NOT-ALLOWED"
 
 				err = k8sClient.Update(ctx, ar)
 
