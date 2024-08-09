@@ -22,11 +22,18 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields" // Required for Watching
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types" // Required for Watching
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder" // Required for Watching
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"   // Required for Watching
+	"sigs.k8s.io/controller-runtime/pkg/predicate" // Required for Watching
+	"sigs.k8s.io/controller-runtime/pkg/reconcile" // Required for Watching
+	// "sigs.k8s.io/controller-runtime/pkg/source"    // Required for Watching
 
 	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
@@ -44,6 +51,7 @@ const (
 	// managed by this controller
 	AccessRequestFinalizerName = "accessrequest.ephemeral-access.argoproj-labs.io/finalizer"
 	FieldOwnerEphemeralAccess  = "ephemeral-access-controller"
+	roleTemplateField          = ".spec.roleTemplateName"
 )
 
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
@@ -485,9 +493,44 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 	return true, nil
 }
 
+func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context, roleTemplate client.Object) []reconcile.Request {
+	attachedAccessRequests := &api.AccessRequestList{}
+	listOps := &client.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector(roleTemplateField, roleTemplate.GetName()),
+		Namespace:     roleTemplate.GetNamespace(),
+	}
+	err := r.List(ctx, attachedAccessRequests, listOps)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	requests := make([]reconcile.Request, len(attachedAccessRequests.Items))
+	for i, item := range attachedAccessRequests.Items {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
+	return requests
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().
+		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateField, func(rawObj client.Object) []string {
+			// Extract the ConfigMap name from the ConfigDeployment Spec, if one is provided
+			ar := rawObj.(*api.AccessRequest)
+			if ar.Spec.RoleTemplateName == "" {
+				return nil
+			}
+			return []string{ar.Spec.RoleTemplateName}
+		}); err != nil {
+		return fmt.Errorf("error creating index field for roleTemplateName: %w", err)
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&api.AccessRequest{}).
+		Watches(&api.RoleTemplate{}, handler.EnqueueRequestsFromMapFunc(r.findObjectsForRoleTemplate), builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
 }

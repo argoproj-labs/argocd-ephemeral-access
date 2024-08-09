@@ -39,13 +39,30 @@ spec:
           spec:
             description: RoleTemplateSpec defines the desired state of RoleTemplate
             properties:
-              foo:
-                description: Foo is an example field of RoleTemplate. Edit roletemplate_types.go
-                  to remove/update
+              description:
                 type: string
+              name:
+                type: string
+              policies:
+                items:
+                  type: string
+                type: array
+            required:
+            - name
+            - policies
             type: object
           status:
             description: RoleTemplateStatus defines the observed state of RoleTemplate
+            properties:
+              message:
+                type: string
+              syncHash:
+                type: string
+              synced:
+                type: boolean
+            required:
+            - syncHash
+            - synced
             type: object
         type: object
     served: true

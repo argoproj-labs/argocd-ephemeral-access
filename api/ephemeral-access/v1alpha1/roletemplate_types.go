@@ -20,28 +20,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// RoleTemplateSpec defines the desired state of RoleTemplate
-type RoleTemplateSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of RoleTemplate. Edit roletemplate_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-}
-
-// RoleTemplateStatus defines the observed state of RoleTemplate
-type RoleTemplateStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-}
-
+// RoleTemplate is the Schema for the roletemplates API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
-// RoleTemplate is the Schema for the roletemplates API
 type RoleTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -50,13 +31,26 @@ type RoleTemplate struct {
 	Status RoleTemplateStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // RoleTemplateList contains a list of RoleTemplate
+// +kubebuilder:object:root=true
 type RoleTemplateList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []RoleTemplate `json:"items"`
+}
+
+// RoleTemplateSpec defines the desired state of RoleTemplate
+type RoleTemplateSpec struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Policies    []string `json:"policies"`
+}
+
+// RoleTemplateStatus defines the observed state of RoleTemplate
+type RoleTemplateStatus struct {
+	Synced   bool   `json:"synced"`
+	Message  string `json:"message,omitempty"`
+	SyncHash string `json:"syncHash"`
 }
 
 func init() {
