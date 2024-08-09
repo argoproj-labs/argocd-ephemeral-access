@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	api "github.com/argoproj-labs/ephemeral-access/api/v1alpha1"
+	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller/testdata"
 	"github.com/argoproj-labs/ephemeral-access/test/utils"
 )

@@ -13,6 +13,8 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the Project itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- ephemeral-access_roletemplate_editor_role.yaml
+- ephemeral-access_roletemplate_viewer_role.yaml
 - accessrequest_editor_role.yaml
 - accessrequest_viewer_role.yaml
 
