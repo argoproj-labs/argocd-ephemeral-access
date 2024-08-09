@@ -52,7 +52,7 @@ type AccessRequestSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +kubebuilder:validation:MaxLength=512
-	TargetRoleName string `json:"targetRoleName"`
+	RoleTemplateName string `json:"roleTemplateName"`
 	// Application defines the Argo CD Application to assign the elevated
 	// permission
 	// +kubebuilder:validation:Required

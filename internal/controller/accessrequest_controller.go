@@ -102,7 +102,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	logger.Debug("Validating AccessRequest")
-	// TODO implement a validation webhook to make fields immutable
 	err = ar.Validate()
 	if err != nil {
 		logger.Info("Validation error: %s", err)
@@ -111,6 +110,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	application, err := r.getApplication(ctx, ar)
 	if err != nil {
+		// TODO send an event to explain why the access request is failing
 		return ctrl.Result{}, fmt.Errorf("error getting Argo CD Application: %w", err)
 	}
 
@@ -455,11 +455,14 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 
 	// The object is being deleted
 	if controllerutil.ContainsFinalizer(ar, AccessRequestFinalizerName) {
+		// if the access request is not expired yet then
 		// execute the cleanup procedure before removing the finalizer
-		if err := r.removeArgoCDAccess(ctx, ar); err != nil {
-			// if fail to delete the external dependency here, return with error
-			// so that it can be retried.
-			return false, fmt.Errorf("error cleaning up Argo CD access: %w", err)
+		if ar.Status.RequestState != api.ExpiredStatus {
+			if err := r.removeArgoCDAccess(ctx, ar); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried.
+				return false, fmt.Errorf("error cleaning up Argo CD access: %w", err)
+			}
 		}
 
 		// remove our finalizer from the list and update it.
