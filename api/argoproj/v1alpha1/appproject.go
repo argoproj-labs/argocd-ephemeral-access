@@ -70,6 +70,19 @@ type ApplicationSpec struct {
 	// Project is a reference to the project this application belongs to.
 	// The empty string means that application belongs to the 'default' project.
 	Project string `json:"project" protobuf:"bytes,1,name=project"`
+	// Destination is a reference to the target Kubernetes server and namespace
+	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,name=destination"`
+}
+
+// ApplicationDestination holds information about the application's destination
+type ApplicationDestination struct {
+	// Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
+	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
+	// Namespace specifies the target namespace for the application's resources.
+	// The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
+	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 }
 
 // ApplicationList contains a list of Applications

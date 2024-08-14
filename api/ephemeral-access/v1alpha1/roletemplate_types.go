@@ -17,6 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+	"strings"
+	"text/template"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -51,6 +55,60 @@ type RoleTemplateStatus struct {
 	Synced   bool   `json:"synced"`
 	Message  string `json:"message,omitempty"`
 	SyncHash string `json:"syncHash"`
+}
+
+func (rt *RoleTemplate) Render(projName, appName, appNs, destinationNs string) (*RoleTemplate, error) {
+	rendered := rt.DeepCopy()
+	descTmpl, err := template.New("description").Parse(rt.Spec.Description)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing RoleTemplate description: %w", err)
+	}
+	desc, err := rt.execTemplate(descTmpl, projName, appName, appNs, destinationNs)
+	if err != nil {
+		return nil, fmt.Errorf("error rendering RoleTemplate description: %w", err)
+	}
+	rendered.Spec.Description = desc
+
+	policiesStr := strings.Join(rt.Spec.Policies, "\n")
+	policiesTmpl, err := template.New("policies").Parse(policiesStr)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing RoleTemplate policies: %w", err)
+	}
+	p, err := rt.execTemplate(policiesTmpl, projName, appName, appNs, destinationNs)
+	if err != nil {
+		return nil, fmt.Errorf("error rendering RoleTemplate policies: %w", err)
+	}
+	rendered.Spec.Policies = strings.Split(p, "\n")
+
+	return rendered, nil
+}
+
+func (rt *RoleTemplate) execTemplate(tmpl *template.Template, projName, appName, appNs, destinationNs string) (string, error) {
+	type vars struct {
+		Role        string
+		Project     string
+		Application string
+		Namespace   string
+	}
+	roleName := rt.AppProjectRoleName(appName, appNs)
+	v := vars{
+		Role:        fmt.Sprintf("proj:%s:%s", projName, roleName),
+		Project:     projName,
+		Application: appName,
+		Namespace:   destinationNs,
+	}
+	var s strings.Builder
+	err := tmpl.Execute(&s, v)
+	if err != nil {
+		return "", err
+	}
+	return s.String(), nil
+}
+
+// roleName will return the role name to be used in the AppProject
+func (rt *RoleTemplate) AppProjectRoleName(appName, namespace string) string {
+	roleName := rt.Spec.Name
+	return fmt.Sprintf("ephemeral-%s-%s-%s", namespace, appName, roleName)
 }
 
 func init() {
