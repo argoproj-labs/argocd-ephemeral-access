@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller/testdata"
 	"github.com/argoproj-labs/ephemeral-access/test/utils"
@@ -115,6 +116,8 @@ var _ = Describe("AccessRequest Controller", func() {
 		app.SetName(r.appName)
 		app.SetNamespace(r.namespace)
 		unstructured.SetNestedField(app.Object, r.appProjName, "spec", "project")
+		// The dynamic client is used to create the resource with all fields
+		// defined in the official Argo CD CRD
 		_, err = dynClient.Resource(appResource).
 			Namespace(r.namespace).
 			Apply(ctx, r.appName, app, metav1.ApplyOptions{
@@ -225,22 +228,31 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
 				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 			})
-			It("will validate if subject is added in Argo CD role", func() {
-				appProj, err := dynClient.Resource(appprojectResource).
-					Namespace(namespace).Get(ctx, appprojectName, metav1.GetOptions{})
+			It("will validate Argo CD AppProject", func() {
+				key := client.ObjectKey{
+					Namespace: namespace,
+					Name:      appprojectName,
+				}
+				appProj := &argocd.AppProject{}
+				err := k8sClient.Get(ctx, key, appProj)
+
+				By("checking if subject is added in Argo CD role")
 				Expect(err).NotTo(HaveOccurred())
 				Expect(appProj).NotTo(BeNil())
-				roles, found, err := unstructured.NestedSlice(appProj.Object, "spec", "roles")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeTrue())
-				Expect(roles).To(HaveLen(3))
-				role := roles[2]
-				roleObj := role.(map[string]interface{})
-				subjects, found, err := unstructured.NestedSlice(roleObj, "groups")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeTrue())
-				Expect(subjects).To(HaveLen(1))
-				Expect(subjects[0]).To(Equal(subject))
+				Expect(appProj.Spec.Roles).To(HaveLen(3))
+				Expect(appProj.Spec.Roles[2].Groups).To(HaveLen(1))
+				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal(subject))
+
+				By("checking if roles are properly rendered from templates")
+				Expect(appProj.Spec.Roles[2].Policies).To(HaveLen(4))
+				expectedPolicy1 := "p, proj:sample-test-project:ephemeral-default-some-application-super-user, applications, sync, sample-test-project/some-application, allow"
+				Expect(appProj.Spec.Roles[2].Policies[0]).To(Equal(expectedPolicy1))
+				expectedPolicy2 := "p, proj:sample-test-project:ephemeral-default-some-application-super-user, applications, action/*, sample-test-project/some-application, allow"
+				Expect(appProj.Spec.Roles[2].Policies[1]).To(Equal(expectedPolicy2))
+				expectedPolicy3 := "p, proj:sample-test-project:ephemeral-default-some-application-super-user, applications, delete/*/Pod/*, sample-test-project/some-application, allow"
+				Expect(appProj.Spec.Roles[2].Policies[2]).To(Equal(expectedPolicy3))
+				expectedPolicy4 := "p, proj:sample-test-project:ephemeral-default-some-application-super-user, logs, get, sample-test-project/dest-namespace/some-application, allow"
+				Expect(appProj.Spec.Roles[2].Policies[3]).To(Equal(expectedPolicy4))
 			})
 			It("will validate if the final status is Expired", func() {
 				ar := &api.AccessRequest{}
@@ -255,20 +267,16 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(ar.Status.History[2].RequestState).To(Equal(api.ExpiredStatus))
 			})
 			It("will validate if subject is removed from Argo CD role", func() {
-				appProj, err := dynClient.Resource(appprojectResource).
-					Namespace(namespace).Get(ctx, appprojectName, metav1.GetOptions{})
+				key := client.ObjectKey{
+					Namespace: namespace,
+					Name:      appprojectName,
+				}
+				appProj := &argocd.AppProject{}
+				err := k8sClient.Get(ctx, key, appProj)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(appProj).NotTo(BeNil())
-				roles, found, err := unstructured.NestedSlice(appProj.Object, "spec", "roles")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeTrue())
-				Expect(roles).To(HaveLen(3))
-				role := roles[2]
-				roleObj := role.(map[string]interface{})
-				subjects, found, err := unstructured.NestedSlice(roleObj, "groups")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(found).To(BeFalse())
-				Expect(subjects).To(HaveLen(0))
+				Expect(appProj.Spec.Roles).To(HaveLen(3))
+				Expect(appProj.Spec.Roles[2].Groups).To(HaveLen(0))
 			})
 		})
 	})
