@@ -4,7 +4,7 @@ metadata:
   name: some-application
 spec:
   destination:
-    namespace: some-namespace
+    namespace: dest-namespace
     server: https://someserver.io
   project: sample-test-project
   source:

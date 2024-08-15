@@ -71,6 +71,24 @@ func newAccessRequest(name, namespace, appName, roleName, subject string) *api.A
 	}
 }
 
+func newRoleTemplate(templateName, namespace, roleName string, policies []string) *api.RoleTemplate {
+	return &api.RoleTemplate{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "RoleTemplate",
+			APIVersion: "v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      templateName,
+			Namespace: namespace,
+		},
+		Spec: api.RoleTemplateSpec{
+			Name:        roleName,
+			Description: "",
+			Policies:    policies,
+		},
+	}
+}
+
 var _ = Describe("AccessRequest Controller", func() {
 	const (
 		timeout  = time.Second * 10
@@ -80,11 +98,13 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	type fixture struct {
 		accessrequest *api.AccessRequest
+		roletemplate  *api.RoleTemplate
 		appproj       *unstructured.Unstructured
 	}
 
 	type resources struct {
-		arName, appName, namespace, appProjName, roleName, subject string
+		arName, appName, namespace, appProjName, roleTemplateName, subject, roleName string
+		policies                                                                     []string
 	}
 
 	setup := func(r resources) *fixture {
@@ -105,9 +125,9 @@ var _ = Describe("AccessRequest Controller", func() {
 		By("Create the AppProject initial state")
 		appprojYaml := testdata.AppProjectYaml
 		appproj, err := utils.YamlToUnstructured(appprojYaml)
+		Expect(err).NotTo(HaveOccurred())
 		appproj.SetName(r.appProjName)
 		appproj.SetNamespace(r.namespace)
-		Expect(err).NotTo(HaveOccurred())
 		_, err = dynClient.Resource(appprojectResource).
 			Namespace(r.namespace).
 			Apply(ctx, r.appProjName, appproj, metav1.ApplyOptions{
@@ -115,10 +135,13 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 		Expect(err).NotTo(HaveOccurred())
 
-		ar := newAccessRequest(r.arName, r.namespace, r.appName, r.roleName, r.subject)
+		By("Create the RoleTemplate initial state")
+		ar := newAccessRequest(r.arName, r.namespace, r.appName, r.roleTemplateName, r.subject)
+		rt := newRoleTemplate(r.roleTemplateName, r.namespace, r.roleName, r.policies)
 
 		return &fixture{
 			accessrequest: ar,
+			roletemplate:  rt,
 			appproj:       appproj,
 		}
 	}
@@ -136,16 +159,23 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	Context("Reconciling an AccessRequest", Ordered, func() {
 		const (
-			namespace      = "default"
-			arName         = "test-ar-01"
-			appprojectName = "sample-test-project"
-			appName        = "some-application"
-			roleName       = "super-user"
-			subject        = "some-user"
+			namespace        = "default"
+			arName           = "test-ar-01"
+			appprojectName   = "sample-test-project"
+			appName          = "some-application"
+			roleTemplateName = "some-role-template"
+			roleName         = "super-user"
+			subject          = "some-user"
 		)
 
 		var f *fixture
 		var r resources
+		policies := []string{
+			"p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, logs, get, {{.Project}}/{{.Namespace}}/{{.Application}}, allow",
+		}
 
 		When("The subject has the necessary access", func() {
 			AfterAll(func() {
@@ -153,16 +183,22 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			BeforeAll(func() {
 				r = resources{
-					arName:      arName,
-					appName:     appName,
-					namespace:   namespace,
-					appProjName: appprojectName,
-					roleName:    roleName,
-					subject:     subject,
+					arName:           arName,
+					appName:          appName,
+					namespace:        namespace,
+					appProjName:      appprojectName,
+					roleTemplateName: roleTemplateName,
+					roleName:         roleName,
+					subject:          subject,
+					policies:         policies,
 				}
 				f = setup(r)
 			})
-			It("will applies the access request resource in k8s", func() {
+			It("will apply the roletemplate resource in k8s", func() {
+				err := k8sClient.Create(ctx, f.roletemplate)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will apply the access request resource in k8s", func() {
 				f.accessrequest.Spec.Duration = metav1.Duration{Duration: time.Second * 5}
 				err := k8sClient.Create(ctx, f.accessrequest)
 				Expect(err).NotTo(HaveOccurred())
@@ -239,16 +275,23 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	Context("Reconciling an AccessRequest", Ordered, func() {
 		const (
-			namespace      = "default"
-			arName         = "test-ar-02"
-			appprojectName = "sample-test-project-02"
-			appName        = "some-application"
-			roleName       = "super-user"
-			subject        = "some-user"
+			namespace        = "default"
+			arName           = "test-ar-02"
+			appprojectName   = "sample-test-project-02"
+			appName          = "some-application"
+			roleTemplateName = "some-role-template"
+			roleName         = "super-user"
+			subject          = "some-user"
 		)
 
 		var f *fixture
 		var r resources
+		policies := []string{
+			"p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, logs, get, {{.Project}}/{{.Namespace}}/{{.Application}}, allow",
+		}
 
 		When("protected fields values change after applied", func() {
 			AfterAll(func() {
@@ -256,12 +299,14 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			BeforeAll(func() {
 				r = resources{
-					arName:      arName,
-					appName:     appName,
-					namespace:   namespace,
-					appProjName: appprojectName,
-					roleName:    roleName,
-					subject:     subject,
+					arName:           arName,
+					appName:          appName,
+					namespace:        namespace,
+					appProjName:      appprojectName,
+					roleTemplateName: roleTemplateName,
+					roleName:         roleName,
+					subject:          subject,
+					policies:         policies,
 				}
 				f = setup(r)
 			})
