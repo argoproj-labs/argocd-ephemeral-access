@@ -23,6 +23,7 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields" // Required for Watching
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types" // Required for Watching
@@ -60,7 +61,7 @@ const (
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests/finalizers,verbs=update
-// +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=roletemplates,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=roletemplates,verbs=get;list;watch
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=roletemplates/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=roletemplates/finalizers,verbs=update
 // +kubebuilder:rbac:groups=argoproj.io,resources=appproject,verbs=get;list;watch;update;patch
@@ -135,7 +136,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, fmt.Errorf("error getting RoleTemplate %s: %w", ar.Spec.RoleTemplateName, err)
 	}
 
-	renderedRt, err := roleTemplate.Render(application.Spec.Project, application.GetName(), application.GetNamespace(), application.Spec.Destination.Namespace)
+	renderedRt, err := roleTemplate.Render(application.Spec.Project, application.GetName(), application.GetNamespace())
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("roleTemplate error: %w", err)
 	}
@@ -162,7 +163,19 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 func roleTemplateHash(rt *api.RoleTemplate) string {
-	return fmt.Sprintf("%x", sha1.Sum(structhash.Dump(rt, 1)))
+	rtForHash := *&api.RoleTemplate{
+		TypeMeta: rt.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rt.GetName(),
+			Namespace: rt.GetNamespace(),
+		},
+		Spec: api.RoleTemplateSpec{
+			Name:        rt.Spec.Name,
+			Description: rt.Spec.Description,
+			Policies:    rt.Spec.Policies,
+		},
+	}
+	return fmt.Sprintf("%x", sha1.Sum(structhash.Dump(rtForHash, 1)))
 }
 
 // isConcluded will check the status of the given AccessRequest
@@ -248,11 +261,7 @@ func (r *AccessRequestReconciler) handlePermission(ctx context.Context, ar *api.
 // the given AccessRequest is different than the given what is defined in the given rt.
 // Will return false otherwise.
 func roleTemplateUpdated(ar *api.AccessRequest, rt *api.RoleTemplate) bool {
-	hash := roleTemplateHash(rt)
-	if ar.Status.RoleTemplateHash != hash {
-		return true
-	}
-	return false
+	return ar.Status.RoleTemplateHash != roleTemplateHash(rt)
 }
 
 // updateStatusWithRetry will retrieve the latest AccessRequest state before
@@ -298,14 +307,27 @@ func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.Ac
 func (r *AccessRequestReconciler) getRoleTemplate(ctx context.Context, ar *api.AccessRequest) (*api.RoleTemplate, error) {
 	roleTemplate := &api.RoleTemplate{}
 	objKey := client.ObjectKey{
-		Namespace: ar.Spec.Application.Namespace,
 		Name:      ar.Spec.RoleTemplateName,
+		Namespace: ar.GetNamespace(),
 	}
 	err := r.Get(ctx, objKey, roleTemplate)
 	if err != nil {
 		return nil, err
 	}
 	return roleTemplate, nil
+}
+
+func (r *AccessRequestReconciler) getProject(ctx context.Context, name, ns string) (*argocd.AppProject, error) {
+	project := &argocd.AppProject{}
+	objKey := client.ObjectKey{
+		Namespace: ns,
+		Name:      name,
+	}
+	err := r.Get(ctx, objKey, project)
+	if err != nil {
+		return nil, err
+	}
+	return project, nil
 }
 
 // removeArgoCDAccess will remove the subjects in the given AccessRequest from
@@ -316,17 +338,13 @@ func (r *AccessRequestReconciler) getRoleTemplate(ctx context.Context, ar *api.A
 func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *api.AccessRequest, rt *api.RoleTemplate) error {
 	logger := log.FromContext(ctx)
 	logger.Info("Removing Argo CD Access")
-
-	project := &argocd.AppProject{}
-	objKey := client.ObjectKey{
-		Namespace: ar.Spec.Application.Namespace,
-		Name:      ar.Status.TargetProject,
-	}
+	projName := ar.Status.TargetProject
+	projNamespace := ar.GetNamespace()
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(ctx, objKey, project)
+		project, err := r.getProject(ctx, projName, projNamespace)
 		if err != nil {
-			e := fmt.Errorf("error getting Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+			e := fmt.Errorf("error getting Argo CD Project %s/%s: %w", projNamespace, projName, err)
 			return client.IgnoreNotFound(e)
 		}
 		patch := client.MergeFromWithOptions(project.DeepCopy(), client.MergeFromWithOptimisticLock{})
@@ -342,7 +360,7 @@ func (r *AccessRequestReconciler) removeArgoCDAccess(ctx context.Context, ar *ap
 		opts := []client.PatchOption{client.FieldOwner(FieldOwnerEphemeralAccess)}
 		err = r.Patch(ctx, project, patch, opts...)
 		if err != nil {
-			return fmt.Errorf("error patching Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+			return fmt.Errorf("error patching Argo CD Project %s/%s: %w", projNamespace, projName, err)
 		}
 		return nil
 	})
@@ -381,15 +399,14 @@ func removeSubjectsFromRole(project *argocd.AppProject, ar *api.AccessRequest, r
 func (r *AccessRequestReconciler) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest, rt *api.RoleTemplate) (api.Status, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Granting Argo CD Access")
-	project := &argocd.AppProject{}
-	objKey := client.ObjectKey{
-		Namespace: ar.Spec.Application.Namespace,
-		Name:      ar.Status.TargetProject,
-	}
+
+	projName := ar.Status.TargetProject
+	projNamespace := ar.GetNamespace()
+
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(ctx, objKey, project)
+		project, err := r.getProject(ctx, projName, projNamespace)
 		if err != nil {
-			return fmt.Errorf("error getting Argo CD Project %s/%s: %s", objKey.Namespace, objKey.Name, err)
+			return fmt.Errorf("error getting Argo CD Project %s/%s: %w", projNamespace, projName, err)
 		}
 		patch := client.MergeFromWithOptions(project.DeepCopy(), client.MergeFromWithOptimisticLock{})
 
@@ -404,7 +421,7 @@ func (r *AccessRequestReconciler) grantArgoCDAccess(ctx context.Context, ar *api
 		opts := []client.PatchOption{client.FieldOwner("ephemeral-access-controller")}
 		err = r.Patch(ctx, project, patch, opts...)
 		if err != nil {
-			return fmt.Errorf("error patching Argo CD Project %s/%s: %w", objKey.Namespace, objKey.Name, err)
+			return fmt.Errorf("error patching Argo CD Project %s/%s: %w", projNamespace, projName, err)
 		}
 
 		return nil
@@ -452,9 +469,8 @@ func addRoleInProject(project *argocd.AppProject, ar *api.AccessRequest, rt *api
 	role := argocd.ProjectRole{
 		Name:        rt.AppProjectRoleName(ar.Spec.Application.Name, ar.Spec.Application.Namespace),
 		Description: rt.Spec.Description,
-		// TODO replace from template
-		Policies: rt.Spec.Policies,
-		Groups:   groups,
+		Policies:    rt.Spec.Policies,
+		Groups:      groups,
 	}
 	project.Spec.Roles = append(project.Spec.Roles, role)
 }
@@ -472,7 +488,7 @@ func updateProjectPolicies(project *argocd.AppProject, ar *api.AccessRequest, rt
 		if role.Name == roleName {
 			project.Spec.Roles[idx].Description = rt.Spec.Description
 			project.Spec.Roles[idx].Policies = rt.Spec.Policies
-			project.Spec.Roles[idx].JWTTokens = nil
+			project.Spec.Roles[idx].JWTTokens = []argocd.JWTToken{}
 		}
 	}
 }
@@ -602,15 +618,17 @@ func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().
+	// create an AccessRequest index by role template name  to allow
+	// fetching all objects referencing a given RoleTemplate
+	err := mgr.GetFieldIndexer().
 		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateField, func(rawObj client.Object) []string {
-			// Extract the ConfigMap name from the ConfigDeployment Spec, if one is provided
 			ar := rawObj.(*api.AccessRequest)
 			if ar.Spec.RoleTemplateName == "" {
 				return nil
 			}
 			return []string{ar.Spec.RoleTemplateName}
-		}); err != nil {
+		})
+	if err != nil {
 		return fmt.Errorf("error creating index field for roleTemplateName: %w", err)
 	}
 	return ctrl.NewControllerManagedBy(mgr).

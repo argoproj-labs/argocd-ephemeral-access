@@ -57,13 +57,13 @@ type RoleTemplateStatus struct {
 	SyncHash string `json:"syncHash"`
 }
 
-func (rt *RoleTemplate) Render(projName, appName, appNs, destinationNs string) (*RoleTemplate, error) {
+func (rt *RoleTemplate) Render(projName, appName, appNs string) (*RoleTemplate, error) {
 	rendered := rt.DeepCopy()
 	descTmpl, err := template.New("description").Parse(rt.Spec.Description)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing RoleTemplate description: %w", err)
 	}
-	desc, err := rt.execTemplate(descTmpl, projName, appName, appNs, destinationNs)
+	desc, err := rt.execTemplate(descTmpl, projName, appName, appNs)
 	if err != nil {
 		return nil, fmt.Errorf("error rendering RoleTemplate description: %w", err)
 	}
@@ -74,7 +74,7 @@ func (rt *RoleTemplate) Render(projName, appName, appNs, destinationNs string) (
 	if err != nil {
 		return nil, fmt.Errorf("error parsing RoleTemplate policies: %w", err)
 	}
-	p, err := rt.execTemplate(policiesTmpl, projName, appName, appNs, destinationNs)
+	p, err := rt.execTemplate(policiesTmpl, projName, appName, appNs)
 	if err != nil {
 		return nil, fmt.Errorf("error rendering RoleTemplate policies: %w", err)
 	}
@@ -83,7 +83,7 @@ func (rt *RoleTemplate) Render(projName, appName, appNs, destinationNs string) (
 	return rendered, nil
 }
 
-func (rt *RoleTemplate) execTemplate(tmpl *template.Template, projName, appName, appNs, destinationNs string) (string, error) {
+func (rt *RoleTemplate) execTemplate(tmpl *template.Template, projName, appName, appNs string) (string, error) {
 	type vars struct {
 		Role        string
 		Project     string
@@ -95,7 +95,7 @@ func (rt *RoleTemplate) execTemplate(tmpl *template.Template, projName, appName,
 		Role:        fmt.Sprintf("proj:%s:%s", projName, roleName),
 		Project:     projName,
 		Application: appName,
-		Namespace:   destinationNs,
+		Namespace:   appNs,
 	}
 	var s strings.Builder
 	err := tmpl.Execute(&s, v)
@@ -108,7 +108,7 @@ func (rt *RoleTemplate) execTemplate(tmpl *template.Template, projName, appName,
 // roleName will return the role name to be used in the AppProject
 func (rt *RoleTemplate) AppProjectRoleName(appName, namespace string) string {
 	roleName := rt.Spec.Name
-	return fmt.Sprintf("ephemeral-%s-%s-%s", namespace, appName, roleName)
+	return fmt.Sprintf("ephemeral-%s-%s-%s", roleName, namespace, appName)
 }
 
 func init() {

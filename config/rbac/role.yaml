@@ -51,12 +51,8 @@ rules:
   resources:
   - roletemplates
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ephemeral-access.argoproj-labs.io

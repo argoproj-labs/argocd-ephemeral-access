@@ -245,13 +245,13 @@ var _ = Describe("AccessRequest Controller", func() {
 
 				By("checking if roles are properly rendered from templates")
 				Expect(appProj.Spec.Roles[2].Policies).To(HaveLen(4))
-				expectedPolicy1 := "p, proj:sample-test-project:ephemeral-default-some-application-super-user, applications, sync, sample-test-project/some-application, allow"
+				expectedPolicy1 := "p, proj:sample-test-project:ephemeral-super-user-default-some-application, applications, sync, sample-test-project/some-application, allow"
 				Expect(appProj.Spec.Roles[2].Policies[0]).To(Equal(expectedPolicy1))
-				expectedPolicy2 := "p, proj:sample-test-project:ephemeral-default-some-application-super-user, applications, action/*, sample-test-project/some-application, allow"
+				expectedPolicy2 := "p, proj:sample-test-project:ephemeral-super-user-default-some-application, applications, action/*, sample-test-project/some-application, allow"
 				Expect(appProj.Spec.Roles[2].Policies[1]).To(Equal(expectedPolicy2))
-				expectedPolicy3 := "p, proj:sample-test-project:ephemeral-default-some-application-super-user, applications, delete/*/Pod/*, sample-test-project/some-application, allow"
+				expectedPolicy3 := "p, proj:sample-test-project:ephemeral-super-user-default-some-application, applications, delete/*/Pod/*, sample-test-project/some-application, allow"
 				Expect(appProj.Spec.Roles[2].Policies[2]).To(Equal(expectedPolicy3))
-				expectedPolicy4 := "p, proj:sample-test-project:ephemeral-default-some-application-super-user, logs, get, sample-test-project/dest-namespace/some-application, allow"
+				expectedPolicy4 := "p, proj:sample-test-project:ephemeral-super-user-default-some-application, logs, get, sample-test-project/default/some-application, allow"
 				Expect(appProj.Spec.Roles[2].Policies[3]).To(Equal(expectedPolicy4))
 			})
 			It("will validate if the final status is Expired", func() {
@@ -377,5 +377,9 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(e.ErrStatus.Message).To(ContainSubstring("Value is immutable"))
 			})
 		})
+	})
+	Context("Changing a RoleTemplate used by multiple AccessRequests", Ordered, func() {
+	})
+	Context("Deleting RoleTemplate used by multiple AccessRequests", Ordered, func() {
 	})
 })
