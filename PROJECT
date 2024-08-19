@@ -16,6 +16,14 @@ resources:
   domain: argoproj-labs.io
   group: ephemeral-access
   kind: AccessRequest
-  path: github.com/argoproj-labs/ephemeral-access/api/v1alpha1
+  path: github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: argoproj-labs.io
+  group: ephemeral-access
+  kind: RoleTemplate
+  path: github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1
   version: v1alpha1
 version: "3"

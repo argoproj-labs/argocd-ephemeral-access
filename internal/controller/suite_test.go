@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	appprojectv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
-	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/v1alpha1"
+	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -63,9 +63,9 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	accessRequestCRDPath := filepath.Join("..", "..", "config", "crd", "bases")
-	appProjectCRDPath := filepath.Join("..", "..", "test", "manifests", "crd", "schema")
+	argoprojCRDPath := filepath.Join("..", "..", "test", "manifests", "argoproj", "crd", "schema")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{accessRequestCRDPath, appProjectCRDPath},
+		CRDDirectoryPaths:     []string{accessRequestCRDPath, argoprojCRDPath},
 		ErrorIfCRDPathMissing: true,
 
 		// The BinaryAssetsDirectory is only required if you want to run the tests directly

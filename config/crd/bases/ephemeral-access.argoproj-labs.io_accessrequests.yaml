@@ -66,6 +66,15 @@ spec:
                   Duration defines the ammount of time that the elevated access
                   will be granted once approved
                 type: string
+              roleTemplateName:
+                description: |-
+                  TargetRoleName defines the role name the user will be assigned
+                  to once the access is approved
+                maxLength: 512
+                type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               subjects:
                 description: Subjects defines the list of subjects for this access
                   request
@@ -84,20 +93,11 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
-              targetRoleName:
-                description: |-
-                  TargetRoleName defines the role name the user will be assigned
-                  to once the access is approved
-                maxLength: 512
-                type: string
-                x-kubernetes-validations:
-                - message: Value is immutable
-                  rule: self == oldSelf
             required:
             - application
             - duration
+            - roleTemplateName
             - subjects
-            - targetRoleName
             type: object
           status:
             description: AccessRequestStatus defines the observed state of AccessRequest
@@ -142,6 +142,8 @@ spec:
                 - granted
                 - expired
                 - denied
+                type: string
+              roleTemplateHash:
                 type: string
               targetProject:
                 type: string

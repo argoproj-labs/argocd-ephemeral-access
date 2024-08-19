@@ -52,7 +52,7 @@ type AccessRequestSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	// +kubebuilder:validation:MaxLength=512
-	TargetRoleName string `json:"targetRoleName"`
+	RoleTemplateName string `json:"roleTemplateName"`
 	// Application defines the Argo CD Application to assign the elevated
 	// permission
 	// +kubebuilder:validation:Required
@@ -81,10 +81,11 @@ type Subject struct {
 
 // AccessRequestStatus defines the observed state of AccessRequest
 type AccessRequestStatus struct {
-	RequestState  Status                 `json:"requestState,omitempty"`
-	TargetProject string                 `json:"targetProject,omitempty"`
-	ExpiresAt     *metav1.Time           `json:"expiresAt,omitempty"`
-	History       []AccessRequestHistory `json:"history,omitempty"`
+	RequestState     Status                 `json:"requestState,omitempty"`
+	TargetProject    string                 `json:"targetProject,omitempty"`
+	ExpiresAt        *metav1.Time           `json:"expiresAt,omitempty"`
+	RoleTemplateHash string                 `json:"roleTemplateHash,omitempty"`
+	History          []AccessRequestHistory `json:"history,omitempty"`
 }
 
 // AccessRequestHistory contain the history of all status transitions associated
@@ -118,11 +119,11 @@ type AccessRequest struct {
 	Status AccessRequestStatus `json:"status,omitempty"`
 }
 
-// UpdateStatus will update this AccessRequest status field based on
-// the given status and details. This function should only depend on the
+// UpdateStatusHistory will update this AccessRequest status and history fields
+// based on the given status and details. This function should only depend on the
 // objects provided by this package. If any additional dependency is needed
 // than this function should be moved to another package.
-func (ar *AccessRequest) UpdateStatus(newStatus Status, details string) {
+func (ar *AccessRequest) UpdateStatusHistory(newStatus Status, details string) {
 	status := ar.Status.DeepCopy()
 	status.RequestState = newStatus
 

@@ -46,3 +46,25 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates/status
+  verbs:
+  - get
+  - patch
+  - update
