@@ -186,7 +186,9 @@ func (s *Service) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest, 
 	return api.GrantedStatus, nil
 }
 
-// TODO
+// RoleTemplateHash will generate a hash for the given role template
+// based only on the necessary fields to require an update in the AppProject
+// role
 func RoleTemplateHash(rt *api.RoleTemplate) string {
 	rtForHash := *&api.RoleTemplate{
 		TypeMeta: rt.TypeMeta,
