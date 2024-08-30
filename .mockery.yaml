@@ -1,0 +1,8 @@
+with-expecter: true
+packages:
+  github.com/argoproj-labs/ephemeral-access/internal/accessrequest:
+    config:
+      dir: "internal/accessrequest/mocks"
+      outpkg: "mocks"
+    interfaces:
+      K8sClient:

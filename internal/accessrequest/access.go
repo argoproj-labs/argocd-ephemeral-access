@@ -18,13 +18,28 @@ const (
 	FieldOwnerEphemeralAccess = "ephemeral-access-controller"
 )
 
-type Service struct {
-	client.Client
+type K8sClient interface {
+	// Patch patches the given obj in the Kubernetes cluster. obj must be a
+	// struct pointer so that obj can be updated with the content returned by the Server.
+	Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error
+
+	// Get retrieves an obj for the given object key from the Kubernetes Cluster.
+	// obj must be a struct pointer so that obj can be updated with the response
+	// returned by the Server.
+	Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error
+
+	// Status knows how to create a client which can update status subresource
+	// for kubernetes objects.
+	Status() client.SubResourceWriter
 }
 
-func NewService(c client.Client) *Service {
+type Service struct {
+	k8sClient K8sClient
+}
+
+func NewService(c K8sClient) *Service {
 	return &Service{
-		Client: c,
+		k8sClient: c,
 	}
 }
 
@@ -122,7 +137,7 @@ func (s *Service) RemoveArgoCDAccess(ctx context.Context, ar *api.AccessRequest,
 
 		logger.Debug("Patching AppProject")
 		opts := []client.PatchOption{client.FieldOwner(FieldOwnerEphemeralAccess)}
-		err = s.Client.Patch(ctx, project, patch, opts...)
+		err = s.k8sClient.Patch(ctx, project, patch, opts...)
 		if err != nil {
 			return fmt.Errorf("error patching Argo CD Project %s/%s: %w", projNamespace, projName, err)
 		}
@@ -158,7 +173,7 @@ func (s *Service) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest, 
 
 		logger.Debug("Patching AppProject")
 		opts := []client.PatchOption{client.FieldOwner("ephemeral-access-controller")}
-		err = s.Client.Patch(ctx, project, patch, opts...)
+		err = s.k8sClient.Patch(ctx, project, patch, opts...)
 		if err != nil {
 			return fmt.Errorf("error patching Argo CD Project %s/%s: %w", projNamespace, projName, err)
 		}
@@ -194,7 +209,7 @@ func (s *Service) getProject(ctx context.Context, name, ns string) (*argocd.AppP
 		Namespace: ns,
 		Name:      name,
 	}
-	err := s.Client.Get(ctx, objKey, project)
+	err := s.k8sClient.Get(ctx, objKey, project)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +223,7 @@ func (s *Service) getProject(ctx context.Context, name, ns string) (*argocd.AppP
 //	Steps: 5, Duration: 10 milliseconds, Factor: 1.0, Jitter: 0.1
 func (s *Service) updateStatusWithRetry(ctx context.Context, ar *api.AccessRequest, status api.Status, details string, rtHash string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := s.Client.Get(ctx, client.ObjectKeyFromObject(ar), ar)
+		err := s.k8sClient.Get(ctx, client.ObjectKeyFromObject(ar), ar)
 		if err != nil {
 			return err
 		}
@@ -225,7 +240,7 @@ func (s *Service) updateStatus(ctx context.Context, ar *api.AccessRequest, statu
 	}
 	ar.UpdateStatusHistory(status, details)
 	ar.Status.RoleTemplateHash = rtHash
-	return s.Client.Status().Update(ctx, ar)
+	return s.k8sClient.Status().Update(ctx, ar)
 }
 
 // removeSubjectsFromRole will iterate ovet the roles in the given project and
