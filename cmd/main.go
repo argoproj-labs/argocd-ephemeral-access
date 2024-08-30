@@ -37,6 +37,7 @@ import (
 
 	appprojectv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/internal/accessrequest"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -127,9 +128,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	service := accessrequest.NewService(mgr.GetClient())
+
 	if err = (&controller.AccessRequestReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Service: service,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AccessRequest")
 		os.Exit(1)
