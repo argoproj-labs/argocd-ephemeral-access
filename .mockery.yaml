@@ -2,9 +2,9 @@
 # https://vektra.github.io/mockery/v2.45/configuration/
 with-expecter: true
 packages:
-  github.com/argoproj-labs/ephemeral-access/internal/accessrequest:
+  github.com/argoproj-labs/ephemeral-access/internal/controller:
     config:
-      dir: "internal/accessrequest/mocks"
+      dir: "internal/controller/mocks"
       outpkg: "mocks"
     interfaces:
       K8sClient:

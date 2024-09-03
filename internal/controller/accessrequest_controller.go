@@ -38,7 +38,6 @@ import (
 
 	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/accessrequest"
 	"github.com/argoproj-labs/ephemeral-access/internal/log"
 )
 
@@ -46,7 +45,7 @@ import (
 type AccessRequestReconciler struct {
 	client.Client
 	Scheme  *runtime.Scheme
-	Service *accessrequest.Service
+	Service *Service
 }
 
 const (
@@ -138,7 +137,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Debug("Initializing status")
 		ar.UpdateStatusHistory(api.RequestedStatus, "")
 		ar.Status.TargetProject = application.Spec.Project
-		ar.Status.RoleTemplateHash = accessrequest.RoleTemplateHash(renderedRt)
+		ar.Status.RoleTemplateHash = RoleTemplateHash(renderedRt)
 		r.Status().Update(ctx, ar)
 	}
 
@@ -186,7 +185,7 @@ func buildResult(status api.Status, ar *api.AccessRequest) ctrl.Result {
 // the given AccessRequest is different than the given what is defined in the given rt.
 // Will return false otherwise.
 func roleTemplateUpdated(ar *api.AccessRequest, rt *api.RoleTemplate) bool {
-	return ar.Status.RoleTemplateHash != accessrequest.RoleTemplateHash(rt)
+	return ar.Status.RoleTemplateHash != RoleTemplateHash(rt)
 }
 
 func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.AccessRequest) (*argocd.Application, error) {

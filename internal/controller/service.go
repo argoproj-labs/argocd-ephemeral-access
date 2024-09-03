@@ -1,4 +1,4 @@
-package accessrequest
+package controller
 
 import (
 	"context"

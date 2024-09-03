@@ -191,8 +191,8 @@ mockery: $(MOCKERY) ## Download mockery locally if necessary.
 $(MOCKERY): $(LOCALBIN)
 	$(call go-install-tool,$(MOCKERY),github.com/vektra/mockery/v2,$(MOCKERY_VERSION))
 
-.PHONY: mocks
-mocks: mockery ## Generate the project mocks as configured in .mockery.yaml
+.PHONY: generate-mocks
+generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
 	$(MOCKERY)
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist

@@ -1,4 +1,4 @@
-package accessrequest_test
+package controller_test
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 
 	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/accessrequest"
-	"github.com/argoproj-labs/ephemeral-access/internal/accessrequest/mocks"
+	"github.com/argoproj-labs/ephemeral-access/internal/controller"
+	"github.com/argoproj-labs/ephemeral-access/internal/controller/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +52,7 @@ func TestHandlePermission(t *testing.T) {
 			clientMock.EXPECT().
 				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.AppProject")).
 				Return(expectedError)
-			svc := accessrequest.NewService(clientMock)
+			svc := controller.NewService(clientMock)
 			ar := newAccessRequest("test", "default", "someApp", "someRole", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
@@ -85,7 +85,7 @@ func TestHandlePermission(t *testing.T) {
 				Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.AppProject"), mock.Anything, mock.Anything).
 				Return(expectedError).
 				Once()
-			svc := accessrequest.NewService(clientMock)
+			svc := controller.NewService(clientMock)
 			ar := newAccessRequest("test", "default", "someApp", "someRole", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
