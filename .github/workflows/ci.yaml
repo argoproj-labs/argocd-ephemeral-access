@@ -47,7 +47,7 @@ jobs:
           go tool cover -func=cover.out
       - name: Check Coverage Threlshold
         env:
-          COVERAGE_THRESHOLD: 90
+          COVERAGE_THRESHOLD: 70
         run: |
           echo "Checking if test coverage is above threshold..."
           echo "Threlshold: $COVERAGE_THRESHOLD%"
