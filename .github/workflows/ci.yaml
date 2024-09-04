@@ -25,3 +25,18 @@ jobs:
         run: make
       - name: Run Unit-Tests
         run: make test
+
+  code_coverage:
+    name: "Code coverage report"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: ci
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: fgrosse/go-coverage-report@v1.1.1
+        with:
+          coverage-artifact-name: "code-coverage"
+          coverage-file-name: "cover.out"
