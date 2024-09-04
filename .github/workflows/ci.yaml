@@ -25,7 +25,35 @@ jobs:
         run: make
       - name: Run Unit-Tests
         run: make test
-      - name: Code coverage
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage
+          path: cover.out
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Coverage Report
+        uses: actions/download-artifact@v4
+        with:
+          name: code-coverage
+      - name: Print Coverage
         run: |
-          echo "Code coverage report"
+          echo "Code coverage report:"
           go tool cover -func=cover.out
+      - name: Check Coverage Threlshold
+        env:
+          COVERAGE_THRESHOLD: 70
+        run: |
+          echo "Checking if test coverage is above threshold..."
+          echo "Threlshold: $COVERAGE_THRESHOLD%"
+          totalCoverage=$(go tool cover -func=cover.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "Total project's coverage: $totalCoverage%"
+          if (( $(echo "$totalCoverage $COVERAGE_THRESHOLD" | awk '{print ($1 >= $2)}') )); then
+            echo "OK"
+          else
+            echo "Current total test coverage is below the projects threshold."
+            echo "Please add more tests."
+            exit 1
+          fi
