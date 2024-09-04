@@ -127,9 +127,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	service := controller.NewService(mgr.GetClient())
+
 	if err = (&controller.AccessRequestReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Service: service,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AccessRequest")
 		os.Exit(1)

@@ -100,9 +100,12 @@ var _ = BeforeSuite(func() {
 		Scheme: scheme.Scheme,
 	})
 	Expect(err).ToNot(HaveOccurred())
+
+	service := NewService(k8sManager.GetClient())
 	arReconciler := &AccessRequestReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
+		Client:  k8sManager.GetClient(),
+		Scheme:  k8sManager.GetScheme(),
+		Service: service,
 	}
 	err = arReconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
