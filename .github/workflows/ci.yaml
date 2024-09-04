@@ -25,6 +25,11 @@ jobs:
         run: make
       - name: Run Unit-Tests
         run: make test
+      - name: Archive code coverage results
+        uses: actions/upload-artifacts@v4
+        with:
+          name: code-coverage
+          path: cover.out
 
   code_coverage:
     name: "Code coverage report"
