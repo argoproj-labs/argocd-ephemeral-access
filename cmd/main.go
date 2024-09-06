@@ -54,7 +54,7 @@ func init() {
 }
 
 func main() {
-	config, err := config.NewConfiguration()
+	config, err := config.ReadEnvConfigs()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error retrieving configurations: %s\n", err)
 		os.Exit(1)

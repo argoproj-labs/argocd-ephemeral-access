@@ -12,7 +12,7 @@ import (
 func TestConfiguration(t *testing.T) {
 	t.Run("will validate if default values are set properly", func(t *testing.T) {
 		// When
-		config, err := config.NewConfiguration()
+		config, err := config.ReadEnvConfigs()
 
 		// Then
 		assert.NoError(t, err, "NewConfiguration error")
@@ -37,7 +37,7 @@ func TestConfiguration(t *testing.T) {
 		os.Setenv("EPHEMERAL_CONTROLLER_REQUEUE_INTERVAL", "1s")
 
 		// When
-		config, err := config.NewConfiguration()
+		config, err := config.ReadEnvConfigs()
 
 		// Then
 		assert.NoError(t, err, "NewConfiguration error")

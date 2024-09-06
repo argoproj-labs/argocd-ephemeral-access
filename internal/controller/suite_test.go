@@ -102,7 +102,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	config, err := config.NewConfiguration()
+	config, err := config.ReadEnvConfigs()
 	Expect(err).ToNot(HaveOccurred())
 
 	service := NewService(k8sManager.GetClient(), config)

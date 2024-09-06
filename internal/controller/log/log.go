@@ -43,6 +43,7 @@ func FromContext(ctx context.Context, keysAndValues ...interface{}) *logWrapper 
 	}
 }
 
+// ZapLevel will parse a log level string and return the correspondent zapcore.Level.
 func ZapLevel(level string) (zapcore.Level, error) {
 	var l zapcore.Level
 	if err := l.UnmarshalText([]byte(level)); err != nil {
@@ -63,13 +64,13 @@ func (l *logWrapper) Debug(msg string, keysAndValues ...any) {
 	l.Logger.V(DEBUG).Info(msg, keysAndValues...)
 }
 
-// Error logs an error message. If provided, the given
-// key/value pairs are added in the log entry context.
+// Error logs an error message. If provided, the given key/value pairs are added
+// in the log entry context.
 func (l *logWrapper) Error(err error, msg string, keysAndValues ...any) {
 	l.Logger.Error(err, msg, keysAndValues...)
 }
 
-// NewLogger will use the given logConfig to build a new logr.Logger instance.
+// NewLogger will use the given LogConfigurer to build a new logr.Logger instance.
 // It will use zap and the underlying Logger implementation.
 // This function should be called only during the controller initialization.
 func NewLogger(cfg config.LogConfigurer) (logr.Logger, error) {
