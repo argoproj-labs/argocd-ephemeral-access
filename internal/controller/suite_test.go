@@ -39,6 +39,7 @@ import (
 
 	appprojectv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/internal/config"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -101,11 +102,15 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	service := NewService(k8sManager.GetClient())
+	config, err := config.NewConfiguration()
+	Expect(err).ToNot(HaveOccurred())
+
+	service := NewService(k8sManager.GetClient(), config)
 	arReconciler := &AccessRequestReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Service: service,
+		Config:  config,
 	}
 	err = arReconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())

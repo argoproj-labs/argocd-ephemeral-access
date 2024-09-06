@@ -38,6 +38,7 @@ import (
 
 	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/internal/config"
 	"github.com/argoproj-labs/ephemeral-access/internal/log"
 )
 
@@ -46,6 +47,7 @@ type AccessRequestReconciler struct {
 	client.Client
 	Scheme  *runtime.Scheme
 	Service *Service
+	Config  config.ControllerConfigurer
 }
 
 const (
@@ -148,7 +150,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
 
-	result := buildResult(status, ar)
+	result := buildResult(status, ar, r.Config.ControllerRequeueInterval())
 	logger.Info("Reconciliation concluded", "status", status, "result", result)
 	return result, nil
 }
@@ -167,13 +169,12 @@ func isConcluded(ar *api.AccessRequest) bool {
 
 // buildResult will verify the given status and determine when this access
 // request should be requeued.
-func buildResult(status api.Status, ar *api.AccessRequest) ctrl.Result {
+func buildResult(status api.Status, ar *api.AccessRequest, requeueInterval time.Duration) ctrl.Result {
 	result := ctrl.Result{}
 	switch status {
 	case api.RequestedStatus:
 		result.Requeue = true
-		// TODO add a controller requeue configuration
-		result.RequeueAfter = time.Minute * 3
+		result.RequeueAfter = requeueInterval
 	case api.GrantedStatus:
 		result.Requeue = true
 		result.RequeueAfter = ar.Status.ExpiresAt.Sub(time.Now())

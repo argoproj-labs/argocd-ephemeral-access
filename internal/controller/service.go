@@ -7,6 +7,7 @@ import (
 
 	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/internal/config"
 	"github.com/argoproj-labs/ephemeral-access/internal/log"
 	"github.com/cnf/structhash"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,11 +36,13 @@ type K8sClient interface {
 
 type Service struct {
 	k8sClient K8sClient
+	Config    config.ControllerConfigurer
 }
 
-func NewService(c K8sClient) *Service {
+func NewService(c K8sClient, cfg config.ControllerConfigurer) *Service {
 	return &Service{
 		k8sClient: c,
+		Config:    cfg,
 	}
 }
 

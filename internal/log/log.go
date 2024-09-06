@@ -3,8 +3,12 @@ package log
 import (
 	"context"
 	"fmt"
+	"strings"
 
-	logr "github.com/go-logr/logr"
+	"github.com/argoproj-labs/ephemeral-access/internal/config"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	k8slog "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -20,11 +24,11 @@ const (
 // by the logr.Logger interface abstracting away the usage of numeric
 // log levels.
 type logWrapper struct {
-	Logger logr.Logger
+	Logger *logr.Logger
 }
 
 // New will initialize a new log wrapper with the provided logger.
-func New(l logr.Logger) *logWrapper {
+func New(l *logr.Logger) *logWrapper {
 	return &logWrapper{
 		Logger: l,
 	}
@@ -35,7 +39,7 @@ func New(l logr.Logger) *logWrapper {
 func FromContext(ctx context.Context, keysAndValues ...interface{}) *logWrapper {
 	l := k8slog.FromContext(ctx, keysAndValues...)
 	return &logWrapper{
-		Logger: l,
+		Logger: &l,
 	}
 }
 
@@ -63,4 +67,40 @@ func (l *logWrapper) Debug(msg string, keysAndValues ...any) {
 // key/value pairs are added in the log entry context.
 func (l *logWrapper) Error(err error, msg string, keysAndValues ...any) {
 	l.Logger.Error(err, msg, keysAndValues...)
+}
+
+// NewLogger will use the given logConfig to build a new logr.Logger instance.
+// It will use zap and the underlying Logger implementation.
+// This function should be called only during the controller initialization.
+func NewLogger(cfg config.LogConfigurer) (logr.Logger, error) {
+	logLevel, err := zapcore.ParseLevel(cfg.LogLevel())
+	if err != nil {
+		return logr.Logger{}, fmt.Errorf("error parsing log level from configuration: %s", err)
+	}
+
+	zapConfig := zap.Config{
+		Level:            zap.NewAtomicLevelAt(logLevel),
+		Development:      false,
+		OutputPaths:      []string{"stderr"},
+		ErrorOutputPaths: []string{"stderr"},
+	}
+	switch strings.ToLower(cfg.LogFormat()) {
+	case "json":
+		encoderConfig := zap.NewProductionEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		zapConfig.Encoding = "json"
+		zapConfig.EncoderConfig = encoderConfig
+	case "console":
+		encoderConfig := zap.NewDevelopmentEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		zapConfig.Encoding = "console"
+		zapConfig.EncoderConfig = encoderConfig
+	default:
+		return logr.Logger{}, fmt.Errorf("unsupported log format: %s", cfg.LogFormat())
+	}
+	logger, err := zapConfig.Build()
+	if err != nil {
+		return logr.Logger{}, fmt.Errorf("error building logger: %s", err)
+	}
+	return zapr.NewLogger(logger), nil
 }
