@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj-labs/ephemeral-access/internal/config"
+	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"

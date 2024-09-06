@@ -8,19 +8,30 @@ import (
 	envconfig "github.com/sethvargo/go-envconfig"
 )
 
+// Configurer defines the accessor methods for all configurations that can
+// be provided externally to the ephemeral access controller process. The
+// main purpose behind this interface is to ensure that externally provided
+// configuration can not be changed once retrieved.
 type Configurer interface {
 	LogConfigurer
 	MetricsConfigurer
 	ControllerConfigurer
 }
+
+// LogConfigurer defines the accessor methods for log configurations.
 type LogConfigurer interface {
 	LogLevel() string
 	LogFormat() string
 }
+
+// MetricsConfigurer defines the accessor methods for metrics configurations.
 type MetricsConfigurer interface {
 	MetricsAddress() string
 	MetricsSecure() bool
 }
+
+// ControllerConfigurer defines the accessor methods for the controller's
+// configurations.
 type ControllerConfigurer interface {
 	EnableLeaderElection() bool
 	ControllerHealthProbeAddr() string
@@ -28,27 +39,42 @@ type ControllerConfigurer interface {
 	ControllerRequeueInterval() time.Duration
 }
 
+// MetricsAddress acessor method
 func (c *Config) MetricsAddress() string {
 	return c.Metrics.Address
 }
+
+// MetricsSecure acessor method
 func (c *Config) MetricsSecure() bool {
 	return c.Metrics.Secure
 }
+
+// LogLevel acessor method
 func (c *Config) LogLevel() string {
 	return c.Log.Level
 }
+
+// LogFormat acessor method
 func (c *Config) LogFormat() string {
 	return c.Log.Format
 }
+
+// EnableLeaderElection acessor method
 func (c *Config) EnableLeaderElection() bool {
 	return c.Controller.EnableLeaderElection
 }
+
+// ControllerHealthProbeAddr acessor method
 func (c *Config) ControllerHealthProbeAddr() string {
 	return c.Controller.HealthProbeAddr
 }
+
+// ControllerEnableHTTP2 acessor method
 func (c *Config) ControllerEnableHTTP2() bool {
 	return c.Controller.EnableHTTP2
 }
+
+// ControllerRequeueInterval acessor method
 func (c *Config) ControllerRequeueInterval() time.Duration {
 	return c.Controller.RequeueInterval
 }
@@ -101,11 +127,15 @@ type LogConfig struct {
 	Format string `env:"FORMAT, default=console"`
 }
 
+// String prints the config state
 func (c *Config) String() string {
 	return fmt.Sprintf("Metrics: [ Address: %s Secure: %t ] Log [ Level: %s Format: %s ] Controller [ EnableLeaderElection: %t HealthProbeAddress: %s EnableHTTP2: %t RequeueInterval: %s]", c.Metrics.Address, c.Metrics.Secure, c.Log.Level, c.Log.Format, c.Controller.EnableLeaderElection, c.Controller.HealthProbeAddr, c.Controller.EnableHTTP2, c.Controller.RequeueInterval)
 }
 
-func NewConfiguration() (Configurer, error) {
+// ReadEnvConfigs will read all environment variables as defined in the Config
+// struct and return a Configurer interface which provides accessor methods for
+// all configurations.
+func ReadEnvConfigs() (Configurer, error) {
 	var config Config
 	err := envconfig.Process(context.Background(), &config)
 	if err != nil {

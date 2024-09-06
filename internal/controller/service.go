@@ -7,8 +7,8 @@ import (
 
 	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/config"
-	"github.com/argoproj-labs/ephemeral-access/internal/log"
+	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
+	"github.com/argoproj-labs/ephemeral-access/internal/controller/log"
 	"github.com/cnf/structhash"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj-labs/ephemeral-access/internal/config"
+	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
 	"github.com/stretchr/testify/assert"
 )
 

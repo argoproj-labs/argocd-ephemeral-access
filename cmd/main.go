@@ -35,9 +35,9 @@ import (
 
 	appprojectv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/config"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller"
-	"github.com/argoproj-labs/ephemeral-access/internal/log"
+	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
+	"github.com/argoproj-labs/ephemeral-access/internal/controller/log"
 	// +kubebuilder:scaffold:imports
 )
 
