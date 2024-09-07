@@ -1,10 +1,13 @@
 # mockery configuration docs for the version used by this project
 # https://vektra.github.io/mockery/v2.45/configuration/
 with-expecter: true
+dir: "test/mocks"
+outpkg: "mocks"
 packages:
   github.com/argoproj-labs/ephemeral-access/internal/controller:
-    config:
-      dir: "internal/controller/mocks"
-      outpkg: "mocks"
     interfaces:
       K8sClient:
+  github.com/argoproj-labs/ephemeral-access/internal/controller/config:
+    interfaces:
+      Configurer:
+      LogConfigurer:
