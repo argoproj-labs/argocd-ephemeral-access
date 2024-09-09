@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -27,14 +26,14 @@ func TestConfiguration(t *testing.T) {
 	})
 	t.Run("will validate if env vars are set properly", func(t *testing.T) {
 		// Given
-		os.Setenv("EPHEMERAL_LOG_LEVEL", "debug")
-		os.Setenv("EPHEMERAL_LOG_FORMAT", "json")
-		os.Setenv("EPHEMERAL_METRICS_ADDR", ":9091")
-		os.Setenv("EPHEMERAL_METRICS_SECURE", "true")
-		os.Setenv("EPHEMERAL_CONTROLLER_ENABLE_LEADER_ELECTION", "true")
-		os.Setenv("EPHEMERAL_CONTROLLER_HEALTH_PROBE_ADDR", ":1313")
-		os.Setenv("EPHEMERAL_CONTROLLER_ENABLE_HTTP2", "true")
-		os.Setenv("EPHEMERAL_CONTROLLER_REQUEUE_INTERVAL", "1s")
+		t.Setenv("EPHEMERAL_LOG_LEVEL", "debug")
+		t.Setenv("EPHEMERAL_LOG_FORMAT", "json")
+		t.Setenv("EPHEMERAL_METRICS_ADDR", ":9091")
+		t.Setenv("EPHEMERAL_METRICS_SECURE", "true")
+		t.Setenv("EPHEMERAL_CONTROLLER_ENABLE_LEADER_ELECTION", "true")
+		t.Setenv("EPHEMERAL_CONTROLLER_HEALTH_PROBE_ADDR", ":1313")
+		t.Setenv("EPHEMERAL_CONTROLLER_ENABLE_HTTP2", "true")
+		t.Setenv("EPHEMERAL_CONTROLLER_REQUEUE_INTERVAL", "1s")
 
 		// When
 		config, err := config.ReadEnvConfigs()
