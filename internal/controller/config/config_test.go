@@ -16,7 +16,7 @@ func TestConfiguration(t *testing.T) {
 		// Then
 		assert.NoError(t, err, "NewConfiguration error")
 		assert.Equal(t, "info", config.LogLevel())
-		assert.Equal(t, "console", config.LogFormat())
+		assert.Equal(t, "text", config.LogFormat())
 		assert.Equal(t, "0", config.MetricsAddress())
 		assert.Equal(t, false, config.MetricsSecure())
 		assert.Equal(t, false, config.EnableLeaderElection())
