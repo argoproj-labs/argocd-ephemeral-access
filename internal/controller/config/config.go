@@ -122,9 +122,9 @@ type LogConfig struct {
 	// Default: info
 	Level string `env:"LEVEL, default=info"`
 	// Format defines the log output format.
-	// Possible values: console, json
-	// Default: console
-	Format string `env:"FORMAT, default=console"`
+	// Possible values: text, json
+	// Default: text
+	Format string `env:"FORMAT, default=text"`
 }
 
 // String prints the config state

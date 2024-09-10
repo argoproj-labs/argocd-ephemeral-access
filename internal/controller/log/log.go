@@ -91,7 +91,7 @@ func NewLogger(cfg config.LogConfigurer) (logr.Logger, error) {
 		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		zapConfig.Encoding = "json"
 		zapConfig.EncoderConfig = encoderConfig
-	case "console":
+	case "text":
 		encoderConfig := zap.NewDevelopmentEncoderConfig()
 		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		zapConfig.Encoding = "console"
