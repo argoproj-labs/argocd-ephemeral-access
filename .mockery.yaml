@@ -10,4 +10,6 @@ packages:
   github.com/argoproj-labs/ephemeral-access/internal/controller/config:
     interfaces:
       Configurer:
-      LogConfigurer:
+  github.com/argoproj-labs/ephemeral-access/pkg/plugin:
+    interfaces:
+      AccessRequester:

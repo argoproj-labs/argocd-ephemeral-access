@@ -37,7 +37,7 @@ import (
 	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
-	"github.com/argoproj-labs/ephemeral-access/internal/controller/log"
+	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -60,7 +60,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger, err := log.NewLogger(config)
+	level := log.LogLevel(config.LogLevel())
+	format := log.LogFormat(config.LogFormat())
+	logger, err := log.NewLogger(log.WithLevel(level), log.WithFormat(format))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error creating logger: %s\n", err)
 		os.Exit(1)
