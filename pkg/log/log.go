@@ -65,10 +65,14 @@ type LogWrapper struct {
 }
 
 // New will initialize a new log wrapper with the provided logger.
-func New(l *logr.Logger) *LogWrapper {
-	return &LogWrapper{
-		Logger: l,
+func New(opts ...Opts) (*LogWrapper, error) {
+	logger, err := NewLogger(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("error creating logger: %s", err)
 	}
+	return &LogWrapper{
+		Logger: &logger,
+	}, nil
 }
 
 // FromContext will return a new log wrapper with the extracted logger
@@ -78,6 +82,13 @@ func FromContext(ctx context.Context, keysAndValues ...interface{}) *LogWrapper 
 	return &LogWrapper{
 		Logger: &l,
 	}
+}
+
+// Logger defines the main logger contract used by this project.
+type Logger interface {
+	Info(msg string, keysAndValues ...any)
+	Debug(msg string, keysAndValues ...any)
+	Error(err error, msg string, keysAndValues ...any)
 }
 
 // Info logs a non-error message with info level. If provided, the given
