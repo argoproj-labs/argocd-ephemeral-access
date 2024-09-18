@@ -91,7 +91,6 @@ func readEnvConfigs() (*Options, error) {
 }
 
 func main() {
-
 	opts, err := readEnvConfigs()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error retrieving configurations: %s\n", err)
@@ -111,7 +110,9 @@ func main() {
 		logger.Error(err, "newClient error")
 		os.Exit(1)
 	}
-	service := backend.NewDefaultService(dynClient, logger)
+
+	c := backend.NewK8sClient(dynClient)
+	service := backend.NewDefaultService(c, logger)
 	handler := backend.NewAPIHandler(service, logger)
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *ServerConfig) {
@@ -128,6 +129,7 @@ func main() {
 			logger.Info("Starting Ephemeral Access API Server...", "port", opts.Server.Port)
 			server.ListenAndServe()
 		})
+		// graceful shutdown the server
 		hooks.OnStop(func() {
 			// Give the server 10 seconds to gracefully shut down, then give up.
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
