@@ -22,16 +22,20 @@ type Persister interface {
 	GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error)
 }
 
+// K8sPersister is a K8s implementation for the Persister interface.
 type K8sPersister struct {
 	client dynamic.Interface
 }
 
+// NewK8sPersister will return a new K8sPersister instance.
 func NewK8sPersister(c dynamic.Interface) *K8sPersister {
 	return &K8sPersister{
 		client: c,
 	}
 }
 
+// GetAccessRequestResource return a GroupVersionResource schema for the
+// AccessRequest CRD.
 func GetAccessRequestResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    api.GroupVersion.Group,
@@ -40,6 +44,8 @@ func GetAccessRequestResource() schema.GroupVersionResource {
 	}
 }
 
+// GetAccessRequest will retrieve an AccessRequest from k8s identified by the given
+// name and namespace.
 func (c *K8sPersister) GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error) {
 	resp, err := c.client.Resource(GetAccessRequestResource()).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {

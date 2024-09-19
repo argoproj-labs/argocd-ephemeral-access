@@ -9,15 +9,19 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
+// Service defines the operations provided by the backend. Backend business
+// logic should be added in implementations of this interface
 type Service interface {
 	GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error)
 }
 
+// DefaultService is the real Service implementation
 type DefaultService struct {
 	k8s    Persister
 	logger log.Logger
 }
 
+// NewDefaultService will return a new DefaultService instance.
 func NewDefaultService(c Persister, l log.Logger) *DefaultService {
 	return &DefaultService{
 		k8s:    c,
@@ -25,6 +29,9 @@ func NewDefaultService(c Persister, l log.Logger) *DefaultService {
 	}
 }
 
+// GetAccessRequest will retrieve the access request from k8s identified by the
+// given name and namespace. Will return a nil value without any error if the
+// access request isn't found.
 func (s *DefaultService) GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error) {
 	ar, err := s.k8s.GetAccessRequest(ctx, name, namespace)
 	if err != nil {
