@@ -111,7 +111,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	c := backend.NewK8sClient(dynClient)
+	c := backend.NewK8sPersister(dynClient)
 	service := backend.NewDefaultService(c, logger)
 	handler := backend.NewAPIHandler(service, logger)
 
