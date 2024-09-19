@@ -310,7 +310,7 @@ func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// create an AccessRequest index by role template name  to allow
+	// create an AccessRequest index by role template name to allow
 	// fetching all objects referencing a given RoleTemplate
 	err := mgr.GetFieldIndexer().
 		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateField, func(rawObj client.Object) []string {

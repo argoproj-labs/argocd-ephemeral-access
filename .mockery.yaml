@@ -13,3 +13,10 @@ packages:
   github.com/argoproj-labs/ephemeral-access/pkg/plugin:
     interfaces:
       AccessRequester:
+  github.com/argoproj-labs/ephemeral-access/pkg/log:
+    interfaces:
+      Logger:
+  github.com/argoproj-labs/ephemeral-access/internal/backend:
+    interfaces:
+      Service:
+      Persister:
