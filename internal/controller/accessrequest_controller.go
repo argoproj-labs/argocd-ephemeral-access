@@ -55,6 +55,7 @@ const (
 	// managed by this controller
 	AccessRequestFinalizerName = "accessrequest.ephemeral-access.argoproj-labs.io/finalizer"
 	roleTemplateField          = ".spec.roleTemplateName"
+	projectField               = ".status.TargetProject"
 )
 
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
@@ -281,13 +282,17 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 // controller. Only non-concluded AccessRequests will be added to the reconciliation
 // list. An AccessRequest is defined as concluded if their status is Expired or Denied.
 func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context, roleTemplate client.Object) []reconcile.Request {
+	logger := log.FromContext(ctx)
 	attachedAccessRequests := &api.AccessRequestList{}
 	listOps := &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(roleTemplateField, roleTemplate.GetName()),
-		Namespace:     roleTemplate.GetNamespace(),
+		// This makes a requirement that the AccessRequest has to live in the
+		// same namespace as the AppProject.
+		Namespace: roleTemplate.GetNamespace(),
 	}
 	err := r.List(ctx, attachedAccessRequests, listOps)
 	if err != nil {
+		logger.Error(err, "findObjectsForRoleTemplate error: list k8s resources error")
 		return []reconcile.Request{}
 	}
 
@@ -308,10 +313,63 @@ func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context
 	return requests
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// create an AccessRequest index by role template name to allow
-	// fetching all objects referencing a given RoleTemplate
+// findObjectsForProject will retrieve all AccessRequest resources referencing
+// the given project and build a list of reconcile requests to be sent to the
+// controller. Only non-concluded AccessRequests will be added to the reconciliation
+// list. An AccessRequest is defined as concluded if their status is Expired or Denied.
+func (r *AccessRequestReconciler) findObjectsForProject(ctx context.Context, project client.Object) []reconcile.Request {
+	logger := log.FromContext(ctx)
+	associatedAccessRequests := &api.AccessRequestList{}
+	listOps := &client.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector(projectField, project.GetName()),
+		// This makes a requirement that the AccessRequest has to live in the
+		// same namespace as the AppProject.
+		Namespace: project.GetNamespace(),
+	}
+	err := r.List(ctx, associatedAccessRequests, listOps)
+	if err != nil {
+		logger.Error(err, "findObjectsForProject error: list k8s resources error")
+		return []reconcile.Request{}
+	}
+
+	requests := make([]reconcile.Request, len(associatedAccessRequests.Items))
+	for i, item := range associatedAccessRequests.Items {
+		if !isConcluded(&item) {
+			requests[i] = reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			}
+		}
+	}
+	if len(requests) == 0 {
+		return nil
+	}
+	return requests
+}
+
+// createProjectIndex will create an AccessRequest index by project to allow
+// fetching all objects referencing a given AppProject.
+func createProjectIndex(mgr ctrl.Manager) error {
+	err := mgr.GetFieldIndexer().
+		IndexField(context.Background(), &api.AccessRequest{}, projectField,
+			func(rawObj client.Object) []string {
+				ar := rawObj.(*api.AccessRequest)
+				if ar.Status.TargetProject == "" {
+					return nil
+				}
+				return []string{ar.Status.TargetProject}
+			})
+	if err != nil {
+		return fmt.Errorf("error creating project field index: %w", err)
+	}
+	return nil
+}
+
+// createRoleTemplateIndex create an AccessRequest index by role template name
+// to allow fetching all objects referencing a given RoleTemplate.
+func createRoleTemplateIndex(mgr ctrl.Manager) error {
 	err := mgr.GetFieldIndexer().
 		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateField, func(rawObj client.Object) []string {
 			ar := rawObj.(*api.AccessRequest)
@@ -321,12 +379,28 @@ func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return []string{ar.Spec.RoleTemplateName}
 		})
 	if err != nil {
-		return fmt.Errorf("error creating index field for roleTemplateName: %w", err)
+		return fmt.Errorf("error creating roleTemplateName field index: %w", err)
+	}
+	return nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	err := createProjectIndex(mgr)
+	if err != nil {
+		return fmt.Errorf("create index error: %w", err)
+	}
+	err = createRoleTemplateIndex(mgr)
+	if err != nil {
+		return fmt.Errorf("create index error: %w", err)
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&api.AccessRequest{}).
 		Watches(&api.RoleTemplate{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForRoleTemplate),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
+		Watches(&argocd.AppProject{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForProject),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
 }
