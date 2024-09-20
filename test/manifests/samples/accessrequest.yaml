@@ -12,5 +12,5 @@ spec:
   application: 
     name: some-application
     namespace: ephemeral
-  subjects:
-    - username: some_user@fakedomain.com
+  subject:
+    username: some_user@fakedomain.com

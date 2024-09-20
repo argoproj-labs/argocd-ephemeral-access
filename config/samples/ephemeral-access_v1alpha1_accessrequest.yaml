@@ -12,5 +12,5 @@ spec:
   appProject: 
     name: some-argocd-appproject
     namespace: some-namespace
-  subjects:
-    - username: some_user@fakedomain.com
+  subject:
+    username: some_user@fakedomain.com

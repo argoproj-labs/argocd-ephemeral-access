@@ -63,10 +63,8 @@ func newAccessRequest(name, namespace, appName, roleName, subject string) *api.A
 				Name:      appName,
 				Namespace: namespace,
 			},
-			Subjects: []api.Subject{
-				{
-					Username: subject,
-				},
+			Subject: api.Subject{
+				Username: subject,
 			},
 		},
 	}
@@ -366,7 +364,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				ar := &api.AccessRequest{}
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
 				Expect(err).NotTo(HaveOccurred())
-				ar.Spec.Subjects[0].Username = "NOT-ALLOWED"
+				ar.Spec.Subject.Username = "NOT-ALLOWED"
 
 				err = k8sClient.Update(ctx, ar)
 

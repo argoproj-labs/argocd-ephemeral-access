@@ -58,10 +58,10 @@ type AccessRequestSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Application TargetApplication `json:"application"`
-	// Subjects defines the list of subjects for this access request
+	// Subject defines the subject for this access request
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	Subjects []Subject `json:"subjects"`
+	Subject Subject `json:"subject"`
 }
 
 // TargetApplication defines the Argo CD AppProject to assign the elevated

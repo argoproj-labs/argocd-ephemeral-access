@@ -31,10 +31,8 @@ func newAccessRequest(name, namespace, appName, roleName, subject string) *api.A
 				Name:      appName,
 				Namespace: namespace,
 			},
-			Subjects: []api.Subject{
-				{
-					Username: subject,
-				},
+			Subject: api.Subject{
+				Username: subject,
 			},
 		},
 	}
