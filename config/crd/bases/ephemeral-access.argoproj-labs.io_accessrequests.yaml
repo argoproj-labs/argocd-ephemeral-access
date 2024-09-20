@@ -75,21 +75,16 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
-              subjects:
-                description: Subjects defines the list of subjects for this access
-                  request
-                items:
-                  description: Subject defines the user details to get elevated permissions
-                    assigned
-                  properties:
-                    username:
-                      description: Username refers to the entity requesting the elevated
-                        permission
-                      type: string
-                  required:
-                  - username
-                  type: object
-                type: array
+              subject:
+                description: Subject defines the subject for this access request
+                properties:
+                  username:
+                    description: Username refers to the entity requesting the elevated
+                      permission
+                    type: string
+                required:
+                - username
+                type: object
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
@@ -97,7 +92,7 @@ spec:
             - application
             - duration
             - roleTemplateName
-            - subjects
+            - subject
             type: object
           status:
             description: AccessRequestStatus defines the observed state of AccessRequest

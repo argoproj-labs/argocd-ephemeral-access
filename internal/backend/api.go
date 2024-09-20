@@ -146,7 +146,7 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 	return AccessRequestResponseBody{
 		Name:        ar.GetName(),
 		Namespace:   ar.GetNamespace(),
-		Username:    ar.Spec.Subjects[0].Username,
+		Username:    ar.Spec.Subject.Username,
 		Permission:  "ReadOnly",
 		RequestedAt: requestedAt,
 		Role:        "",

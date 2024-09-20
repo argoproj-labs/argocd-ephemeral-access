@@ -47,11 +47,11 @@ func NewService(c K8sClient, cfg config.ControllerConfigurer) *Service {
 }
 
 // handlePermission will analyse the given ar and proceed with granting
-// or removing Argo CD access for the subjects listed in the AccessRequest.
+// or removing Argo CD access for the subject listed in the AccessRequest.
 // The following validations will be executed:
-//  1. Check if the given ar is expired. If so, subjects will be removed from
+//  1. Check if the given ar is expired. If so, the subject will be removed from
 //     the Argo CD role.
-//  2. Check if the subjects are allowed to be assigned in the given AccessRequest
+//  2. Check if the subject is allowed to be assigned in the given AccessRequest
 //     target role. If so, it will proceed with grating Argo CD access. Otherwise
 //     it will return DeniedStatus.
 //
@@ -112,7 +112,7 @@ func (s *Service) handleAccessExpired(ctx context.Context, ar *api.AccessRequest
 	return nil
 }
 
-// removeArgoCDAccess will remove the subjects in the given AccessRequest from
+// removeArgoCDAccess will remove the subject in the given AccessRequest from
 // the given ar.TargetRoleName from the Argo CD project referenced in the
 // ar.Spec.AppProject. The AppProject update will be executed via a patch with
 // optimistic lock enabled. It will retry in case of AppProject conflict is
@@ -131,8 +131,8 @@ func (s *Service) RemoveArgoCDAccess(ctx context.Context, ar *api.AccessRequest,
 		}
 		patch := client.MergeFromWithOptions(project.DeepCopy(), client.MergeFromWithOptimisticLock{})
 
-		logger.Debug("Removing subjects from role")
-		removeSubjectsFromRole(project, ar, rt)
+		logger.Debug("Removing subject from role")
+		removeSubjectFromRole(project, ar, rt)
 		// this is necessary to make sure that the AppProject role managed by
 		// this controller is always in sync with what is defined in the
 		// RoleTemplate
@@ -148,7 +148,7 @@ func (s *Service) RemoveArgoCDAccess(ctx context.Context, ar *api.AccessRequest,
 	})
 }
 
-// grantArgoCDAccess will associate the given AccessRequest subjects in the
+// grantArgoCDAccess will associate the given AccessRequest subject in the
 // Argo CD AppProject specified in the ar.Spec.AppProject in the role defined
 // in ar.TargetRoleName. The AppProject update will be executed via a patch with
 // optimistic lock enabled. It Will retry in case of AppProject conflict is
@@ -167,8 +167,8 @@ func (s *Service) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest, 
 		}
 		patch := client.MergeFromWithOptions(project.DeepCopy(), client.MergeFromWithOptimisticLock{})
 
-		logger.Debug("Adding subjects in role")
-		addSubjectsInRole(project, ar, rt)
+		logger.Debug("Adding subject in role")
+		addSubjectInRole(project, ar, rt)
 		// this is necessary to make sure that the AppProject role managed by
 		// this controller is always in sync with what is defined in the
 		// RoleTemplate
@@ -248,21 +248,19 @@ func (s *Service) updateStatus(ctx context.Context, ar *api.AccessRequest, statu
 	return s.k8sClient.Status().Update(ctx, ar)
 }
 
-// removeSubjectsFromRole will iterate ovet the roles in the given project and
-// remove the subjects from the given AccessRequest from the role specified in
+// removeSubjectFromRole will iterate over the roles in the given project and
+// remove the subject from the given AccessRequest from the role specified in
 // the ar.TargetRoleName.
-func removeSubjectsFromRole(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) {
+func removeSubjectFromRole(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) {
 	roleName := rt.AppProjectRoleName(ar.Spec.Application.Name, ar.Spec.Application.Namespace)
 	for idx, role := range project.Spec.Roles {
 		if role.Name == roleName {
 			groups := []string{}
 			for _, group := range role.Groups {
 				remove := false
-				for _, subject := range ar.Spec.Subjects {
-					if group == subject.Username {
-						remove = true
-						break
-					}
+				if group == ar.Spec.Subject.Username {
+					remove = true
+					break
 				}
 				if !remove {
 					groups = append(groups, group)
@@ -291,25 +289,23 @@ func updateProjectPolicies(project *argocd.AppProject, ar *api.AccessRequest, rt
 	}
 }
 
-// addSubjectsInRole will associate the given AccessRequest subjects in the
+// addSubjectInRole will associate the given AccessRequest subject in the
 // specific role in the given project.
-func addSubjectsInRole(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) {
+func addSubjectInRole(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) {
 	roleFound := false
 	roleName := rt.AppProjectRoleName(ar.Spec.Application.Name, ar.Spec.Application.Namespace)
 	for idx, role := range project.Spec.Roles {
 		if role.Name == roleName {
 			roleFound = true
-			for _, subject := range ar.Spec.Subjects {
-				hasAccess := false
-				for _, group := range role.Groups {
-					if group == subject.Username {
-						hasAccess = true
-						break
-					}
+			hasAccess := false
+			for _, group := range role.Groups {
+				if group == ar.Spec.Subject.Username {
+					hasAccess = true
+					break
 				}
-				if !hasAccess {
-					project.Spec.Roles[idx].Groups = append(project.Spec.Roles[idx].Groups, subject.Username)
-				}
+			}
+			if !hasAccess {
+				project.Spec.Roles[idx].Groups = append(project.Spec.Roles[idx].Groups, ar.Spec.Subject.Username)
 			}
 		}
 	}
@@ -321,10 +317,7 @@ func addSubjectsInRole(project *argocd.AppProject, ar *api.AccessRequest, rt *ap
 // addRoleInProject will initialize the role owned by the ephemeral-access
 // controller and associate it in the given project.
 func addRoleInProject(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) {
-	groups := []string{}
-	for _, subject := range ar.Spec.Subjects {
-		groups = append(groups, subject.Username)
-	}
+	groups := []string{ar.Spec.Subject.Username}
 	role := argocd.ProjectRole{
 		Name:        rt.AppProjectRoleName(ar.Spec.Application.Name, ar.Spec.Application.Namespace),
 		Description: rt.Spec.Description,

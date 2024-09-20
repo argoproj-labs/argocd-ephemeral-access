@@ -70,10 +70,8 @@ func TestAccessRequesterRPC(t *testing.T) {
 					Name:      name,
 					Namespace: namespace,
 				},
-				Subjects: []api.Subject{
-					{
-						Username: username,
-					},
+				Subject: api.Subject{
+					Username: username,
 				},
 			},
 		}
