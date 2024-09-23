@@ -283,6 +283,7 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 // list. An AccessRequest is defined as concluded if their status is Expired or Denied.
 func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context, roleTemplate client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
+	logger.Debug(fmt.Sprintf("RoleTemplate %s updated: searching for associated AccessRequests...", roleTemplate.GetName()))
 	attachedAccessRequests := &api.AccessRequestList{}
 	listOps := &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(roleTemplateField, roleTemplate.GetName()),
@@ -307,9 +308,11 @@ func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context
 			}
 		}
 	}
-	if len(requests) == 0 {
+	totalRequests := len(requests)
+	if totalRequests == 0 {
 		return nil
 	}
+	logger.Debug(fmt.Sprintf("Found %d associated AccessRequests with RoleTemplate %s. Reconciling...", totalRequests, roleTemplate.GetName()))
 	return requests
 }
 
@@ -319,6 +322,7 @@ func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context
 // list. An AccessRequest is defined as concluded if their status is Expired or Denied.
 func (r *AccessRequestReconciler) findObjectsForProject(ctx context.Context, project client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
+	logger.Debug(fmt.Sprintf("Project %s updated: searching for associated AccessRequests...", project.GetName()))
 	associatedAccessRequests := &api.AccessRequestList{}
 	listOps := &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(projectField, project.GetName()),
@@ -343,9 +347,11 @@ func (r *AccessRequestReconciler) findObjectsForProject(ctx context.Context, pro
 			}
 		}
 	}
-	if len(requests) == 0 {
+	totalRequests := len(requests)
+	if totalRequests == 0 {
 		return nil
 	}
+	logger.Debug(fmt.Sprintf("Found %d associated AccessRequests with project %s. Reconciling...", totalRequests, project.GetName()))
 	return requests
 }
 

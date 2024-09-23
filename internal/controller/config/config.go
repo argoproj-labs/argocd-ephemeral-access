@@ -26,7 +26,7 @@ type LogConfigurer interface {
 
 // MetricsConfigurer defines the accessor methods for metrics configurations.
 type MetricsConfigurer interface {
-	MetricsAddress() string
+	MetricsAddress() int
 	MetricsSecure() bool
 }
 
@@ -34,13 +34,13 @@ type MetricsConfigurer interface {
 // configurations.
 type ControllerConfigurer interface {
 	EnableLeaderElection() bool
-	ControllerHealthProbeAddr() string
+	ControllerHealthProbeAddr() int
 	ControllerEnableHTTP2() bool
 	ControllerRequeueInterval() time.Duration
 }
 
 // MetricsAddress acessor method
-func (c *Config) MetricsAddress() string {
+func (c *Config) MetricsAddress() int {
 	return c.Metrics.Address
 }
 
@@ -65,7 +65,7 @@ func (c *Config) EnableLeaderElection() bool {
 }
 
 // ControllerHealthProbeAddr acessor method
-func (c *Config) ControllerHealthProbeAddr() string {
+func (c *Config) ControllerHealthProbeAddr() int {
 	return c.Controller.HealthProbeAddr
 }
 
@@ -92,8 +92,8 @@ type Config struct {
 // MetricsConfig defines the metrics configurations
 type MetricsConfig struct {
 	// Address The address the metric endpoint binds to.
-	// Use the port :8080. If not set, it will be 0 in order to disable the metrics server
-	Address string `env:"ADDR, default=0"`
+	// Use the port 8080. If not set, it will be 0 in order to disable the metrics server.
+	Address int `env:"ADDR, default=0"`
 	// Secure If set the metrics endpoint is served securely.
 	Secure bool `env:"SECURE, default=false"`
 }
@@ -104,7 +104,7 @@ type ControllerConfig struct {
 	// Enabling this will ensure there is only one active controller manager.
 	EnableLeaderElection bool `env:"ENABLE_LEADER_ELECTION, default=false"`
 	// HealthProbeAddr The address the probe endpoint binds to.
-	HealthProbeAddr string `env:"HEALTH_PROBE_ADDR, default=:8081"`
+	HealthProbeAddr int `env:"HEALTH_PROBE_ADDR, default=8081"`
 	// EnableHTTP2 If set, HTTP/2 will be enabled for the metrics and webhook
 	// servers.
 	EnableHTTP2 bool `env:"ENABLE_HTTP2, default=false"`
@@ -129,7 +129,7 @@ type LogConfig struct {
 
 // String prints the config state
 func (c *Config) String() string {
-	return fmt.Sprintf("Metrics: [ Address: %s Secure: %t ] Log [ Level: %s Format: %s ] Controller [ EnableLeaderElection: %t HealthProbeAddress: %s EnableHTTP2: %t RequeueInterval: %s]", c.Metrics.Address, c.Metrics.Secure, c.Log.Level, c.Log.Format, c.Controller.EnableLeaderElection, c.Controller.HealthProbeAddr, c.Controller.EnableHTTP2, c.Controller.RequeueInterval)
+	return fmt.Sprintf("Metrics: [ Address: %d Secure: %t ] Log [ Level: %s Format: %s ] Controller [ EnableLeaderElection: %t HealthProbeAddress: %d EnableHTTP2: %t RequeueInterval: %s]", c.Metrics.Address, c.Metrics.Secure, c.Log.Level, c.Log.Format, c.Controller.EnableLeaderElection, c.Controller.HealthProbeAddr, c.Controller.EnableHTTP2, c.Controller.RequeueInterval)
 }
 
 // ReadEnvConfigs will read all environment variables as defined in the Config

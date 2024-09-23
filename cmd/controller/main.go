@@ -95,12 +95,12 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
-			BindAddress:   config.MetricsAddress(),
+			BindAddress:   fmt.Sprintf(":%d", config.MetricsAddress()),
 			SecureServing: config.MetricsSecure(),
 			TLSOpts:       tlsOpts,
 		},
 		WebhookServer:          webhookServer,
-		HealthProbeBindAddress: config.ControllerHealthProbeAddr(),
+		HealthProbeBindAddress: fmt.Sprintf(":%d", config.ControllerHealthProbeAddr()),
 		LeaderElection:         config.EnableLeaderElection(),
 		LeaderElectionID:       "8246dd0c.argoproj-labs.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily

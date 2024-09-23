@@ -57,6 +57,9 @@ type RoleTemplateStatus struct {
 	SyncHash string `json:"syncHash"`
 }
 
+// Render will return a new RoleTemplate instance with the templates replaced by
+// the given projName, appName and appNs. The RoleTemplate fields that accept
+// templated values are 'rt.Spec.Description' and 'rt.Spec.Policies'.
 func (rt *RoleTemplate) Render(projName, appName, appNs string) (*RoleTemplate, error) {
 	rendered := rt.DeepCopy()
 	descTmpl, err := template.New("description").Parse(rt.Spec.Description)
