@@ -17,12 +17,14 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -88,6 +90,18 @@ func newRoleTemplate(templateName, namespace, roleName string, policies []string
 	}
 }
 
+func newNamespace(name string) *corev1.Namespace {
+	return &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+}
+
 var _ = Describe("AccessRequest Controller", func() {
 	const (
 		timeout  = time.Second * 10
@@ -96,17 +110,28 @@ var _ = Describe("AccessRequest Controller", func() {
 	)
 
 	type fixture struct {
-		accessrequest *api.AccessRequest
-		roletemplate  *api.RoleTemplate
-		appproj       *unstructured.Unstructured
+		namespace      *corev1.Namespace
+		accessrequests []*api.AccessRequest
+		roletemplate   *api.RoleTemplate
+		appproj        *unstructured.Unstructured
 	}
 
 	type resources struct {
-		arName, appName, namespace, appProjName, roleTemplateName, subject, roleName string
-		policies                                                                     []string
+		arName, appName, namespace, appProjName,
+		roleTemplateName, subject, roleName string
+		policies []string
 	}
 
 	setup := func(r resources) *fixture {
+		By("Creating the namespace")
+		ns := newNamespace(r.namespace)
+		err := k8sClient.Create(ctx, ns)
+		if err != nil {
+			statusErr, ok := err.(*errors.StatusError)
+			Expect(ok).To(BeTrue())
+			Expect(statusErr.ErrStatus.Code).NotTo(Equal(409))
+		}
+
 		By("Create the Application initial state")
 		appYaml := testdata.ApplicationYaml
 		app, err := utils.YamlToUnstructured(appYaml)
@@ -137,30 +162,26 @@ var _ = Describe("AccessRequest Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Create the RoleTemplate initial state")
-		ar := newAccessRequest(r.arName, r.namespace, r.appName, r.roleTemplateName, r.subject)
 		rt := newRoleTemplate(r.roleTemplateName, r.namespace, r.roleName, r.policies)
+		By("Create the AccessRequest initial state")
+		ar := newAccessRequest(r.arName, r.namespace, r.appName, r.roleTemplateName, r.subject)
 
 		return &fixture{
-			accessrequest: ar,
-			roletemplate:  rt,
-			appproj:       appproj,
+			namespace:      ns,
+			accessrequests: []*api.AccessRequest{ar},
+			roletemplate:   rt,
+			appproj:        appproj,
 		}
 	}
 
 	tearDown := func(r resources, f *fixture) {
-		By("Delete the AccessRequest in k8s")
-		Expect(k8sClient.Delete(ctx, f.accessrequest)).To(Succeed())
-
-		By("Delete the AppProject in k8s")
-		Expect(dynClient.Resource(appprojectResource).
-			Namespace(r.namespace).
-			Delete(ctx, r.appProjName, metav1.DeleteOptions{})).
-			To(Succeed())
+		By("Delete the test namespace")
+		Expect(k8sClient.Delete(ctx, f.namespace)).To(Succeed())
 	}
 
 	Context("Reconciling an AccessRequest", Ordered, func() {
 		const (
-			namespace        = "default"
+			namespace        = "test-01"
 			arName           = "test-ar-01"
 			appprojectName   = "sample-test-project"
 			appName          = "some-application"
@@ -200,14 +221,14 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 			It("will apply the access request resource in k8s", func() {
-				f.accessrequest.Spec.Duration = metav1.Duration{Duration: time.Second * 5}
-				err := k8sClient.Create(ctx, f.accessrequest)
+				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 5}
+				err := k8sClient.Create(ctx, f.accessrequests[0])
 				Expect(err).NotTo(HaveOccurred())
 			})
 			It("will verify if the access request is created", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 					Expect(err).NotTo(HaveOccurred())
 					return ar.Status.RequestState
 				}, timeout, interval).ShouldNot(BeEmpty())
@@ -217,7 +238,7 @@ var _ = Describe("AccessRequest Controller", func() {
 			It("will validate if the access is eventually granted", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 					Expect(err).NotTo(HaveOccurred())
 					return ar.Status.RequestState
 				}, timeout, interval).Should(Equal(api.GrantedStatus))
@@ -243,19 +264,19 @@ var _ = Describe("AccessRequest Controller", func() {
 
 				By("checking if roles are properly rendered from templates")
 				Expect(appProj.Spec.Roles[2].Policies).To(HaveLen(4))
-				expectedPolicy1 := "p, proj:sample-test-project:ephemeral-super-user-default-some-application, applications, sync, sample-test-project/some-application, allow"
+				expectedPolicy1 := fmt.Sprintf("p, proj:sample-test-project:ephemeral-super-user-%s-some-application, applications, sync, sample-test-project/some-application, allow", r.namespace)
 				Expect(appProj.Spec.Roles[2].Policies[0]).To(Equal(expectedPolicy1))
-				expectedPolicy2 := "p, proj:sample-test-project:ephemeral-super-user-default-some-application, applications, action/*, sample-test-project/some-application, allow"
+				expectedPolicy2 := fmt.Sprintf("p, proj:sample-test-project:ephemeral-super-user-%s-some-application, applications, action/*, sample-test-project/some-application, allow", r.namespace)
 				Expect(appProj.Spec.Roles[2].Policies[1]).To(Equal(expectedPolicy2))
-				expectedPolicy3 := "p, proj:sample-test-project:ephemeral-super-user-default-some-application, applications, delete/*/Pod/*, sample-test-project/some-application, allow"
+				expectedPolicy3 := fmt.Sprintf("p, proj:sample-test-project:ephemeral-super-user-%s-some-application, applications, delete/*/Pod/*, sample-test-project/some-application, allow", r.namespace)
 				Expect(appProj.Spec.Roles[2].Policies[2]).To(Equal(expectedPolicy3))
-				expectedPolicy4 := "p, proj:sample-test-project:ephemeral-super-user-default-some-application, logs, get, sample-test-project/default/some-application, allow"
+				expectedPolicy4 := fmt.Sprintf("p, proj:sample-test-project:ephemeral-super-user-%s-some-application, logs, get, sample-test-project/%s/some-application, allow", r.namespace, r.namespace)
 				Expect(appProj.Spec.Roles[2].Policies[3]).To(Equal(expectedPolicy4))
 			})
 			It("will validate if the final status is Expired", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 					Expect(err).NotTo(HaveOccurred())
 					return ar.Status.RequestState
 				}, timeout, interval).Should(Equal(api.ExpiredStatus))
@@ -281,7 +302,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	Context("Reconciling an AccessRequest", Ordered, func() {
 		const (
-			namespace        = "default"
+			namespace        = "test-02"
 			arName           = "test-ar-02"
 			appprojectName   = "sample-test-project-02"
 			appName          = "some-application"
@@ -316,15 +337,19 @@ var _ = Describe("AccessRequest Controller", func() {
 				}
 				f = setup(r)
 			})
+			It("will apply the roletemplate resource in k8s", func() {
+				err := k8sClient.Create(ctx, f.roletemplate)
+				Expect(err).NotTo(HaveOccurred())
+			})
 			It("will apply the access request resource in k8s", func() {
-				f.accessrequest.Spec.Duration = metav1.Duration{Duration: time.Second * 5}
-				err := k8sClient.Create(ctx, f.accessrequest)
+				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 5}
+				err := k8sClient.Create(ctx, f.accessrequests[0])
 				Expect(err).NotTo(HaveOccurred())
 			})
 			It("will verify if the access request is created", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 					Expect(err).NotTo(HaveOccurred())
 					return ar.Status.RequestState
 				}, timeout, interval).ShouldNot(BeEmpty())
@@ -333,7 +358,7 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			It("will return immutable error on attempt to change the target role", func() {
 				ar := &api.AccessRequest{}
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 				Expect(err).NotTo(HaveOccurred())
 				ar.Spec.RoleTemplateName = "NOT-ALLOWED"
 
@@ -347,7 +372,7 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			It("will return immutable error on attempt to change the Application", func() {
 				ar := &api.AccessRequest{}
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 				Expect(err).NotTo(HaveOccurred())
 				ar.Spec.Application.Name = "NOT-ALLOWED"
 				ar.Spec.Application.Namespace = "NOT-ALLOWED"
@@ -362,7 +387,7 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			It("will return immutable error on attempt to change the Subject", func() {
 				ar := &api.AccessRequest{}
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequest), ar)
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 				Expect(err).NotTo(HaveOccurred())
 				ar.Spec.Subject.Username = "NOT-ALLOWED"
 
@@ -376,8 +401,203 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 		})
 	})
-	Context("Changing a RoleTemplate used by multiple AccessRequests", Ordered, func() {
+	Context("Changing a RoleTemplate", Ordered, func() {
+		const (
+			namespace        = "test-03-rt-watch"
+			arName01         = "test-ar-01"
+			arName02         = "test-ar-02"
+			appprojectName   = "sample-test-project"
+			appName          = "some-application"
+			roleTemplateName = "role-template-watch-test"
+			roleName         = "super-user"
+			subject01        = "some-user"
+			subject02        = "another-user"
+		)
+
+		var f *fixture
+		var r resources
+		policies := []string{
+			"p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow",
+			"p, {{.Role}}, logs, get, {{.Project}}/{{.Namespace}}/{{.Application}}, allow",
+		}
+
+		When("used by multiple AccessRequests", func() {
+			AfterAll(func() {
+				tearDown(r, f)
+			})
+			BeforeAll(func() {
+				r = resources{
+					arName:           arName01,
+					appName:          appName,
+					namespace:        namespace,
+					appProjName:      appprojectName,
+					roleTemplateName: roleTemplateName,
+					roleName:         roleName,
+					subject:          subject01,
+					policies:         policies,
+				}
+				f = setup(r)
+				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 5}
+				ar2 := f.accessrequests[0].DeepCopy()
+				ar2.SetName(arName02)
+				ar2.Spec.Subject.Username = subject02
+				f.accessrequests = append(f.accessrequests, ar2)
+			})
+			It("will apply the roletemplate resource in k8s", func() {
+				err := k8sClient.Create(ctx, f.roletemplate)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will apply the AccessRequests resources in k8s", func() {
+				for _, ar := range f.accessrequests {
+					err := k8sClient.Create(ctx, ar)
+					Expect(err).NotTo(HaveOccurred())
+				}
+			})
+			It("will verify if the AccessRequests are created", func() {
+				returnedAR := &api.AccessRequest{}
+				for _, ar := range f.accessrequests {
+					Eventually(func() api.Status {
+						err := k8sClient.Get(ctx, client.ObjectKeyFromObject(ar), returnedAR)
+						Expect(err).NotTo(HaveOccurred())
+						return returnedAR.Status.RequestState
+					}, timeout, interval).ShouldNot(BeEmpty())
+					Expect(returnedAR.Status.History).NotTo(BeEmpty())
+					Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
+				}
+			})
+			It("will validate Argo CD AppProject", func() {
+				key := client.ObjectKey{
+					Namespace: namespace,
+					Name:      appprojectName,
+				}
+				appProj := &argocd.AppProject{}
+				Eventually(func() []string {
+					err := k8sClient.Get(ctx, key, appProj)
+					By("checking if role was created in AppProject")
+					Expect(err).NotTo(HaveOccurred())
+					Expect(appProj).NotTo(BeNil())
+					Expect(appProj.Spec.Roles).To(HaveLen(3))
+					return appProj.Spec.Roles[2].Groups
+				}, timeout, interval).Should(HaveLen(2))
+				By("checking if subjects are added in Argo CD role")
+				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal(subject01))
+				Expect(appProj.Spec.Roles[2].Groups[1]).To(Equal(subject02))
+			})
+			It("will reflect role template changes in AppProject", func() {
+				newPolicy := "update-policy-test"
+				f.roletemplate.Spec.Policies = []string{newPolicy}
+				err := k8sClient.Update(ctx, f.roletemplate)
+				Expect(err).NotTo(HaveOccurred())
+				key := client.ObjectKey{
+					Namespace: namespace,
+					Name:      appprojectName,
+				}
+				appProj := &argocd.AppProject{}
+				Eventually(func() []string {
+					err := k8sClient.Get(ctx, key, appProj)
+					By("checking if AppProject policy")
+					Expect(err).NotTo(HaveOccurred())
+					Expect(appProj).NotTo(BeNil())
+					Expect(appProj.Spec.Roles).To(HaveLen(3))
+					return appProj.Spec.Roles[2].Policies
+				}, timeout, interval).Should(HaveLen(1))
+				Expect(appProj.Spec.Roles[2].Policies[0]).To(Equal(newPolicy))
+			})
+		})
+	})
+	Context("Changing a Project", Ordered, func() {
+		const (
+			namespace        = "test-04-project-watch"
+			arName01         = "test-ar-01"
+			appprojectName   = "sample-test-project"
+			appName          = "some-application"
+			roleTemplateName = "role-template-watch-test"
+			roleName         = "super-user"
+			subject01        = "some-user"
+			expectedPolicy   = "original-policy"
+		)
+
+		var f *fixture
+		var r resources
+		policies := []string{expectedPolicy}
+
+		When("used by an active AccessRequests", func() {
+			AfterAll(func() {
+				tearDown(r, f)
+			})
+			BeforeAll(func() {
+				r = resources{
+					arName:           arName01,
+					appName:          appName,
+					namespace:        namespace,
+					appProjName:      appprojectName,
+					roleTemplateName: roleTemplateName,
+					roleName:         roleName,
+					subject:          subject01,
+					policies:         policies,
+				}
+				f = setup(r)
+			})
+			It("will apply the roletemplate resource in k8s", func() {
+				err := k8sClient.Create(ctx, f.roletemplate)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will apply the AccessRequests resources in k8s", func() {
+				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 5}
+				for _, ar := range f.accessrequests {
+					err := k8sClient.Create(ctx, ar)
+					Expect(err).NotTo(HaveOccurred())
+				}
+			})
+			It("will verify if the AccessRequest is created", func() {
+				returnedAR := &api.AccessRequest{}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), returnedAR)
+					Expect(err).NotTo(HaveOccurred())
+					return returnedAR.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+				Expect(returnedAR.Status.History).NotTo(BeEmpty())
+				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
+			})
+			It("will revert changes made in the AppProject managed role", func() {
+				key := client.ObjectKey{
+					Namespace: namespace,
+					Name:      appprojectName,
+				}
+				appProj := &argocd.AppProject{}
+				Eventually(func() string {
+					err := k8sClient.Get(ctx, key, appProj)
+					Expect(err).NotTo(HaveOccurred())
+					By("checking if role was created in AppProject")
+					Expect(appProj).NotTo(BeNil())
+					Expect(appProj.Spec.Roles).To(HaveLen(3))
+					Expect(appProj.Spec.Roles[2].Policies).To(HaveLen(1))
+					return appProj.Spec.Roles[2].Policies[0]
+				}, timeout, interval).Should(Equal(expectedPolicy))
+
+				By("checking if subject is added in Argo CD role")
+				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal(subject01))
+
+				By("modifying the AppProject managed role")
+				newPolicy := "update-policy-test"
+				appProj.Spec.Roles[2].Policies = []string{newPolicy}
+				err := k8sClient.Update(ctx, appProj)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("checking if policy change is reverted")
+				Eventually(func() string {
+					err := k8sClient.Get(ctx, key, appProj)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(appProj.Spec.Roles[2].Policies).To(HaveLen(1))
+					return appProj.Spec.Roles[2].Policies[0]
+				}, timeout, interval).Should(Equal(expectedPolicy))
+			})
+		})
 	})
 	Context("Deleting RoleTemplate used by multiple AccessRequests", Ordered, func() {
+	})
+	Context("Deleting Project used by multiple AccessRequests", Ordered, func() {
 	})
 })
