@@ -154,7 +154,8 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy-local
 deploy-local: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cp config/default config/local
+	rm -rf config/local
+	cp -R config/default config/local/
 	cd config/local && $(KUSTOMIZE) edit set image argoproj-labs/argocd-ephemeral-access=${IMG}
 	$(KUSTOMIZE) build config/local | $(KUBECTL) apply -f -
 
