@@ -55,7 +55,7 @@ const (
 	// managed by this controller
 	AccessRequestFinalizerName = "accessrequest.ephemeral-access.argoproj-labs.io/finalizer"
 	roleTemplateField          = ".spec.roleTemplateName"
-	projectField               = ".status.TargetProject"
+	projectField               = ".status.targetProject"
 )
 
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
