@@ -1,5 +1,3 @@
-# Image URL to use all building/pushing image targets
-IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.0
 
@@ -9,6 +7,21 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+GIT_TAG:=$(if $(GIT_TAG),$(GIT_TAG),$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi))
+
+
+# docker image publishing options
+IMAGE_NAMESPACE?=argoproj-labs
+IMAGE_NAME=${IMAGE_NAMESPACE}/argocd-ephemeral-access
+
+ifneq (${GIT_TAG},)
+IMAGE_TAG=${GIT_TAG}
+else
+IMAGE_TAG?=latest
+endif
+
+IMG=${IMAGE_NAME}:${IMAGE_TAG}
 
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
@@ -122,8 +135,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/controller && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd config/backend && $(KUSTOMIZE) edit set image backend=${IMG}
+	cd config/default && $(KUSTOMIZE) edit set image argoproj-labs/argocd-ephemeral-access=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 
 ##@ Deployment
@@ -140,11 +152,15 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
+.PHONY: deploy-local
+deploy-local: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cp config/default config/local
+	cd config/local && $(KUSTOMIZE) edit set image argoproj-labs/argocd-ephemeral-access=${IMG}
+	$(KUSTOMIZE) build config/local | $(KUBECTL) apply -f -
+
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/controller && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd config/backend && $(KUSTOMIZE) edit set image backend=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+deploy: build-installer ## Deploy distribution to the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) apply -f dist/install.yaml
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.

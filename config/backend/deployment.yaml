@@ -58,7 +58,7 @@ spec:
                   name: config-cm
                   key: backend.metrics.secure
                   optional: true
-          image: controller:latest
+          image: argoproj-labs/argocd-ephemeral-access:latest
           name: backend
           ports:
             - containerPort: 8888

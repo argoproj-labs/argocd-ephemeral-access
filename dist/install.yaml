@@ -1,0 +1,821 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.15.0
+  name: accessrequests.ephemeral-access.argoproj-labs.io
+spec:
+  group: ephemeral-access.argoproj-labs.io
+  names:
+    kind: AccessRequest
+    listKind: AccessRequestList
+    plural: accessrequests
+    shortNames:
+    - areq
+    - areqs
+    singular: accessrequest
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AccessRequest is the Schema for the accessrequests API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AccessRequestSpec defines the desired state of AccessRequest
+            properties:
+              application:
+                description: |-
+                  Application defines the Argo CD Application to assign the elevated
+                  permission
+                properties:
+                  name:
+                    description: Name refers to the Argo CD Application name
+                    type: string
+                  namespace:
+                    description: Namespace refers to the namespace where the Argo
+                      CD Application lives
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
+              duration:
+                description: |-
+                  Duration defines the ammount of time that the elevated access
+                  will be granted once approved
+                type: string
+              roleTemplateName:
+                description: |-
+                  TargetRoleName defines the role name the user will be assigned
+                  to once the access is approved
+                maxLength: 512
+                type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
+              subject:
+                description: Subject defines the subject for this access request
+                properties:
+                  username:
+                    description: Username refers to the entity requesting the elevated
+                      permission
+                    type: string
+                required:
+                - username
+                type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
+            required:
+            - application
+            - duration
+            - roleTemplateName
+            - subject
+            type: object
+          status:
+            description: AccessRequestStatus defines the observed state of AccessRequest
+            properties:
+              expiresAt:
+                format: date-time
+                type: string
+              history:
+                items:
+                  description: |-
+                    AccessRequestHistory contain the history of all status transitions associated
+                    with this access request
+                  properties:
+                    details:
+                      description: Details may contain detailed information about
+                        the transition
+                      type: string
+                    status:
+                      description: RequestState is the new status assigned to this
+                        access request
+                      enum:
+                      - requested
+                      - granted
+                      - expired
+                      - denied
+                      type: string
+                    transitionTime:
+                      description: TransitionTime is the time the transition is observed
+                      format: date-time
+                      type: string
+                  required:
+                  - status
+                  - transitionTime
+                  type: object
+                type: array
+              requestState:
+                description: |-
+                  Status defines the different stages a given access request can be
+                  at a given time.
+                enum:
+                - requested
+                - granted
+                - expired
+                - denied
+                type: string
+              roleTemplateHash:
+                type: string
+              targetProject:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.15.0
+  name: roletemplates.ephemeral-access.argoproj-labs.io
+spec:
+  group: ephemeral-access.argoproj-labs.io
+  names:
+    kind: RoleTemplate
+    listKind: RoleTemplateList
+    plural: roletemplates
+    singular: roletemplate
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RoleTemplate is the Schema for the roletemplates API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: RoleTemplateSpec defines the desired state of RoleTemplate
+            properties:
+              description:
+                type: string
+              name:
+                type: string
+              policies:
+                items:
+                  type: string
+                type: array
+            required:
+            - name
+            - policies
+            type: object
+          status:
+            description: RoleTemplateStatus defines the observed state of RoleTemplate
+            properties:
+              message:
+                type: string
+              syncHash:
+                type: string
+              synced:
+                type: boolean
+            required:
+            - syncHash
+            - synced
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-backend
+  namespace: argocd-ephemeral-access
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-controller
+  namespace: argocd-ephemeral-access
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-leader-election-role
+  namespace: argocd-ephemeral-access
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-accessrequest-viewer-role
+rules:
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-backend-role
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - application
+  verbs:
+  - get
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appproject
+  verbs:
+  - get
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-controller-role
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - application
+  verbs:
+  - get
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appproject
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-roletemplate-editor-role
+rules:
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-roletemplate-viewer-role
+rules:
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-leader-election-rolebinding
+  namespace: argocd-ephemeral-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-ephemeral-access-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: argocd-ephemeral-access-controller
+  namespace: argocd-ephemeral-access
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-backend-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-ephemeral-access-backend-role
+subjects:
+- kind: ServiceAccount
+  name: argocd-ephemeral-access-backend
+  namespace: argocd-ephemeral-access
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-controller-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-ephemeral-access-controller-role
+subjects:
+- kind: ServiceAccount
+  name: argocd-ephemeral-access-controller
+  namespace: argocd-ephemeral-access
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-config-cm
+  namespace: argocd-ephemeral-access
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-backend
+  namespace: argocd-ephemeral-access
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8888
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8888
+  selector:
+    app.kubernetes.io/component: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-backend-metrics
+  namespace: argocd-ephemeral-access
+spec:
+  ports:
+  - name: metrics
+    port: 8888
+    protocol: TCP
+    targetPort: 8888
+  selector:
+    app.kubernetes.io/component: backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-controller-metrics
+  namespace: argocd-ephemeral-access
+spec:
+  ports:
+  - name: metrics
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app.kubernetes.io/component: controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-backend
+  namespace: argocd-ephemeral-access
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: backend
+      labels:
+        app.kubernetes.io/component: backend
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: backend
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-ephemeral-access
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      containers:
+      - command:
+        - /backend
+        env:
+        - name: EPHEMERAL_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: backend.log.level
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_LOG_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: backend.log.format
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_METRICS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              key: backend.metrics.address
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_METRICS_SECURE
+          valueFrom:
+            configMapKeyRef:
+              key: backend.metrics.secure
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: backend.metrics.secure
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        image: argoproj-labs/argocd-ephemeral-access:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8888
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: backend
+        ports:
+        - containerPort: 8888
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8888
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: argocd-ephemeral-access-backend
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-controller
+  namespace: argocd-ephemeral-access
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: controller
+      labels:
+        app.kubernetes.io/component: controller
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: controller
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-ephemeral-access
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      containers:
+      - command:
+        - /controller
+        env:
+        - name: EPHEMERAL_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: controller.log.level
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_LOG_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.log.format
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_METRICS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.address
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_METRICS_SECURE
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.secure
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_CONTROLLER_ENABLE_LEADER_ELECTION
+          valueFrom:
+            configMapKeyRef:
+              key: controller.leader.election.enabled
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_CONTROLLER_HEALTH_PROBE_ADDR
+          valueFrom:
+            configMapKeyRef:
+              key: controller.health.probe.address
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_CONTROLLER_ENABLE_HTTP2
+          valueFrom:
+            configMapKeyRef:
+              key: controller.http2.enabled
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        - name: EPHEMERAL_CONTROLLER_REQUEUE_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: controller.requeue.interval
+              name: argocd-ephemeral-access-config-cm
+              optional: true
+        image: argoproj-labs/argocd-ephemeral-access:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: controller
+        ports:
+        - containerPort: 8081
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: argocd-ephemeral-access-controller
+      terminationGracePeriodSeconds: 10

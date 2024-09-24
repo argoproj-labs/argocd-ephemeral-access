@@ -76,7 +76,7 @@ spec:
                   name: config-cm
                   key: controller.requeue.interval
                   optional: true
-          image: controller:latest
+          image: argoproj-labs/argocd-ephemeral-access:latest
           name: controller
           ports:
             - containerPort: 8081

@@ -1,3 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
 # Adds namespace to all resources.
 namespace: argocd-ephemeral-access
 
@@ -15,15 +18,12 @@ namePrefix: argocd-ephemeral-access-
 #    someName: someValue
 
 resources:
-  - ../crd
-  - ../rbac
-  - ../config
-  - ../controller
-  - ../backend
-  # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
-  # crd/kustomization.yaml
-  #- ../webhook
-  # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER'. 'WEBHOOK' components are required.
-  #- ../certmanager
-  # [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
-  #- ../prometheus
+- ../crd
+- ../rbac
+- ../config
+- ../controller
+- ../backend
+images:
+- name: argoproj-labs/argocd-ephemeral-access
+  newName: argoproj-labs/argocd-ephemeral-access
+  newTag: latest
