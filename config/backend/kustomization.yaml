@@ -1,0 +1,7 @@
+resources:
+  - deployment.yaml
+  - metrics_service.yaml
+  - role_binding.yaml
+  - role.yaml
+  - service_account.yaml
+  - service.yaml

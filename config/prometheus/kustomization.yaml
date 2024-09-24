@@ -1,2 +1,3 @@
 resources:
-- monitor.yaml
+  - backend_monitor.yaml
+  - controller_monitor.yaml
