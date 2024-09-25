@@ -9,9 +9,11 @@ metadata:
   namespace: system
 spec:
   ports:
+    # Metrics currently not implemented for server.
+    # Should be served on another port to use different connection pool
     - name: metrics
       protocol: TCP
-      port: 8888
-      targetPort: 8888
+      port: 8883
+      targetPort: 8883
   selector:
     app.kubernetes.io/component: backend

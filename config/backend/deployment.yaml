@@ -62,21 +62,26 @@ spec:
           name: backend
           ports:
             - containerPort: 8888
+            - containerPort: 8883
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - 'ALL'
           livenessProbe:
-            httpGet:
-              path: /healthz
+            tcpSocket:
               port: 8888
+            # httpGet:
+            #   path: /healthz
+            #   port: 8888
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
-            httpGet:
-              path: /readyz
+            tcpSocket:
               port: 8888
+            # httpGet:
+            #   path: /readyz
+            #   port: 8888
             initialDelaySeconds: 5
             periodSeconds: 10
           # TODO(user): Configure the resources accordingly based on the project requirements.
