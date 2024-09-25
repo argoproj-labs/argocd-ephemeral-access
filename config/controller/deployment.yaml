@@ -77,6 +77,7 @@ spec:
                   key: controller.requeue.interval
                   optional: true
           image: argoproj-labs/argocd-ephemeral-access:latest
+          imagePullPolicy: Always
           name: controller
           ports:
             - containerPort: 8081

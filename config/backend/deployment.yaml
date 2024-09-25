@@ -59,6 +59,7 @@ spec:
                   key: backend.metrics.secure
                   optional: true
           image: argoproj-labs/argocd-ephemeral-access:latest
+          imagePullPolicy: Always
           name: backend
           ports:
             - containerPort: 8888
