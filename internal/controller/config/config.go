@@ -92,8 +92,8 @@ type Config struct {
 // MetricsConfig defines the metrics configurations
 type MetricsConfig struct {
 	// Address The address the metric endpoint binds to.
-	// Use the port :8083. If not set, it will be 0 in order to disable the metrics server
-	Address string `env:"ADDR, default=0"`
+	// Can be set to 0 in order to disable the metrics server
+	Address string `env:"ADDR, default=:8083"`
 	// Secure If set the metrics endpoint is served securely.
 	Secure bool `env:"SECURE, default=false"`
 }
