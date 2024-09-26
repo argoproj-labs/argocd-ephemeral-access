@@ -130,7 +130,7 @@ func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAc
 
 // TODO implementation
 func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *CreateAccessRequestInput) (*CreateAccessRequestResponse, error) {
-	// - Get current access request
+	// - TODO? Get current access request
 	//   - Return 400 if already exist
 	// - Get the access binding for role name
 	//   - return 404
@@ -180,7 +180,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		return nil, huma.Error403Forbidden(fmt.Sprintf("not allowed to request role %s", input.Body.RoleName))
 	}
 
-	h.logger.Debug(fmt.Sprintf("found %d bindings referencing role %s"))
+	h.logger.Debug(fmt.Sprintf("found %d bindings referencing role %s", len(bindings), input.Body.RoleName))
 	var grantingBinding *api.AccessBinding
 	for i, binding := range bindings {
 

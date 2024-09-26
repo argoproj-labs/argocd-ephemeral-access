@@ -50,3 +50,23 @@ func (s *DefaultService) GetAccessRequest(ctx context.Context, name, namespace s
 	}
 	return ar, nil
 }
+
+// CreateAccessRequest implements Service.
+func (s *DefaultService) CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
+	panic("TODO: unimplemented")
+}
+
+// GetAccessBindings implements Service.
+func (s *DefaultService) GetAccessBindings(ctx context.Context, name string, namespace string) ([]*api.AccessBinding, error) {
+	panic("TODO: unimplemented")
+}
+
+// GetAppProject implements Service.
+func (s *DefaultService) GetAppProject(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
+	panic("TODO: unimplemented")
+}
+
+// GetApplication implements Service.
+func (s *DefaultService) GetApplication(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
+	panic("TODO: unimplemented")
+}
