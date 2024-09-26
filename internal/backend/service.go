@@ -7,12 +7,19 @@ import (
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // Service defines the operations provided by the backend. Backend business
 // logic should be added in implementations of this interface
 type Service interface {
 	GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error)
+	CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error)
+
+	GetAccessBindings(ctx context.Context, name, namespace string) ([]*api.AccessBinding, error)
+
+	GetApplication(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
+	GetAppProject(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
 }
 
 // DefaultService is the real Service implementation
