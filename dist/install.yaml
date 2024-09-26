@@ -526,6 +526,7 @@ subjects:
   namespace: argocd-ephemeral-access
 ---
 apiVersion: v1
+data: {}
 kind: ConfigMap
 metadata:
   labels:
@@ -656,10 +657,10 @@ spec:
               key: backend.metrics.secure
               name: argocd-ephemeral-access-config-cm
               optional: true
-        - name: EPHEMERAL_SERVER_PORT
+        - name: EPHEMERAL_BACKEND_PORT
           valueFrom:
             configMapKeyRef:
-              key: backend.metrics.secure
+              key: backend.port
               name: argocd-ephemeral-access-config-cm
               optional: true
         image: argoproj-labs/argocd-ephemeral-access:latest

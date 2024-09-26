@@ -51,11 +51,11 @@ spec:
                   name: config-cm
                   key: backend.metrics.secure
                   optional: true
-            - name: EPHEMERAL_SERVER_PORT
+            - name: EPHEMERAL_BACKEND_PORT
               valueFrom:
                 configMapKeyRef:
                   name: config-cm
-                  key: backend.metrics.secure
+                  key: backend.port
                   optional: true
           image: argoproj-labs/argocd-ephemeral-access:latest
           imagePullPolicy: Always
