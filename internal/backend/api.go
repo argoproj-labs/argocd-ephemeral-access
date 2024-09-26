@@ -153,21 +153,24 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	if app == nil {
 		return nil, huma.Error400BadRequest("invalid application", err)
 	}
-	project := unstructured.NestedString(app.Object)
-
-	app, err := h.service.GetAppProject(ctx, appName, input.ArgoCDNamespace)
+	projectName, ok, err := unstructured.NestedString(app.Object, "spec", "project")
+	if !ok {
+		return nil, huma.Error400BadRequest("invalid application spec", err)
+	}
 	if err != nil {
-		return nil, huma.Error500InternalServerError("error getting application", err)
-	}
-	if app == nil {
-		return nil, huma.Error400BadRequest("invalid application", err)
+		return nil, huma.Error400BadRequest("invalid application spec", err)
 	}
 
-	// TODO: Get project
-	project := &unstructured.Unstructured{}
+	project, err := h.service.GetAppProject(ctx, projectName, input.ArgoCDNamespace)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("error getting project", err)
+	}
+	if project == nil {
+		return nil, huma.Error400BadRequest("invalid project", err)
+	}
 
 	// Get the requested role binding
-	bindings, err := h.service.GetAccessBindings(ctx, namespace, input.Body.RoleName)
+	bindings, err := h.service.GetAccessBindings(ctx, input.ArgoCDNamespace, input.Body.RoleName)
 	if err != nil {
 		h.logger.Error(err, "error getting access bindings")
 		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving access bindings for role %s", input.Body.RoleName), err)
@@ -190,7 +193,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 
 		// Grant if subjects contains at least one groups
 		if matchSubject(subjects, strings.Split(input.ArgoCDUserGroups, ",")) {
-			grantingBinding = &bindings[i]
+			grantingBinding = bindings[i]
 			break
 		}
 	}
@@ -207,7 +210,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 			},
 		},
 	}
-	ar, err := h.service.CreateAccessRequest(ctx, ar)
+	ar, err = h.service.CreateAccessRequest(ctx, ar)
 	if err != nil {
 		h.logger.Error(err, "error creating accessrequest")
 		return nil, huma.Error500InternalServerError(fmt.Sprintf("error creating access request for role %s", grantingBinding.Spec.RoleTemplateRef.Name), err)
