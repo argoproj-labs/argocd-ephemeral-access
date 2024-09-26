@@ -26,7 +26,6 @@ spec:
       containers:
         - command:
             - /controller
-          # args: []
           env:
             - name: EPHEMERAL_LOG_LEVEL
               valueFrom:
@@ -100,13 +99,13 @@ spec:
               port: 8082
             initialDelaySeconds: 5
             periodSeconds: 10
-          resources:
-            limits:
-              cpu: 500m
-              memory: 128Mi
-            requests:
-              cpu: 10m
-              memory: 64Mi
+          # resources:
+          #   limits:
+          #     cpu: 500m
+          #     memory: 128Mi
+          #   requests:
+          #     cpu: 10m
+          #     memory: 64Mi
       serviceAccountName: controller
       terminationGracePeriodSeconds: 10
       affinity:

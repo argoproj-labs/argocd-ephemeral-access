@@ -35,9 +35,3 @@ rules:
       - roletemplates
     verbs:
       - get
-  # - apiGroups:
-  #     - ephemeral-access.argoproj-labs.io
-  #   resources:
-  #     - accessbindings
-  #   verbs:
-  #     - get

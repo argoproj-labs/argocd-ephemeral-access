@@ -26,7 +26,6 @@ spec:
       containers:
         - command:
             - /backend
-          # args: []
           env:
             - name: EPHEMERAL_LOG_LEVEL
               valueFrom:
@@ -85,15 +84,13 @@ spec:
             #   port: 8888
             initialDelaySeconds: 5
             periodSeconds: 10
-          # TODO(user): Configure the resources accordingly based on the project requirements.
-          # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-          resources:
-            limits:
-              cpu: 500m
-              memory: 128Mi
-            requests:
-              cpu: 10m
-              memory: 64Mi
+          # resources:
+          #   limits:
+          #     cpu: 500m
+          #     memory: 128Mi
+          #   requests:
+          #     cpu: 10m
+          #     memory: 64Mi
       serviceAccountName: backend
       terminationGracePeriodSeconds: 10
       affinity:
