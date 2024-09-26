@@ -17,6 +17,7 @@ import (
 	appprojectv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 )
 
 const (
@@ -33,10 +34,11 @@ type Persister interface {
 type K8sPersister struct {
 	client client.Client
 	cache  cache.Cache
+	logger log.Logger
 }
 
 // NewK8sPersister will return a new K8sPersister instance.
-func NewK8sPersister(config *rest.Config) (*K8sPersister, error) {
+func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, error) {
 	err := ephemeralaccessv1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		return nil, fmt.Errorf("error adding ephemeralaccessv1alpha1 to k8s scheme: %w", err)
@@ -76,19 +78,23 @@ func NewK8sPersister(config *rest.Config) (*K8sPersister, error) {
 		},
 	}
 	k8sClient, err := client.New(config, clientOpts)
+	if err != nil {
+		return nil, fmt.Errorf("error creating k8s client: %w", err)
+	}
 	return &K8sPersister{
 		client: k8sClient,
 		cache:  cache,
+		logger: logger,
 	}, nil
 }
 
 // StartCache will initialize the Kubernetes persister cache and block the call.
 func (p *K8sPersister) StartCache(ctx context.Context) error {
+	p.logger.Info("Starting Kubernetes cache...")
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Handle graceful shutdown.
 	quit := make(chan os.Signal, 1)
 	defer close(quit)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -104,11 +110,12 @@ func (p *K8sPersister) StartCache(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		p.logger.Info("Kubernetes cache: context done")
 		return nil
 	case err := <-errCh:
 		return err
 	case <-quit:
-		fmt.Println("Shutting down k8s cache...")
+		p.logger.Info("Shutting down Kubernetes cache...")
 		return nil
 	}
 }

@@ -103,16 +103,12 @@ func main() {
 		logger.Error(err, "error creating new rest config")
 		os.Exit(1)
 	}
-	p, err := backend.NewK8sPersister(restConfig)
+	persister, err := backend.NewK8sPersister(restConfig, logger)
 	if err != nil {
 		logger.Error(err, "error creating a new k8s persister")
 		os.Exit(1)
 	}
-	mainCtx := context.Background()
-	go func() {
-		p.StartCache(mainCtx)
-	}()
-	service := backend.NewDefaultService(p, logger)
+	service := backend.NewDefaultService(persister, logger)
 	handler := backend.NewAPIHandler(service, logger)
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {
@@ -126,16 +122,47 @@ func main() {
 		}
 
 		hooks.OnStart(func() {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			logger.Info("Starting Ephemeral Access API Server...", "port", opts.Backend.Port)
-			server.ListenAndServe()
+			cacheErr := make(chan error)
+			defer close(cacheErr)
+			go func() {
+				err := persister.StartCache(ctx)
+				if err != nil {
+					cacheErr <- fmt.Errorf("start persister cache error: %w", err)
+				}
+			}()
+			serverErr := make(chan error)
+			defer close(serverErr)
+			go func() {
+				err := server.ListenAndServe()
+				if err != nil {
+					serverErr <- fmt.Errorf("Ephemeral Access API Server error: %w", err)
+				}
+			}()
+			select {
+			case <-ctx.Done():
+				logger.Info("Stopping Ephemeral Access API Server: Context done")
+				return
+			case err := <-cacheErr:
+				logger.Error(err, "cache error")
+				shutdownServer(&server)
+			case err := <-serverErr:
+				logger.Error(err, "Server error")
+			}
 		})
 		// graceful shutdown the server
 		hooks.OnStop(func() {
-			// Give the server 10 seconds to gracefully shut down, then give up.
-			ctx, cancel := context.WithTimeout(mainCtx, 10*time.Second)
-			defer cancel()
-			server.Shutdown(ctx)
+			shutdownServer(&server)
 		})
 	})
 	cli.Run()
+}
+
+func shutdownServer(server *http.Server) {
+	// Give the server 10 seconds to gracefully shut down, then give up.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	server.Shutdown(ctx)
 }
