@@ -568,9 +568,9 @@ metadata:
 spec:
   ports:
   - name: metrics
-    port: 8888
+    port: 8883
     protocol: TCP
-    targetPort: 8888
+    targetPort: 8883
   selector:
     app.kubernetes.io/component: backend
 ---
@@ -586,9 +586,9 @@ metadata:
 spec:
   ports:
   - name: metrics
-    port: 8081
+    port: 8083
     protocol: TCP
-    targetPort: 8081
+    targetPort: 8083
   selector:
     app.kubernetes.io/component: controller
 ---
@@ -663,28 +663,21 @@ spec:
               name: argocd-ephemeral-access-config-cm
               optional: true
         image: argoproj-labs/argocd-ephemeral-access:latest
+        imagePullPolicy: Always
         livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8888
           initialDelaySeconds: 15
           periodSeconds: 20
+          tcpSocket:
+            port: 8888
         name: backend
         ports:
         - containerPort: 8888
+        - containerPort: 8883
         readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8888
           initialDelaySeconds: 5
           periodSeconds: 10
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
+          tcpSocket:
+            port: 8888
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -786,28 +779,24 @@ spec:
               name: argocd-ephemeral-access-config-cm
               optional: true
         image: argoproj-labs/argocd-ephemeral-access:latest
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
+            port: 8082
           initialDelaySeconds: 15
           periodSeconds: 20
         name: controller
         ports:
         - containerPort: 8081
+        - containerPort: 8082
+        - containerPort: 8083
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
+            port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
