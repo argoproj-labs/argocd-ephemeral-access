@@ -45,8 +45,7 @@ func (h ArgoCDHeaders) Groups() []string {
 // GetAccessRequestInput defines the get access input parameters.
 type GetAccessRequestInput struct {
 	ArgoCDHeaders
-	Name      string `path:"name" example:"some-name" doc:"The access request name."`
-	Namespace string `example:"some-namespace" doc:"The namespace to use while searching for the access request." query:"namespace"`
+	RoleName string `path:"roleName" example:"custom-role" doc:"The role name to request."`
 }
 
 // GetAccessRequestResponse defines the get access response parameters.
@@ -57,8 +56,6 @@ type GetAccessRequestResponse struct {
 // ListAccessRequestInput defines the list access input parameters.
 type ListAccessRequestInput struct {
 	ArgoCDHeaders
-	Username string `query:"username" example:"some-user@acme.org" doc:"Will search for all access requests for the given username."`
-	AppName  string `query:"appName" example:"namespace:some-app-name" doc:"Will search for all access requests for the given application (format <namespace>:<name>)."`
 }
 
 // ListAccessRequestResponse defines the list access response parameters.
@@ -116,48 +113,83 @@ func NewAPIHandler(s Service, logger log.Logger) *APIHandler {
 	}
 }
 
-// getAccessRequestHandler is the handler implementation of the get access request
-// operation.
-func (h *APIHandler) getAccessRequestHandler(
-	ctx context.Context,
-	input *GetAccessRequestInput,
-) (*GetAccessRequestResponse, error) {
-	ar, err := h.service.GetAccessRequest(ctx, input.Name, input.Namespace)
+// getAccessRequestHandler is the handler implementation of the get access request operation.
+func (h *APIHandler) getAccessRequestHandler(ctx context.Context, input *GetAccessRequestInput) (*GetAccessRequestResponse, error) {
+	appNamespace, appName, err := input.Application()
 	if err != nil {
-		h.logger.Error(err, "error getting accessrequest")
-		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving access request for %s/%s", input.Namespace, input.Name), err)
+		return nil, huma.Error400BadRequest("error getting application name", err)
+	}
+
+	key := &AccessRequestKey{
+		Namespace:            input.ArgoCDNamespace,
+		ApplicationName:      appName,
+		ApplicationNamespace: appNamespace,
+		Username:             input.ArgoCDUsername,
+	}
+
+	ar, err := h.service.GetAccessRequest(ctx, key, input.RoleName)
+	if err != nil {
+		h.logger.Error(err, "error getting access request")
+		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving access request for user %s with role %s", key.Username, input.RoleName), err)
 	}
 
 	if ar == nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf("AccessRequest %s/%s not found", input.Namespace, input.Name))
+		return nil, huma.Error404NotFound("Access Request not found")
 	}
 
 	return &GetAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
 }
 
-// TODO implementation
 func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAccessRequestInput) (*ListAccessRequestResponse, error) {
-	return nil, huma.Error501NotImplemented("not implemented")
+	appNamespace, appName, err := input.Application()
+	if err != nil {
+		return nil, huma.Error400BadRequest("error getting application name", err)
+	}
+
+	key := &AccessRequestKey{
+		Namespace:            input.ArgoCDNamespace,
+		ApplicationName:      appName,
+		ApplicationNamespace: appNamespace,
+		Username:             input.ArgoCDUsername,
+	}
+
+	accessRequests, err := h.service.ListAccessRequests(ctx, key)
+	if err != nil {
+		h.logger.Error(err, "error listing access request")
+		return nil, huma.Error500InternalServerError(fmt.Sprintf("error listing access request for user %s", key.Username), err)
+	}
+
+	return &ListAccessRequestResponse{Body: toListAccessRequestResponseBody(accessRequests)}, nil
 }
 
 // TODO implementation
 func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *CreateAccessRequestInput) (*CreateAccessRequestResponse, error) {
 	// - TODO? Get current access request
-	//   - Return 400 if already exist
-	// - Get the access binding for role name
-	//   - return 404
-	// - Evaluate the if
-	// - Evaluate the template
-	// - Make sure the user group match
-	//   - Return 403
-	// - Create AR
-	//   - return 500 if any
+	//   - Return 400/409 if already exist?
 
 	appNamespace, appName, err := input.Application()
 	if err != nil {
 		return nil, huma.Error400BadRequest("error getting application name", err)
 	}
 
+	// Check if AR already exist
+	key := &AccessRequestKey{
+		Namespace:            input.ArgoCDNamespace,
+		ApplicationName:      appName,
+		ApplicationNamespace: appNamespace,
+		Username:             input.ArgoCDUsername,
+	}
+	ar, err := h.service.GetAccessRequest(ctx, key, input.Body.RoleName)
+	if err != nil {
+		h.logger.Error(err, "error getting access request")
+		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving existing access request for user %s with role %s", key.Username, input.Body.RoleName), err)
+	}
+	if ar != nil {
+		//TODO: this only works if we expect resource to be deleted when "expired". Otherwise GetAccessRequest needs to filter only non-expired
+		return nil, huma.Error409Conflict("Access Request already exist")
+	}
+
+	// Validate information in headers necessary to evaluate permissions
 	app, err := h.service.GetApplication(ctx, appName, appNamespace)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("error getting application", err)
@@ -165,7 +197,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	if app == nil {
 		return nil, huma.Error400BadRequest("invalid application", err)
 	}
-	projectName, ok, err := unstructured.NestedString(app.Object, "spec", "project")
+	projectName, ok, err := getApplicationProjectName(app)
 	if !ok {
 		return nil, huma.Error400BadRequest("invalid application spec", err)
 	}
@@ -181,6 +213,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		return nil, huma.Error400BadRequest("invalid project", err)
 	}
 
+	// Evaluate permissions
 	grantingBinding, err := h.service.GetGrantingAccessBinding(ctx, input.Body.RoleName, input.ArgoCDNamespace, input.Groups(), app, project)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("error getting access binding", err)
@@ -189,19 +222,8 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		return nil, huma.Error403Forbidden(fmt.Sprintf("not allowed to request role %s", input.Body.RoleName))
 	}
 
-	ar := &api.AccessRequest{
-		Spec: api.AccessRequestSpec{
-			RoleTemplateName: grantingBinding.Spec.RoleTemplateRef.Name,
-			Subject: api.Subject{
-				Username: input.ArgoCDUsername,
-			},
-			Application: api.TargetApplication{
-				Name:      input.ArgoCDApplicationName,
-				Namespace: "TODO",
-			},
-		},
-	}
-	ar, err = h.service.CreateAccessRequest(ctx, ar)
+	// Create Access Request
+	ar, err = h.service.CreateAccessRequest(ctx, key, grantingBinding)
 	if err != nil {
 		h.logger.Error(err, "error creating accessrequest")
 		return nil, huma.Error500InternalServerError(fmt.Sprintf("error creating access request for role %s", grantingBinding.Spec.RoleTemplateRef.Name), err)
@@ -211,8 +233,11 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 
 }
 
-// toAccessRequestResponseBody will convert the given ar into an
-// AccessRequestResponseBody.
+func getApplicationProjectName(app *unstructured.Unstructured) (string, bool, error) {
+	return unstructured.NestedString(app.Object, "spec", "project")
+}
+
+// toAccessRequestResponseBody will convert the given ar into an AccessRequestResponseBody.
 func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBody {
 	expiresAt := ""
 	if ar.Status.ExpiresAt != nil {
@@ -236,14 +261,22 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 	}
 }
 
+func toListAccessRequestResponseBody(accessRequests []*api.AccessRequest) ListAccessRequestResponseBody {
+	items := []AccessRequestResponseBody{}
+	for _, ar := range accessRequests {
+		items = append(items, toAccessRequestResponseBody(ar))
+	}
+	return ListAccessRequestResponseBody{Items: items}
+}
+
 // getAccessRequestOperation defines the get access request operation.
 func getAccessRequestOperation() huma.Operation {
 	return huma.Operation{
-		OperationID: "get-accessrequest-by-name",
+		OperationID: "get-accessrequest-by-role",
 		Method:      http.MethodGet,
-		Path:        "/accessrequests/{name}",
+		Path:        "/accessrequests/{roleName}",
 		Summary:     "Get AccessRequest",
-		Description: "Will retrieve the accessrequest by name",
+		Description: "Will retrieve the access request by role for the given context",
 	}
 }
 
@@ -254,7 +287,7 @@ func listAccessRequestOperation() huma.Operation {
 		Method:      http.MethodGet,
 		Path:        "/accessrequests",
 		Summary:     "List AccessRequests",
-		Description: "Will retrieve a list of accessrequests respecting the search criteria provided as query params.",
+		Description: "Will retrieve a list of access requests for the given context",
 	}
 }
 
@@ -265,7 +298,7 @@ func createAccessRequestOperation() huma.Operation {
 		Method:      http.MethodPost,
 		Path:        "/accessrequests",
 		Summary:     "Create AccessRequest",
-		Description: "Will create an access request for the given user and application.",
+		Description: "Will create an access request for the given context",
 	}
 }
 

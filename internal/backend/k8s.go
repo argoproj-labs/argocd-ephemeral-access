@@ -19,7 +19,9 @@ const (
 // Persister defines the operations to interact with the backend persistent
 // layer (e.g. Kubernetes)
 type Persister interface {
+	CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error)
 	GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error)
+	ListAccessRequests(ctx context.Context, namespace string) ([]*api.AccessRequest, error)
 }
 
 // K8sPersister is a K8s implementation for the Persister interface.
@@ -58,4 +60,14 @@ func (c *K8sPersister) GetAccessRequest(ctx context.Context, name, namespace str
 		return nil, fmt.Errorf("error converting accessrequest unstructured: %w", err)
 	}
 	return &ar, nil
+}
+
+// CreateAccessRequest implements Persister.
+func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
+	panic("unimplemented")
+}
+
+// ListAccessRequests implements Persister.
+func (c *K8sPersister) ListAccessRequests(ctx context.Context, namespace string) ([]*api.AccessRequest, error) {
+	panic("unimplemented")
 }

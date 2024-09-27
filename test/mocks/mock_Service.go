@@ -5,7 +5,10 @@ package mocks
 import (
 	context "context"
 
+	backend "github.com/argoproj-labs/ephemeral-access/internal/backend"
+
 	mock "github.com/stretchr/testify/mock"
+
 	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	v1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
@@ -24,9 +27,9 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
 }
 
-// CreateAccessRequest provides a mock function with given fields: ctx, ar
-func (_m *MockService) CreateAccessRequest(ctx context.Context, ar *v1alpha1.AccessRequest) (*v1alpha1.AccessRequest, error) {
-	ret := _m.Called(ctx, ar)
+// CreateAccessRequest provides a mock function with given fields: ctx, key, binding
+func (_m *MockService) CreateAccessRequest(ctx context.Context, key *backend.AccessRequestKey, binding *v1alpha1.AccessBinding) (*v1alpha1.AccessRequest, error) {
+	ret := _m.Called(ctx, key, binding)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateAccessRequest")
@@ -34,19 +37,19 @@ func (_m *MockService) CreateAccessRequest(ctx context.Context, ar *v1alpha1.Acc
 
 	var r0 *v1alpha1.AccessRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.AccessRequest) (*v1alpha1.AccessRequest, error)); ok {
-		return rf(ctx, ar)
+	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey, *v1alpha1.AccessBinding) (*v1alpha1.AccessRequest, error)); ok {
+		return rf(ctx, key, binding)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.AccessRequest) *v1alpha1.AccessRequest); ok {
-		r0 = rf(ctx, ar)
+	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey, *v1alpha1.AccessBinding) *v1alpha1.AccessRequest); ok {
+		r0 = rf(ctx, key, binding)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.AccessRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.AccessRequest) error); ok {
-		r1 = rf(ctx, ar)
+	if rf, ok := ret.Get(1).(func(context.Context, *backend.AccessRequestKey, *v1alpha1.AccessBinding) error); ok {
+		r1 = rf(ctx, key, binding)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -61,14 +64,15 @@ type MockService_CreateAccessRequest_Call struct {
 
 // CreateAccessRequest is a helper method to define mock.On call
 //   - ctx context.Context
-//   - ar *v1alpha1.AccessRequest
-func (_e *MockService_Expecter) CreateAccessRequest(ctx interface{}, ar interface{}) *MockService_CreateAccessRequest_Call {
-	return &MockService_CreateAccessRequest_Call{Call: _e.mock.On("CreateAccessRequest", ctx, ar)}
+//   - key *backend.AccessRequestKey
+//   - binding *v1alpha1.AccessBinding
+func (_e *MockService_Expecter) CreateAccessRequest(ctx interface{}, key interface{}, binding interface{}) *MockService_CreateAccessRequest_Call {
+	return &MockService_CreateAccessRequest_Call{Call: _e.mock.On("CreateAccessRequest", ctx, key, binding)}
 }
 
-func (_c *MockService_CreateAccessRequest_Call) Run(run func(ctx context.Context, ar *v1alpha1.AccessRequest)) *MockService_CreateAccessRequest_Call {
+func (_c *MockService_CreateAccessRequest_Call) Run(run func(ctx context.Context, key *backend.AccessRequestKey, binding *v1alpha1.AccessBinding)) *MockService_CreateAccessRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*v1alpha1.AccessRequest))
+		run(args[0].(context.Context), args[1].(*backend.AccessRequestKey), args[2].(*v1alpha1.AccessBinding))
 	})
 	return _c
 }
@@ -78,14 +82,14 @@ func (_c *MockService_CreateAccessRequest_Call) Return(_a0 *v1alpha1.AccessReque
 	return _c
 }
 
-func (_c *MockService_CreateAccessRequest_Call) RunAndReturn(run func(context.Context, *v1alpha1.AccessRequest) (*v1alpha1.AccessRequest, error)) *MockService_CreateAccessRequest_Call {
+func (_c *MockService_CreateAccessRequest_Call) RunAndReturn(run func(context.Context, *backend.AccessRequestKey, *v1alpha1.AccessBinding) (*v1alpha1.AccessRequest, error)) *MockService_CreateAccessRequest_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// GetAccessRequest provides a mock function with given fields: ctx, name, namespace
-func (_m *MockService) GetAccessRequest(ctx context.Context, name string, namespace string) (*v1alpha1.AccessRequest, error) {
-	ret := _m.Called(ctx, name, namespace)
+// GetAccessRequest provides a mock function with given fields: ctx, key, roleName
+func (_m *MockService) GetAccessRequest(ctx context.Context, key *backend.AccessRequestKey, roleName string) (*v1alpha1.AccessRequest, error) {
+	ret := _m.Called(ctx, key, roleName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAccessRequest")
@@ -93,19 +97,19 @@ func (_m *MockService) GetAccessRequest(ctx context.Context, name string, namesp
 
 	var r0 *v1alpha1.AccessRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*v1alpha1.AccessRequest, error)); ok {
-		return rf(ctx, name, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey, string) (*v1alpha1.AccessRequest, error)); ok {
+		return rf(ctx, key, roleName)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.AccessRequest); ok {
-		r0 = rf(ctx, name, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey, string) *v1alpha1.AccessRequest); ok {
+		r0 = rf(ctx, key, roleName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.AccessRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, name, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, *backend.AccessRequestKey, string) error); ok {
+		r1 = rf(ctx, key, roleName)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -120,15 +124,15 @@ type MockService_GetAccessRequest_Call struct {
 
 // GetAccessRequest is a helper method to define mock.On call
 //   - ctx context.Context
-//   - name string
-//   - namespace string
-func (_e *MockService_Expecter) GetAccessRequest(ctx interface{}, name interface{}, namespace interface{}) *MockService_GetAccessRequest_Call {
-	return &MockService_GetAccessRequest_Call{Call: _e.mock.On("GetAccessRequest", ctx, name, namespace)}
+//   - key *backend.AccessRequestKey
+//   - roleName string
+func (_e *MockService_Expecter) GetAccessRequest(ctx interface{}, key interface{}, roleName interface{}) *MockService_GetAccessRequest_Call {
+	return &MockService_GetAccessRequest_Call{Call: _e.mock.On("GetAccessRequest", ctx, key, roleName)}
 }
 
-func (_c *MockService_GetAccessRequest_Call) Run(run func(ctx context.Context, name string, namespace string)) *MockService_GetAccessRequest_Call {
+func (_c *MockService_GetAccessRequest_Call) Run(run func(ctx context.Context, key *backend.AccessRequestKey, roleName string)) *MockService_GetAccessRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
+		run(args[0].(context.Context), args[1].(*backend.AccessRequestKey), args[2].(string))
 	})
 	return _c
 }
@@ -138,7 +142,7 @@ func (_c *MockService_GetAccessRequest_Call) Return(_a0 *v1alpha1.AccessRequest,
 	return _c
 }
 
-func (_c *MockService_GetAccessRequest_Call) RunAndReturn(run func(context.Context, string, string) (*v1alpha1.AccessRequest, error)) *MockService_GetAccessRequest_Call {
+func (_c *MockService_GetAccessRequest_Call) RunAndReturn(run func(context.Context, *backend.AccessRequestKey, string) (*v1alpha1.AccessRequest, error)) *MockService_GetAccessRequest_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -322,6 +326,65 @@ func (_c *MockService_GetGrantingAccessBinding_Call) Return(_a0 *v1alpha1.Access
 }
 
 func (_c *MockService_GetGrantingAccessBinding_Call) RunAndReturn(run func(context.Context, string, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) (*v1alpha1.AccessBinding, error)) *MockService_GetGrantingAccessBinding_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListAccessRequests provides a mock function with given fields: ctx, key
+func (_m *MockService) ListAccessRequests(ctx context.Context, key *backend.AccessRequestKey) ([]*v1alpha1.AccessRequest, error) {
+	ret := _m.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAccessRequests")
+	}
+
+	var r0 []*v1alpha1.AccessRequest
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey) ([]*v1alpha1.AccessRequest, error)); ok {
+		return rf(ctx, key)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey) []*v1alpha1.AccessRequest); ok {
+		r0 = rf(ctx, key)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.AccessRequest)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *backend.AccessRequestKey) error); ok {
+		r1 = rf(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_ListAccessRequests_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAccessRequests'
+type MockService_ListAccessRequests_Call struct {
+	*mock.Call
+}
+
+// ListAccessRequests is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key *backend.AccessRequestKey
+func (_e *MockService_Expecter) ListAccessRequests(ctx interface{}, key interface{}) *MockService_ListAccessRequests_Call {
+	return &MockService_ListAccessRequests_Call{Call: _e.mock.On("ListAccessRequests", ctx, key)}
+}
+
+func (_c *MockService_ListAccessRequests_Call) Run(run func(ctx context.Context, key *backend.AccessRequestKey)) *MockService_ListAccessRequests_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*backend.AccessRequestKey))
+	})
+	return _c
+}
+
+func (_c *MockService_ListAccessRequests_Call) Return(_a0 []*v1alpha1.AccessRequest, _a1 error) *MockService_ListAccessRequests_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_ListAccessRequests_Call) RunAndReturn(run func(context.Context, *backend.AccessRequestKey) ([]*v1alpha1.AccessRequest, error)) *MockService_ListAccessRequests_Call {
 	_c.Call.Return(run)
 	return _c
 }

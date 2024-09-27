@@ -22,6 +22,65 @@ func (_m *MockPersister) EXPECT() *MockPersister_Expecter {
 	return &MockPersister_Expecter{mock: &_m.Mock}
 }
 
+// CreateAccessRequest provides a mock function with given fields: ctx, ar
+func (_m *MockPersister) CreateAccessRequest(ctx context.Context, ar *v1alpha1.AccessRequest) (*v1alpha1.AccessRequest, error) {
+	ret := _m.Called(ctx, ar)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAccessRequest")
+	}
+
+	var r0 *v1alpha1.AccessRequest
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.AccessRequest) (*v1alpha1.AccessRequest, error)); ok {
+		return rf(ctx, ar)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.AccessRequest) *v1alpha1.AccessRequest); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.AccessRequest)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.AccessRequest) error); ok {
+		r1 = rf(ctx, ar)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockPersister_CreateAccessRequest_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAccessRequest'
+type MockPersister_CreateAccessRequest_Call struct {
+	*mock.Call
+}
+
+// CreateAccessRequest is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ar *v1alpha1.AccessRequest
+func (_e *MockPersister_Expecter) CreateAccessRequest(ctx interface{}, ar interface{}) *MockPersister_CreateAccessRequest_Call {
+	return &MockPersister_CreateAccessRequest_Call{Call: _e.mock.On("CreateAccessRequest", ctx, ar)}
+}
+
+func (_c *MockPersister_CreateAccessRequest_Call) Run(run func(ctx context.Context, ar *v1alpha1.AccessRequest)) *MockPersister_CreateAccessRequest_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*v1alpha1.AccessRequest))
+	})
+	return _c
+}
+
+func (_c *MockPersister_CreateAccessRequest_Call) Return(_a0 *v1alpha1.AccessRequest, _a1 error) *MockPersister_CreateAccessRequest_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockPersister_CreateAccessRequest_Call) RunAndReturn(run func(context.Context, *v1alpha1.AccessRequest) (*v1alpha1.AccessRequest, error)) *MockPersister_CreateAccessRequest_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAccessRequest provides a mock function with given fields: ctx, name, namespace
 func (_m *MockPersister) GetAccessRequest(ctx context.Context, name string, namespace string) (*v1alpha1.AccessRequest, error) {
 	ret := _m.Called(ctx, name, namespace)
@@ -78,6 +137,65 @@ func (_c *MockPersister_GetAccessRequest_Call) Return(_a0 *v1alpha1.AccessReques
 }
 
 func (_c *MockPersister_GetAccessRequest_Call) RunAndReturn(run func(context.Context, string, string) (*v1alpha1.AccessRequest, error)) *MockPersister_GetAccessRequest_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListAccessRequests provides a mock function with given fields: ctx, namespace
+func (_m *MockPersister) ListAccessRequests(ctx context.Context, namespace string) ([]*v1alpha1.AccessRequest, error) {
+	ret := _m.Called(ctx, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAccessRequests")
+	}
+
+	var r0 []*v1alpha1.AccessRequest
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*v1alpha1.AccessRequest, error)); ok {
+		return rf(ctx, namespace)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*v1alpha1.AccessRequest); ok {
+		r0 = rf(ctx, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.AccessRequest)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockPersister_ListAccessRequests_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAccessRequests'
+type MockPersister_ListAccessRequests_Call struct {
+	*mock.Call
+}
+
+// ListAccessRequests is a helper method to define mock.On call
+//   - ctx context.Context
+//   - namespace string
+func (_e *MockPersister_Expecter) ListAccessRequests(ctx interface{}, namespace interface{}) *MockPersister_ListAccessRequests_Call {
+	return &MockPersister_ListAccessRequests_Call{Call: _e.mock.On("ListAccessRequests", ctx, namespace)}
+}
+
+func (_c *MockPersister_ListAccessRequests_Call) Run(run func(ctx context.Context, namespace string)) *MockPersister_ListAccessRequests_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockPersister_ListAccessRequests_Call) Return(_a0 []*v1alpha1.AccessRequest, _a1 error) *MockPersister_ListAccessRequests_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockPersister_ListAccessRequests_Call) RunAndReturn(run func(context.Context, string) ([]*v1alpha1.AccessRequest, error)) *MockPersister_ListAccessRequests_Call {
 	_c.Call.Return(run)
 	return _c
 }
