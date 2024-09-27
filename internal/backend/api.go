@@ -45,7 +45,7 @@ func (h ArgoCDHeaders) Groups() []string {
 // GetAccessRequestInput defines the get access input parameters.
 type GetAccessRequestInput struct {
 	ArgoCDHeaders
-	RoleName string `path:"roleName" example:"custom-role" doc:"The role name to request."`
+	RoleName string `query:"roleName" example:"custom-role" doc:"The role name to request."`
 }
 
 // GetAccessRequestResponse defines the get access response parameters.
@@ -274,7 +274,7 @@ func getAccessRequestOperation() huma.Operation {
 	return huma.Operation{
 		OperationID: "get-accessrequest-by-role",
 		Method:      http.MethodGet,
-		Path:        "/accessrequests/{roleName}",
+		Path:        "/accessrequests?roleName={roleName}",
 		Summary:     "Get AccessRequest",
 		Description: "Will retrieve the access request by role for the given context",
 	}

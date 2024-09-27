@@ -81,7 +81,7 @@ func TestGetAccessRequest(t *testing.T) {
 		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(ar, nil)
 
 		// When
-		resp := f.api.Get(fmt.Sprintf("/accessrequests/%s", roleName), headers...)
+		resp := f.api.Get(fmt.Sprintf("/accessrequests?roleName=%s", roleName), headers...)
 
 		// Then
 		assert.NotNil(t, resp)
@@ -107,7 +107,7 @@ func TestGetAccessRequest(t *testing.T) {
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
 
 		// When
-		resp := f.api.Get(fmt.Sprintf("/accessrequests/%s", roleName), headers...)
+		resp := f.api.Get(fmt.Sprintf("/accessrequests?roleName=%s", roleName), headers...)
 
 		// Then
 		assert.NotNil(t, resp)
@@ -127,7 +127,7 @@ func TestGetAccessRequest(t *testing.T) {
 		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
 
 		// When
-		resp := f.api.Get(fmt.Sprintf("/accessrequests/%s", roleName), headers...)
+		resp := f.api.Get(fmt.Sprintf("/accessrequests?roleName=%s", roleName), headers...)
 
 		// Then
 		assert.NotNil(t, resp)
