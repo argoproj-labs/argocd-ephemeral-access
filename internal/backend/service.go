@@ -16,7 +16,7 @@ type Service interface {
 	GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error)
 	CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error)
 
-	GetAccessBindings(ctx context.Context, name, namespace string) ([]*api.AccessBinding, error)
+	GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error)
 
 	GetApplication(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
 	GetAppProject(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
@@ -51,13 +51,54 @@ func (s *DefaultService) GetAccessRequest(ctx context.Context, name, namespace s
 	return ar, nil
 }
 
+func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error) {
+	bindings, err := s.getAccessBindings(ctx, roleName, namespace)
+	if err != nil {
+		s.logger.Error(err, "error getting access bindings")
+		return nil, fmt.Errorf("error retrieving access bindings for role %s: %w", roleName, err)
+	}
+
+	if len(bindings) == 0 {
+		return nil, nil
+	}
+
+	s.logger.Debug(fmt.Sprintf("found %d bindings referencing role %s", len(bindings), roleName))
+	var grantingBinding *api.AccessBinding
+	for i, binding := range bindings {
+
+		subjects, err := binding.RenderSubjects(app, project)
+		if err != nil {
+			s.logger.Error(err, fmt.Sprintf("cannot render subjects %s:", binding.Name))
+			continue
+		}
+
+		if s.matchSubject(subjects, groups) {
+			grantingBinding = bindings[i]
+			break
+		}
+	}
+
+	return grantingBinding, nil
+}
+
+func (s *DefaultService) matchSubject(subjects, groups []string) bool {
+	for _, subject := range subjects {
+		for _, g := range groups {
+			if subject == g {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // CreateAccessRequest implements Service.
 func (s *DefaultService) CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
 	panic("TODO: unimplemented")
 }
 
 // GetAccessBindings implements Service.
-func (s *DefaultService) GetAccessBindings(ctx context.Context, name string, namespace string) ([]*api.AccessBinding, error) {
+func (s *DefaultService) getAccessBindings(ctx context.Context, name string, namespace string) ([]*api.AccessBinding, error) {
 	panic("TODO: unimplemented")
 }
 

@@ -38,8 +38,9 @@ func newAccessRequest(name, namespace, appName, roleName, subject string) *api.A
 	}
 }
 
-func headers(username, groups, appName, projName string) []any {
+func headers(namespace, username, groups, appName, projName string) []any {
 	return []any{
+		fmt.Sprintf("Argocd-Namespace: %s", namespace),
 		fmt.Sprintf("Argocd-Username: %s", username),
 		fmt.Sprintf("Argocd-User-Groups: %s", groups),
 		fmt.Sprintf("Argocd-Application-Name: %s", appName),
@@ -75,7 +76,7 @@ func TestGetAccessRequest(t *testing.T) {
 		ar := newAccessRequest(arName, nsName, appName, "some-role", username)
 		f.service.EXPECT().GetAccessRequest(mock.Anything, arName, nsName).
 			Return(ar, nil)
-		headers := headers(username, "group1", appName, "some-project")
+		headers := headers("argocd-ns", username, "group1", appName, "some-project")
 
 		// When
 		resp := f.api.Get("/accessrequests/some-ar?namespace=some-namespace", headers...)
@@ -99,7 +100,7 @@ func TestGetAccessRequest(t *testing.T) {
 		f.service.EXPECT().GetAccessRequest(mock.Anything, arName, nsName).
 			Return(nil, fmt.Errorf("some-error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
-		headers := headers(username, "group1", appName, "some-project")
+		headers := headers("argocd-ns", username, "group1", appName, "some-project")
 
 		// When
 		resp := f.api.Get("/accessrequests/some-ar?namespace=some-namespace", headers...)
@@ -117,7 +118,7 @@ func TestGetAccessRequest(t *testing.T) {
 		appName := "some-app"
 		f.service.EXPECT().GetAccessRequest(mock.Anything, arName, nsName).
 			Return(nil, nil)
-		headers := headers(username, "group1", appName, "some-project")
+		headers := headers("argocd-ns", username, "group1", appName, "some-project")
 
 		// When
 		resp := f.api.Get("/accessrequests/some-ar?namespace=some-namespace", headers...)

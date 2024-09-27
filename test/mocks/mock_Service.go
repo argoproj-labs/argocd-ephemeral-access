@@ -83,66 +83,6 @@ func (_c *MockService_CreateAccessRequest_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// GetAccessBindings provides a mock function with given fields: ctx, name, namespace
-func (_m *MockService) GetAccessBindings(ctx context.Context, name string, namespace string) ([]*v1alpha1.AccessBinding, error) {
-	ret := _m.Called(ctx, name, namespace)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAccessBindings")
-	}
-
-	var r0 []*v1alpha1.AccessBinding
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]*v1alpha1.AccessBinding, error)); ok {
-		return rf(ctx, name, namespace)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) []*v1alpha1.AccessBinding); ok {
-		r0 = rf(ctx, name, namespace)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*v1alpha1.AccessBinding)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, name, namespace)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockService_GetAccessBindings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAccessBindings'
-type MockService_GetAccessBindings_Call struct {
-	*mock.Call
-}
-
-// GetAccessBindings is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
-//   - namespace string
-func (_e *MockService_Expecter) GetAccessBindings(ctx interface{}, name interface{}, namespace interface{}) *MockService_GetAccessBindings_Call {
-	return &MockService_GetAccessBindings_Call{Call: _e.mock.On("GetAccessBindings", ctx, name, namespace)}
-}
-
-func (_c *MockService_GetAccessBindings_Call) Run(run func(ctx context.Context, name string, namespace string)) *MockService_GetAccessBindings_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *MockService_GetAccessBindings_Call) Return(_a0 []*v1alpha1.AccessBinding, _a1 error) *MockService_GetAccessBindings_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockService_GetAccessBindings_Call) RunAndReturn(run func(context.Context, string, string) ([]*v1alpha1.AccessBinding, error)) *MockService_GetAccessBindings_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetAccessRequest provides a mock function with given fields: ctx, name, namespace
 func (_m *MockService) GetAccessRequest(ctx context.Context, name string, namespace string) (*v1alpha1.AccessRequest, error) {
 	ret := _m.Called(ctx, name, namespace)
@@ -319,6 +259,69 @@ func (_c *MockService_GetApplication_Call) Return(_a0 *unstructured.Unstructured
 }
 
 func (_c *MockService_GetApplication_Call) RunAndReturn(run func(context.Context, string, string) (*unstructured.Unstructured, error)) *MockService_GetApplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetGrantingAccessBinding provides a mock function with given fields: ctx, roleName, namespace, groups, app, project
+func (_m *MockService) GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*v1alpha1.AccessBinding, error) {
+	ret := _m.Called(ctx, roleName, namespace, groups, app, project)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGrantingAccessBinding")
+	}
+
+	var r0 *v1alpha1.AccessBinding
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) (*v1alpha1.AccessBinding, error)); ok {
+		return rf(ctx, roleName, namespace, groups, app, project)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) *v1alpha1.AccessBinding); ok {
+		r0 = rf(ctx, roleName, namespace, groups, app, project)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.AccessBinding)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) error); ok {
+		r1 = rf(ctx, roleName, namespace, groups, app, project)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_GetGrantingAccessBinding_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGrantingAccessBinding'
+type MockService_GetGrantingAccessBinding_Call struct {
+	*mock.Call
+}
+
+// GetGrantingAccessBinding is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roleName string
+//   - namespace string
+//   - groups []string
+//   - app *unstructured.Unstructured
+//   - project *unstructured.Unstructured
+func (_e *MockService_Expecter) GetGrantingAccessBinding(ctx interface{}, roleName interface{}, namespace interface{}, groups interface{}, app interface{}, project interface{}) *MockService_GetGrantingAccessBinding_Call {
+	return &MockService_GetGrantingAccessBinding_Call{Call: _e.mock.On("GetGrantingAccessBinding", ctx, roleName, namespace, groups, app, project)}
+}
+
+func (_c *MockService_GetGrantingAccessBinding_Call) Run(run func(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured)) *MockService_GetGrantingAccessBinding_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([]string), args[4].(*unstructured.Unstructured), args[5].(*unstructured.Unstructured))
+	})
+	return _c
+}
+
+func (_c *MockService_GetGrantingAccessBinding_Call) Return(_a0 *v1alpha1.AccessBinding, _a1 error) *MockService_GetGrantingAccessBinding_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_GetGrantingAccessBinding_Call) RunAndReturn(run func(context.Context, string, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) (*v1alpha1.AccessBinding, error)) *MockService_GetGrantingAccessBinding_Call {
 	_c.Call.Return(run)
 	return _c
 }

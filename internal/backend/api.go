@@ -30,6 +30,18 @@ type ArgoCDHeaders struct {
 	ArgoCDNamespace       string `header:"Argocd-Namespace" required:"true" example:"argocd" doc:"The trusted namespace of the ArgoCD control plane. This should be automatically sent by Argo CD API server."`
 }
 
+func (h *ArgoCDHeaders) Application() (namespace string, name string, err error) {
+	parts := strings.Split(h.ArgoCDApplicationName, ":")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", "Argocd-Application-Name")
+	}
+	return parts[0], parts[1], nil
+}
+
+func (h ArgoCDHeaders) Groups() []string {
+	return strings.Split(h.ArgoCDUserGroups, ",")
+}
+
 // GetAccessRequestInput defines the get access input parameters.
 type GetAccessRequestInput struct {
 	ArgoCDHeaders
@@ -141,7 +153,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	// - Create AR
 	//   - return 500 if any
 
-	appNamespace, appName, err := getAppName(input.ArgoCDApplicationName)
+	appNamespace, appName, err := input.Application()
 	if err != nil {
 		return nil, huma.Error400BadRequest("error getting application name", err)
 	}
@@ -169,33 +181,12 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		return nil, huma.Error400BadRequest("invalid project", err)
 	}
 
-	// Get the requested role binding
-	bindings, err := h.service.GetAccessBindings(ctx, input.ArgoCDNamespace, input.Body.RoleName)
+	grantingBinding, err := h.service.GetGrantingAccessBinding(ctx, input.Body.RoleName, input.ArgoCDNamespace, input.Groups(), app, project)
 	if err != nil {
-		h.logger.Error(err, "error getting access bindings")
-		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving access bindings for role %s", input.Body.RoleName), err)
+		return nil, huma.Error500InternalServerError("error getting access binding", err)
 	}
-
-	if len(bindings) == 0 {
+	if grantingBinding == nil {
 		return nil, huma.Error403Forbidden(fmt.Sprintf("not allowed to request role %s", input.Body.RoleName))
-	}
-
-	h.logger.Debug(fmt.Sprintf("found %d bindings referencing role %s", len(bindings), input.Body.RoleName))
-	var grantingBinding *api.AccessBinding
-	for i, binding := range bindings {
-
-		// Get rendered subjects
-		subjects, err := binding.RenderSubjects(app, project)
-		if err != nil {
-			h.logger.Error(err, fmt.Sprintf("cannot render subjects %s:", binding.Name))
-			continue
-		}
-
-		// Grant if subjects contains at least one groups
-		if matchSubject(subjects, strings.Split(input.ArgoCDUserGroups, ",")) {
-			grantingBinding = bindings[i]
-			break
-		}
 	}
 
 	ar := &api.AccessRequest{
@@ -218,25 +209,6 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 
 	return &CreateAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
 
-}
-
-func matchSubject(subjects, groups []string) bool {
-	for _, subject := range subjects {
-		for _, g := range groups {
-			if subject == g {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func getAppName(appHeader string) (namespace string, name string, err error) {
-	parts := strings.Split(appHeader, ":")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", "Argocd-Application-Name")
-	}
-	return parts[0], parts[1], nil
 }
 
 // toAccessRequestResponseBody will convert the given ar into an
