@@ -10,7 +10,6 @@ import (
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	"github.com/danielgtaylor/huma/v2"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -164,12 +163,9 @@ func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAc
 
 // TODO implementation
 func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *CreateAccessRequestInput) (*CreateAccessRequestResponse, error) {
-	// - TODO? Get current access request
-	//   - Return 400/409 if already exist?
-
 	appNamespace, appName, err := input.Application()
 	if err != nil {
-		return nil, huma.Error400BadRequest("error getting application name", err)
+		return nil, huma.Error400BadRequest("invalid application", err)
 	}
 
 	// Check if AR already exist
@@ -197,15 +193,8 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	if app == nil {
 		return nil, huma.Error400BadRequest("invalid application", err)
 	}
-	projectName, ok, err := getApplicationProjectName(app)
-	if !ok {
-		return nil, huma.Error400BadRequest("invalid application spec", err)
-	}
-	if err != nil {
-		return nil, huma.Error400BadRequest("invalid application spec", err)
-	}
 
-	project, err := h.service.GetAppProject(ctx, projectName, input.ArgoCDNamespace)
+	project, err := h.service.GetAppProject(ctx, input.ArgoCDProjectName, input.ArgoCDNamespace)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("error getting project", err)
 	}
@@ -231,10 +220,6 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 
 	return &CreateAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
 
-}
-
-func getApplicationProjectName(app *unstructured.Unstructured) (string, bool, error) {
-	return unstructured.NestedString(app.Object, "spec", "project")
 }
 
 // toAccessRequestResponseBody will convert the given ar into an AccessRequestResponseBody.
