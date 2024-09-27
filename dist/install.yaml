@@ -755,6 +755,12 @@ spec:
               key: controller.metrics.secure
               name: argocd-ephemeral-access-config-cm
               optional: true
+        - name: EPHEMERAL_CONTROLLER_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.port
+              name: argocd-ephemeral-access-config-cm
+              optional: true
         - name: EPHEMERAL_CONTROLLER_ENABLE_LEADER_ELECTION
           valueFrom:
             configMapKeyRef:

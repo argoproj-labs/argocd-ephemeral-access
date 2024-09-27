@@ -22,6 +22,8 @@ data:
   # backend.metrics.secure: 'true'
 
   # ### Controller configurations
+  ## The controler server port.
+  # controller.port: '8081'
   ## Enable leader election for controller manager.
   # controller.leader.election.enabled: 'true'
   ## The address the probe endpoint binds to.

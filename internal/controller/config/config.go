@@ -34,6 +34,7 @@ type MetricsConfigurer interface {
 // configurations.
 type ControllerConfigurer interface {
 	EnableLeaderElection() bool
+	ControllerPort() int
 	ControllerHealthProbeAddr() string
 	ControllerEnableHTTP2() bool
 	ControllerRequeueInterval() time.Duration
@@ -62,6 +63,11 @@ func (c *Config) LogFormat() string {
 // EnableLeaderElection acessor method
 func (c *Config) EnableLeaderElection() bool {
 	return c.Controller.EnableLeaderElection
+}
+
+// ControllerPort acessor method
+func (c *Config) ControllerPort() int {
+	return c.Controller.Port
 }
 
 // ControllerHealthProbeAddr acessor method
@@ -100,6 +106,8 @@ type MetricsConfig struct {
 
 // ControllerConfig defines the controller configurations
 type ControllerConfig struct {
+	// Port The controller main port for routes such as pprof
+	Port int `env:"PORT, default=8081"`
 	// EnableLeaderElection Enable leader election for controller manager.
 	// Enabling this will ensure there is only one active controller manager.
 	EnableLeaderElection bool `env:"ENABLE_LEADER_ELECTION, default=false"`

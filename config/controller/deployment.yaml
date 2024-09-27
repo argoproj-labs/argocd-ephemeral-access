@@ -51,6 +51,12 @@ spec:
                   name: config-cm
                   key: controller.metrics.secure
                   optional: true
+            - name: EPHEMERAL_CONTROLLER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.port
+                  optional: true
             - name: EPHEMERAL_CONTROLLER_ENABLE_LEADER_ELECTION
               valueFrom:
                 configMapKeyRef:
