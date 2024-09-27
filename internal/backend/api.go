@@ -38,7 +38,7 @@ func (h *ArgoCDHeaders) Application() (namespace string, name string, err error)
 	return parts[0], parts[1], nil
 }
 
-func (h ArgoCDHeaders) Groups() []string {
+func (h *ArgoCDHeaders) Groups() []string {
 	return strings.Split(h.ArgoCDUserGroups, ",")
 }
 
