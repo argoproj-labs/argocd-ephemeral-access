@@ -121,8 +121,8 @@ func main() {
 			Handler: router,
 		}
 
+		ctx, cancel := context.WithCancel(context.Background())
 		hooks.OnStart(func() {
-			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			logger.Info("Starting Ephemeral Access API Server...", "port", opts.Backend.Port)
 			cacheErr := make(chan error)
@@ -136,24 +136,23 @@ func main() {
 			serverErr := make(chan error)
 			defer close(serverErr)
 			go func() {
-				err := server.ListenAndServe()
-				if err != nil {
-					serverErr <- fmt.Errorf("Ephemeral Access API Server error: %w", err)
-				}
+				logger.Info("Starting Ephemeral Access API Server...", "port", opts.Server.Port)
+				server.ListenAndServe()
 			}()
 			select {
 			case <-ctx.Done():
 				logger.Info("Stopping Ephemeral Access API Server: Context done")
 				return
 			case err := <-cacheErr:
-				logger.Error(err, "cache error")
 				shutdownServer(&server)
+				logger.Error(err, "cache error")
 			case err := <-serverErr:
-				logger.Error(err, "Server error")
+				logger.Error(err, "server error")
 			}
 		})
 		// graceful shutdown the server
 		hooks.OnStop(func() {
+			cancel()
 			shutdownServer(&server)
 		})
 	})

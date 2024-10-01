@@ -5,38 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
+	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func newAccessRequest(name, namespace, appName, roleName, subject string) *api.AccessRequest {
-	return &api.AccessRequest{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "AccessRequest",
-			APIVersion: "v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: api.AccessRequestSpec{
-			Duration:         metav1.Duration{},
-			RoleTemplateName: roleName,
-			Application: api.TargetApplication{
-				Name:      appName,
-				Namespace: namespace,
-			},
-			Subject: api.Subject{
-				Username: subject,
-			},
-		},
-	}
-}
 
 func headers(username, groups, appName, projName string) []any {
 	return []any{
@@ -72,7 +47,7 @@ func TestGetAccessRequest(t *testing.T) {
 		nsName := "some-namespace"
 		username := "some-user"
 		appName := "some-app"
-		ar := newAccessRequest(arName, nsName, appName, "some-role", username)
+		ar := utils.NewAccessRequest(arName, nsName, appName, "some-role", username)
 		f.service.EXPECT().GetAccessRequest(mock.Anything, arName, nsName).
 			Return(ar, nil)
 		headers := headers(username, "group1", appName, "some-project")

@@ -48,60 +48,6 @@ var appResource = schema.GroupVersionResource{
 	Resource: "applications",
 }
 
-func newAccessRequest(name, namespace, appName, roleName, subject string) *api.AccessRequest {
-	return &api.AccessRequest{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "AccessRequest",
-			APIVersion: "v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: api.AccessRequestSpec{
-			Duration:         metav1.Duration{},
-			RoleTemplateName: roleName,
-			Application: api.TargetApplication{
-				Name:      appName,
-				Namespace: namespace,
-			},
-			Subject: api.Subject{
-				Username: subject,
-			},
-		},
-	}
-}
-
-func newRoleTemplate(templateName, namespace, roleName string, policies []string) *api.RoleTemplate {
-	return &api.RoleTemplate{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "RoleTemplate",
-			APIVersion: "v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      templateName,
-			Namespace: namespace,
-		},
-		Spec: api.RoleTemplateSpec{
-			Name:        roleName,
-			Description: "",
-			Policies:    policies,
-		},
-	}
-}
-
-func newNamespace(name string) *corev1.Namespace {
-	return &corev1.Namespace{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Namespace",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-}
-
 var _ = Describe("AccessRequest Controller", func() {
 	const (
 		timeout  = time.Second * 10
@@ -124,7 +70,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	setup := func(r resources) *fixture {
 		By("Creating the namespace")
-		ns := newNamespace(r.namespace)
+		ns := utils.NewNamespace(r.namespace)
 		err := k8sClient.Create(ctx, ns)
 		if err != nil {
 			statusErr, ok := err.(*errors.StatusError)
@@ -162,9 +108,9 @@ var _ = Describe("AccessRequest Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Create the RoleTemplate initial state")
-		rt := newRoleTemplate(r.roleTemplateName, r.namespace, r.roleName, r.policies)
+		rt := utils.NewRoleTemplate(r.roleTemplateName, r.namespace, r.roleName, r.policies)
 		By("Create the AccessRequest initial state")
-		ar := newAccessRequest(r.arName, r.namespace, r.appName, r.roleTemplateName, r.subject)
+		ar := utils.NewAccessRequest(r.arName, r.namespace, r.appName, r.roleTemplateName, r.subject)
 
 		return &fixture{
 			namespace:      ns,

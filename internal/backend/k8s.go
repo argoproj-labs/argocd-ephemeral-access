@@ -3,9 +3,9 @@ package backend
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+	// "os"
+	// "os/signal"
+	// "syscall"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -95,10 +95,6 @@ func (p *K8sPersister) StartCache(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	quit := make(chan os.Signal, 1)
-	defer close(quit)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
 	errCh := make(chan error)
 	defer close(errCh)
 	go func() {
@@ -110,13 +106,10 @@ func (p *K8sPersister) StartCache(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		p.logger.Info("Kubernetes cache: context done")
+		p.logger.Info("Shutting down Kubernetes cache: Context done")
 		return nil
 	case err := <-errCh:
 		return err
-	case <-quit:
-		p.logger.Info("Shutting down Kubernetes cache...")
-		return nil
 	}
 }
 
