@@ -2,5 +2,6 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - backend_monitor.yaml
-  - controller_monitor.yaml
+  - deployment.yaml
+  - metrics_service.yaml
+  - namespace.yaml

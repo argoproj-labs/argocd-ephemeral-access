@@ -37,12 +37,12 @@ import (
 
 // Options for the CLI.
 type Options struct {
-	Log    LogConfig `env:", prefix=EPHEMERAL_LOG_"`
-	Server ServerConfig
+	Log     LogConfig `env:", prefix=EPHEMERAL_LOG_"`
+	Backend BackendConfig
 }
 
-type ServerConfig struct {
-	Port       int    `env:"EPHEMERAL_SERVER_PORT, default=8888"`
+type BackendConfig struct {
+	Port       int    `env:"EPHEMERAL_BACKEND_PORT, default=8888"`
 	Kubeconfig string `env:"KUBECONFIG"`
 }
 
@@ -105,7 +105,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	dynClient, err := newClient(opts.Server.Kubeconfig, logger)
+	dynClient, err := newClient(opts.Backend.Kubeconfig, logger)
 	if err != nil {
 		logger.Error(err, "newClient error")
 		os.Exit(1)
@@ -115,18 +115,18 @@ func main() {
 	service := backend.NewDefaultService(c, logger)
 	handler := backend.NewAPIHandler(service, logger)
 
-	cli := humacli.New(func(hooks humacli.Hooks, options *ServerConfig) {
+	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {
 		router := chi.NewMux()
 		api := humachi.New(router, huma.DefaultConfig(backend.APITitle, backend.APIVersion))
 		backend.RegisterRoutes(api, handler)
 
 		server := http.Server{
-			Addr:    fmt.Sprintf(":%d", opts.Server.Port),
+			Addr:    fmt.Sprintf(":%d", opts.Backend.Port),
 			Handler: router,
 		}
 
 		hooks.OnStart(func() {
-			logger.Info("Starting Ephemeral Access API Server...", "port", opts.Server.Port)
+			logger.Info("Starting Ephemeral Access API Server...", "port", opts.Backend.Port)
 			server.ListenAndServe()
 		})
 		// graceful shutdown the server

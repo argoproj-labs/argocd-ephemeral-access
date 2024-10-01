@@ -1,0 +1,27 @@
+# permissions for end users to edit roletemplates.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-ephemeral-access
+    app.kubernetes.io/managed-by: kustomize
+  name: roletemplate-editor-role
+rules:
+  - apiGroups:
+      - ephemeral-access.argoproj-labs.io
+    resources:
+      - roletemplates
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ephemeral-access.argoproj-labs.io
+    resources:
+      - roletemplates/status
+    verbs:
+      - get
