@@ -124,7 +124,6 @@ func main() {
 		ctx, cancel := context.WithCancel(context.Background())
 		hooks.OnStart(func() {
 			defer cancel()
-			logger.Info("Starting Ephemeral Access API Server...", "port", opts.Backend.Port)
 			cacheErr := make(chan error)
 			defer close(cacheErr)
 			go func() {
