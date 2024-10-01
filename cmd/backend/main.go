@@ -136,7 +136,7 @@ func main() {
 			serverErr := make(chan error)
 			defer close(serverErr)
 			go func() {
-				logger.Info("Starting Ephemeral Access API Server...", "port", opts.Server.Port)
+				logger.Info("Starting Ephemeral Access API Server...", "port", opts.Backend.Port)
 				server.ListenAndServe()
 			}()
 			select {
