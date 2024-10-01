@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
+	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +31,7 @@ func TestDefaultService(t *testing.T) {
 		svc := backend.NewDefaultService(f.persister, f.logger)
 		arName := "some-accessrequest"
 		namespace := "some-namespace"
-		ar := newAccessRequest(arName, namespace, "some-app", "some-role", "some-user")
+		ar := utils.NewAccessRequest(arName, namespace, "some-app", "some-role", "some-user")
 		f.persister.EXPECT().GetAccessRequest(mock.Anything, arName, namespace).Return(ar, nil)
 
 		// When

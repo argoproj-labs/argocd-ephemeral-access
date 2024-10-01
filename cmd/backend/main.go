@@ -30,7 +30,6 @@ import (
 	"github.com/danielgtaylor/huma/v2/humacli"
 	"github.com/go-chi/chi/v5"
 	"github.com/sethvargo/go-envconfig"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -58,7 +57,7 @@ type LogConfig struct {
 	Format string `env:"FORMAT, default=text"`
 }
 
-func newClient(kubeconfig string, logger log.Logger) (*dynamic.DynamicClient, error) {
+func newRestConfig(kubeconfig string, logger log.Logger) (*rest.Config, error) {
 	var config *rest.Config
 	var err error
 
@@ -72,13 +71,7 @@ func newClient(kubeconfig string, logger log.Logger) (*dynamic.DynamicClient, er
 	if err != nil {
 		return nil, fmt.Errorf("error building k8s rest config: %w", err)
 	}
-
-	dynCli, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating k8s dynamic client: %w", err)
-	}
-
-	return dynCli, nil
+	return config, nil
 }
 
 func readEnvConfigs() (*Options, error) {
@@ -105,14 +98,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	dynClient, err := newClient(opts.Backend.Kubeconfig, logger)
+	restConfig, err := newRestConfig(opts.Backend.Kubeconfig, logger)
 	if err != nil {
-		logger.Error(err, "newClient error")
+		logger.Error(err, "error creating new rest config")
 		os.Exit(1)
 	}
-
-	c := backend.NewK8sPersister(dynClient)
-	service := backend.NewDefaultService(c, logger)
+	persister, err := backend.NewK8sPersister(restConfig, logger)
+	if err != nil {
+		logger.Error(err, "error creating a new k8s persister")
+		os.Exit(1)
+	}
+	service := backend.NewDefaultService(persister, logger)
 	handler := backend.NewAPIHandler(service, logger)
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {
@@ -125,17 +121,46 @@ func main() {
 			Handler: router,
 		}
 
+		ctx, cancel := context.WithCancel(context.Background())
 		hooks.OnStart(func() {
-			logger.Info("Starting Ephemeral Access API Server...", "port", opts.Backend.Port)
-			server.ListenAndServe()
+			defer cancel()
+			cacheErr := make(chan error)
+			defer close(cacheErr)
+			go func() {
+				err := persister.StartCache(ctx)
+				if err != nil {
+					cacheErr <- fmt.Errorf("start persister cache error: %w", err)
+				}
+			}()
+			serverErr := make(chan error)
+			defer close(serverErr)
+			go func() {
+				logger.Info("Starting Ephemeral Access API Server...", "port", opts.Backend.Port)
+				server.ListenAndServe()
+			}()
+			select {
+			case <-ctx.Done():
+				logger.Info("Stopping Ephemeral Access API Server: Context done")
+				return
+			case err := <-cacheErr:
+				shutdownServer(&server)
+				logger.Error(err, "cache error")
+			case err := <-serverErr:
+				logger.Error(err, "server error")
+			}
 		})
 		// graceful shutdown the server
 		hooks.OnStop(func() {
-			// Give the server 10 seconds to gracefully shut down, then give up.
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			server.Shutdown(ctx)
+			cancel()
+			shutdownServer(&server)
 		})
 	})
 	cli.Run()
+}
+
+func shutdownServer(server *http.Server) {
+	// Give the server 10 seconds to gracefully shut down, then give up.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	server.Shutdown(ctx)
 }
