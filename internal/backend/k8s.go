@@ -125,15 +125,22 @@ func GetAccessRequestResource() schema.GroupVersionResource {
 
 // GetAccessRequest will retrieve an AccessRequest from k8s identified by the given
 // name and namespace.
-func (c *K8sPersister) GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error) {
+func (p *K8sPersister) GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error) {
 	key := client.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
 	}
 	ar := &api.AccessRequest{}
-	err := c.client.Get(ctx, key, ar)
+	err := p.client.Get(ctx, key, ar)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving accessrequest %s/%s from k8s: %w", namespace, name, err)
 	}
 	return ar, nil
+}
+
+// GetFieldIndexer returns a FieldIndexer allowing to configure indexes in the
+// informer used by the K8sPersister cache.
+// See `controller.createRoleTemplateIndex()` as an example to how configure indexes.
+func (p *K8sPersister) GetFieldIndexer() client.FieldIndexer {
+	return p.cache
 }
