@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller
+  namespace: system
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: argocd-ephemeral-access
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: controller
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: controller
+      labels:
+        app.kubernetes.io/component: controller
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - command:
+            - /controller
+          env:
+            - name: EPHEMERAL_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.log.level
+                  optional: true
+            - name: EPHEMERAL_LOG_FORMAT
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.log.format
+                  optional: true
+            - name: EPHEMERAL_METRICS_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.metrics.address
+                  optional: true
+            - name: EPHEMERAL_METRICS_SECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.metrics.secure
+                  optional: true
+            - name: EPHEMERAL_CONTROLLER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.port
+                  optional: true
+            - name: EPHEMERAL_CONTROLLER_ENABLE_LEADER_ELECTION
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.leader.election.enabled
+                  optional: true
+            - name: EPHEMERAL_CONTROLLER_HEALTH_PROBE_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.health.probe.address
+                  optional: true
+            - name: EPHEMERAL_CONTROLLER_ENABLE_HTTP2
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.http2.enabled
+                  optional: true
+            - name: EPHEMERAL_CONTROLLER_REQUEUE_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: controller.requeue.interval
+                  optional: true
+          image: argoproj-labs/argocd-ephemeral-access:latest
+          imagePullPolicy: Always
+          name: controller
+          ports:
+            - containerPort: 8081
+            - containerPort: 8082
+            - containerPort: 8083
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - 'ALL'
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # resources:
+          #   limits:
+          #     cpu: 500m
+          #     memory: 128Mi
+          #   requests:
+          #     cpu: 10m
+          #     memory: 64Mi
+      serviceAccountName: controller
+      terminationGracePeriodSeconds: 10
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: controller
+                topologyKey: kubernetes.io/hostname
+            - weight: 5
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: argocd-ephemeral-access
+                topologyKey: kubernetes.io/hostname

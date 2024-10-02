@@ -3,16 +3,16 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: controller-manager
+    app.kubernetes.io/component: controller
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
-  name: controller-manager-metrics-monitor
+  name: controller-metrics
   namespace: system
 spec:
   endpoints:
     - path: /metrics
-      port: http # Ensure this is the name of the port that exposes HTTP metrics
+      port: metrics
       scheme: http
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app.kubernetes.io/component: controller

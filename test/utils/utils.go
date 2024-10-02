@@ -23,7 +23,11 @@ import (
 	"os/exec"
 	"strings"
 
+	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
@@ -162,4 +166,58 @@ func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
 		return nil, err
 	}
 	return &unstructured.Unstructured{Object: obj}, nil
+}
+
+func NewAccessRequest(key *backend.AccessRequestKey, roleName string) *api.AccessRequest {
+	return &api.AccessRequest{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AccessRequest",
+			APIVersion: "v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      key.ResourceName(roleName),
+			Namespace: key.Namespace,
+		},
+		Spec: api.AccessRequestSpec{
+			Duration:         metav1.Duration{},
+			RoleTemplateName: roleName,
+			Application: api.TargetApplication{
+				Name:      key.ApplicationName,
+				Namespace: key.ApplicationNamespace,
+			},
+			Subject: api.Subject{
+				Username: key.Username,
+			},
+		},
+	}
+}
+
+func NewRoleTemplate(templateName, namespace, roleName string, policies []string) *api.RoleTemplate {
+	return &api.RoleTemplate{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "RoleTemplate",
+			APIVersion: "v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      templateName,
+			Namespace: namespace,
+		},
+		Spec: api.RoleTemplateSpec{
+			Name:        roleName,
+			Description: "",
+			Policies:    policies,
+		},
+	}
+}
+
+func NewNamespace(name string) *corev1.Namespace {
+	return &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
 }

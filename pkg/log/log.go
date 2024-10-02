@@ -109,6 +109,26 @@ func (l *LogWrapper) Error(err error, msg string, keysAndValues ...any) {
 	l.Logger.Error(err, msg, keysAndValues...)
 }
 
+// Fake logger implementation to be used in tests
+type Fake struct{}
+
+// Info noop
+func (l *Fake) Info(msg string, keysAndValues ...any) {
+}
+
+// Debug noop
+func (l *Fake) Debug(msg string, keysAndValues ...any) {
+}
+
+// Error noop
+func (l *Fake) Error(err error, msg string, keysAndValues ...any) {
+}
+
+// NewFake will instantiate a new fake logger to be used in tests
+func NewFake() *Fake {
+	return &Fake{}
+}
+
 // NewZapLogger will initialize and return a new zap.Logger
 func NewZapLogger(opts ...Opts) (*zap.Logger, error) {
 	cfg := logConfig(opts...)

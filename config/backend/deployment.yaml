@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: system
+  labels:
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/name: argocd-ephemeral-access
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: backend
+      labels:
+        app.kubernetes.io/component: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - command:
+            - /backend
+          env:
+            - name: EPHEMERAL_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: backend.log.level
+                  optional: true
+            - name: EPHEMERAL_LOG_FORMAT
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: backend.log.format
+                  optional: true
+            - name: EPHEMERAL_METRICS_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: backend.metrics.address
+                  optional: true
+            - name: EPHEMERAL_METRICS_SECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: backend.metrics.secure
+                  optional: true
+            - name: EPHEMERAL_BACKEND_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: config-cm
+                  key: backend.port
+                  optional: true
+          image: argoproj-labs/argocd-ephemeral-access:latest
+          imagePullPolicy: Always
+          name: backend
+          ports:
+            - containerPort: 8888
+            - containerPort: 8883
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - 'ALL'
+          livenessProbe:
+            tcpSocket:
+              port: 8888
+            # httpGet:
+            #   path: /healthz
+            #   port: 8888
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            tcpSocket:
+              port: 8888
+            # httpGet:
+            #   path: /readyz
+            #   port: 8888
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          # resources:
+          #   limits:
+          #     cpu: 500m
+          #     memory: 128Mi
+          #   requests:
+          #     cpu: 10m
+          #     memory: 64Mi
+      serviceAccountName: backend
+      terminationGracePeriodSeconds: 10
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: backend
+                topologyKey: kubernetes.io/hostname
+            - weight: 5
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: argocd-ephemeral-access
+                topologyKey: kubernetes.io/hostname

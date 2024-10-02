@@ -7,6 +7,7 @@ import (
 
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
+	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +36,7 @@ func TestDefaultService(t *testing.T) {
 			Username:             "some-user",
 		}
 		roleName := "some-role"
-		ar := newAccessRequest(key, roleName)
+		ar := utils.NewAccessRequest(key, roleName)
 		f.persister.EXPECT().GetAccessRequest(mock.Anything, ar.GetName(), ar.GetNamespace()).Return(ar, nil)
 
 		// When
@@ -58,7 +59,7 @@ func TestDefaultService(t *testing.T) {
 			Username:             "username",
 		}
 		roleName := "some-role"
-		ar := newAccessRequest(key, roleName)
+		ar := utils.NewAccessRequest(key, roleName)
 		f.persister.EXPECT().GetAccessRequest(mock.Anything, ar.GetName(), ar.GetNamespace()).
 			Return(nil, fmt.Errorf("some internal error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
@@ -82,7 +83,7 @@ func TestDefaultService(t *testing.T) {
 			Username:             "some-user",
 		}
 		roleName := "some-role"
-		ar := newAccessRequest(key, roleName)
+		ar := utils.NewAccessRequest(key, roleName)
 		r := backend.GetAccessRequestResource()
 
 		gr := schema.GroupResource{

@@ -5,38 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
+	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func newAccessRequest(key *backend.AccessRequestKey, roleName string) *api.AccessRequest {
-	return &api.AccessRequest{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "AccessRequest",
-			APIVersion: "v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      key.ResourceName(roleName),
-			Namespace: key.Namespace,
-		},
-		Spec: api.AccessRequestSpec{
-			Duration:         metav1.Duration{},
-			RoleTemplateName: roleName,
-			Application: api.TargetApplication{
-				Name:      key.ApplicationName,
-				Namespace: key.ApplicationNamespace,
-			},
-			Subject: api.Subject{
-				Username: key.Username,
-			},
-		},
-	}
-}
 
 func headers(namespace, username, groups, appNs, appName, projName string) []any {
 	return []any{
@@ -77,7 +52,7 @@ func TestGetAccessRequest(t *testing.T) {
 		}
 		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		roleName := "some-role"
-		ar := newAccessRequest(key, roleName)
+		ar := utils.NewAccessRequest(key, roleName)
 		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(ar, nil)
 
 		// When

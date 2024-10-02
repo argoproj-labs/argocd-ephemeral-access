@@ -99,6 +99,7 @@ func main() {
 			SecureServing: config.MetricsSecure(),
 			TLSOpts:       tlsOpts,
 		},
+		PprofBindAddress:       fmt.Sprintf(":%d", config.ControllerPort()),
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: config.ControllerHealthProbeAddr(),
 		LeaderElection:         config.EnableLeaderElection(),

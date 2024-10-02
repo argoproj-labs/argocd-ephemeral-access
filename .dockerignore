@@ -1,3 +1,9 @@
 # More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
+.vscode/
+.idea/
+.github/
 # Ignore build and test binaries.
 bin/
+config/
+hack/
+test/

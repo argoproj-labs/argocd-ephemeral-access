@@ -10,36 +10,13 @@ import (
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
+	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-func newAccessRequest(name, namespace, appName, roleName, subject string) *api.AccessRequest {
-	return &api.AccessRequest{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "AccessRequest",
-			APIVersion: "v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: api.AccessRequestSpec{
-			Duration:         metav1.Duration{},
-			RoleTemplateName: roleName,
-			Application: api.TargetApplication{
-				Name:      appName,
-				Namespace: namespace,
-			},
-			Subject: api.Subject{
-				Username: subject,
-			},
-		},
-	}
-}
 
 func TestHandlePermission(t *testing.T) {
 	t.Run("will handle access expired", func(t *testing.T) {
@@ -51,7 +28,7 @@ func TestHandlePermission(t *testing.T) {
 				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.AppProject")).
 				Return(expectedError)
 			svc := controller.NewService(clientMock, nil)
-			ar := newAccessRequest("test", "default", "someApp", "someRole", "")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someRole", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
 			}
@@ -84,7 +61,7 @@ func TestHandlePermission(t *testing.T) {
 				Return(expectedError).
 				Once()
 			svc := controller.NewService(clientMock, nil)
-			ar := newAccessRequest("test", "default", "someApp", "someRole", "")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someRole", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
 			}

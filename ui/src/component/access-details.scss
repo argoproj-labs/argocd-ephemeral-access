@@ -1,0 +1,50 @@
+@import '../../node_modules/argo-ui/v2/styles/colors';
+
+.access-form {
+  padding: 20px;
+
+  &__usrmsg {
+    display: flex;
+    flex-direction: row;
+    border-left: 5px solid #000000;
+    margin-top: 1em;
+    background: $argo-color-gray-1;
+    box-shadow: 1px 2px 3px $argo-color-gray-4;
+    color: #7d8183;
+
+    .icon-background {
+      margin-bottom: 2px;
+      padding: 0 10px;
+      align-self: center;
+    }
+
+    &__warning {
+      display: flex;
+      flex-direction: column;
+
+      &-title {
+        font-size: 16px;
+        color: #000000;
+        font-weight: 500;
+      }
+
+      &-content {
+        font-family: 'Roboto', sans-serif;
+        font-size: 14px;
+        font-weight: 400;
+      }
+    }
+  }
+
+  p {
+    font-size: 15px;
+
+    &:last-child {
+      margin: 0;
+    }
+  }
+}
+
+.access-status-title {
+
+}
