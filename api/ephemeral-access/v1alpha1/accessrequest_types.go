@@ -40,6 +40,9 @@ const (
 
 	// DeniedStatus is the stage that defines the access request as refused
 	DeniedStatus Status = "denied"
+
+	// InvalidStatus is the used to identify invalid access requests
+	InvalidStatus Status = "invalid"
 )
 
 // AccessRequestSpec defines the desired state of AccessRequest
@@ -144,11 +147,6 @@ func (ar *AccessRequest) UpdateStatusHistory(newStatus Status, details string) {
 	}
 	status.History = append(status.History, history)
 	ar.Status = *status
-}
-
-// TODO
-func (ar *AccessRequest) Validate() error {
-	return nil
 }
 
 // IsExpiring will return true if this AccessRequest is expired by
