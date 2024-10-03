@@ -197,11 +197,10 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 		if arResp.Spec.RoleTemplateName != ar.Spec.RoleTemplateName {
 			continue
 		}
-		// if the existing request is pending, granted, or empty (not reconciled yet)
-		// then the new request is a duplicate and must be rejected
+		// if the existing request is pending or granted, then the new request is
+		// a duplicate and must be rejected
 		if arResp.Status.RequestState == api.GrantedStatus ||
-			arResp.Status.RequestState == api.RequestedStatus ||
-			arResp.Status.RequestState == "" {
+			arResp.Status.RequestState == api.RequestedStatus {
 			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", arResp.GetNamespace(), arResp.GetName(), string(arResp.Status.RequestState)))
 		}
 	}
