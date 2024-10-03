@@ -65,7 +65,9 @@ func TestAccessRequesterRPC(t *testing.T) {
 	newAccessRequest := func(name, namespace, roletemplate, username string) *api.AccessRequest {
 		return &api.AccessRequest{
 			Spec: api.AccessRequestSpec{
-				RoleTemplateName: roletemplate,
+				Role: api.TargetRole{
+					TemplateName: roletemplate,
+				},
 				Application: api.TargetApplication{
 					Name:      name,
 					Namespace: namespace,

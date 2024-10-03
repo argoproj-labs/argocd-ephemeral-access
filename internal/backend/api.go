@@ -152,7 +152,7 @@ func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAc
 		Username:             input.ArgoCDUsername,
 	}
 
-	accessRequests, err := h.service.ListAccessRequests(ctx, key)
+	accessRequests, err := h.service.ListAccessRequests(ctx, key, true)
 	if err != nil {
 		h.logger.Error(err, "error listing access request")
 		return nil, huma.Error500InternalServerError(fmt.Sprintf("error listing access request for user %s", key.Username), err)
@@ -181,7 +181,6 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving existing access request for user %s with role %s", key.Username, input.Body.RoleName), err)
 	}
 	if ar != nil {
-		//TODO: this only works if we expect resource to be deleted when "expired". Otherwise GetAccessRequest needs to filter only non-expired
 		return nil, huma.Error409Conflict("Access Request already exist")
 	}
 
@@ -233,6 +232,7 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 		requestedAt = ar.Status.History[0].TransitionTime.Format(time.RFC3339)
 	}
 
+	//TODO: return correct values based on AccessRequest spec and status
 	return AccessRequestResponseBody{
 		Name:        ar.GetName(),
 		Namespace:   ar.GetNamespace(),

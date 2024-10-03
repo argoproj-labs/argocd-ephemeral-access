@@ -3,10 +3,13 @@ package backend
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/validation"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -16,7 +19,7 @@ import (
 type Service interface {
 	CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error)
 	GetAccessRequest(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error)
-	ListAccessRequests(ctx context.Context, key *AccessRequestKey) ([]*api.AccessRequest, error)
+	ListAccessRequests(ctx context.Context, key *AccessRequestKey, sort bool) ([]*api.AccessRequest, error)
 
 	GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error)
 
@@ -31,15 +34,46 @@ type AccessRequestKey struct {
 	Username             string
 }
 
-func (k *AccessRequestKey) ResourceName(roleName string) string {
-	//TODO: hash it and validate k8s max length
-	return fmt.Sprintf("%s-%s-%s-%s", k.ApplicationNamespace, k.ApplicationName, roleName, k.Username)
-}
-
 // DefaultService is the real Service implementation
 type DefaultService struct {
 	k8s    Persister
 	logger log.Logger
+}
+
+var requestStateOrder = map[api.Status]int{
+	api.GrantedStatus:   0,
+	api.RequestedStatus: 1,
+	api.DeniedStatus:    2,
+	api.ExpiredStatus:   3,
+}
+
+var defaultAccessRequestSort = func(a, b *api.AccessRequest) int {
+	// sort by status
+	if a.Status.RequestState != b.Status.RequestState {
+		aOrder := requestStateOrder[a.Status.RequestState]
+		bOrder := requestStateOrder[b.Status.RequestState]
+		return aOrder - bOrder
+	}
+
+	// sort by ordinal ascending
+	if a.Spec.Role.Ordinal != b.Spec.Role.Ordinal {
+		return a.Spec.Role.Ordinal - b.Spec.Role.Ordinal
+	}
+
+	// sort by role name ascending
+	if a.Spec.Role.TemplateName != b.Spec.Role.TemplateName {
+		return strings.Compare(a.Spec.Role.TemplateName, b.Spec.Role.TemplateName)
+	}
+
+	// sort by creation date. Priority to newer request
+	if a.CreationTimestamp != b.CreationTimestamp {
+		if a.CreationTimestamp.Before(&b.CreationTimestamp) {
+			return -1
+		}
+		return +1
+	}
+
+	return 0
 }
 
 // NewDefaultService will return a new DefaultService instance.
@@ -50,45 +84,43 @@ func NewDefaultService(c Persister, l log.Logger) *DefaultService {
 	}
 }
 
-// GetAccessRequest will retrieve the access request from k8s identified by the
-// given name and namespace. Will return a nil value without any error if the
-// access request isn't found.
+// GetAccessRequest will retrieve the access request for the specified role.
+// Will return a nil value without any error if an access request isn't found for this role.
 func (s *DefaultService) GetAccessRequest(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error) {
-	//TODO: this only works if we expect resource to be unique
-	ar, err := s.k8s.GetAccessRequest(ctx, key.ResourceName(roleName), key.Namespace)
+
+	// get all access requests
+	accessRequests, err := s.ListAccessRequests(ctx, key, true)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		s.logger.Error(err, "error getting accessrequest from k8s")
-		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
+		return nil, fmt.Errorf("error listing access request for role %s: %w", roleName, err)
 	}
-	return ar, nil
+
+	// find the first access request matching the requested role
+	for _, ar := range accessRequests {
+		if ar.Spec.Role.TemplateName == roleName {
+			return ar, nil
+		}
+	}
+
+	return nil, nil
 }
 
-func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequestKey) ([]*api.AccessRequest, error) {
-	accessRequests, err := s.k8s.ListAccessRequests(ctx, key.Namespace)
+func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequestKey, shouldSort bool) ([]*api.AccessRequest, error) {
+	accessRequests, err := s.k8s.ListAccessRequests(ctx, key)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		s.logger.Error(err, "error getting accessrequest from k8s")
 		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
 	}
 
-	//TODO: k8s.ListAccessRequests should be optimized to filter on some fields
 	filtered := []*api.AccessRequest{}
-	for i, ar := range accessRequests {
-		if ar.Spec.Subject.Username != key.Username {
+	for i, ar := range accessRequests.Items {
+		if ar.Status.RequestState == api.ExpiredStatus {
+			// ignore expired request
 			continue
 		}
-		if ar.Spec.Application.Name != key.ApplicationName {
-			continue
-		}
-		if ar.Spec.Application.Namespace != key.ApplicationNamespace {
-			continue
-		}
-		filtered = append(filtered, accessRequests[i])
+		filtered = append(filtered, &accessRequests.Items[i])
+	}
+
+	if shouldSort {
+		slices.SortStableFunc(filtered, defaultAccessRequestSort)
 	}
 
 	return filtered, nil
@@ -140,11 +172,15 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 	roleName := binding.Spec.RoleTemplateRef.Name
 	ar := &api.AccessRequest{
 		ObjectMeta: v1.ObjectMeta{
-			Namespace: key.Namespace,
-			Name:      key.ResourceName(roleName),
+			Namespace:    key.Namespace,
+			GenerateName: s.getAccessRequestPrefix(key.Username, roleName),
 		},
 		Spec: api.AccessRequestSpec{
-			RoleTemplateName: roleName,
+			Role: api.TargetRole{
+				TemplateName: binding.Spec.RoleTemplateRef.Name,
+				Ordinal:      binding.Spec.Ordinal,
+				FriendlyName: binding.Spec.FriendlyName,
+			},
 			Subject: api.Subject{
 				Username: key.Username,
 			},
@@ -164,6 +200,14 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
 	}
 	return ar, nil
+}
+
+func (s *DefaultService) getAccessRequestPrefix(username, roleName string) string {
+	prefix := fmt.Sprintf("%s-", "TODO")
+	if len(validation.NameIsDNSSubdomain(prefix, true)) != 0 {
+		prefix = "TODO-fallback-"
+	}
+	return prefix
 }
 
 // GetAppProject implements Service.

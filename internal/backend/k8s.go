@@ -3,10 +3,12 @@ package backend
 import (
 	"context"
 	"fmt"
+
 	// "os"
 	// "os/signal"
 	// "syscall"
 
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -29,7 +31,7 @@ const (
 type Persister interface {
 	CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error)
 	GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error)
-	ListAccessRequests(ctx context.Context, namespace string) ([]*api.AccessRequest, error)
+	ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error)
 }
 
 // K8sPersister is a K8s implementation for the Persister interface.
@@ -153,6 +155,19 @@ func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRe
 }
 
 // ListAccessRequests implements Persister.
-func (c *K8sPersister) ListAccessRequests(ctx context.Context, namespace string) ([]*api.AccessRequest, error) {
-	panic("unimplemented")
+func (c *K8sPersister) ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error) {
+	selector := fields.SelectorFromSet(
+		fields.Set{
+			"spec.subject.username":      key.Username,
+			"spec.application.name":      key.ApplicationName,
+			"spec.application.namespace": key.ApplicationNamespace,
+		},
+	)
+
+	list := &api.AccessRequestList{}
+	err := c.client.List(ctx, list, &client.ListOptions{Namespace: key.Namespace, FieldSelector: selector})
+	if err != nil {
+		return nil, fmt.Errorf("error listing accessrequest for user %s in app %s/%s from k8s: %w", key.Username, key.ApplicationNamespace, key.ApplicationName, err)
+	}
+	return list, nil
 }

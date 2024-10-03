@@ -40,12 +40,19 @@ spec:
             description: AccessBindingSpec defines the desired state of AccessBinding
             properties:
               friendlyName:
+                description: FriendlyName defines a name for this role
+                maxLength: 512
                 type: string
               if:
+                description: If is a condition that must be true to evaluate the subjects
                 type: string
               ordinal:
+                description: Ordinal defines an ordering number of this role compared
+                  to others
                 type: integer
               roleTemplateRef:
+                description: RoleTemplateRef is the reference to the RoleTemplate
+                  this bindings grants access to
                 properties:
                   name:
                     type: string
@@ -53,6 +60,8 @@ spec:
                 - name
                 type: object
               subjects:
+                description: Subjects is list of strings, supporting go template,
+                  that a user's group claims must match at least one of to be allowed
                 items:
                   type: string
                 type: array

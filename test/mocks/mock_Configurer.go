@@ -111,6 +111,51 @@ func (_c *MockConfigurer_ControllerHealthProbeAddr_Call) RunAndReturn(run func()
 	return _c
 }
 
+// ControllerPort provides a mock function with given fields:
+func (_m *MockConfigurer) ControllerPort() int {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for ControllerPort")
+	}
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
+// MockConfigurer_ControllerPort_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ControllerPort'
+type MockConfigurer_ControllerPort_Call struct {
+	*mock.Call
+}
+
+// ControllerPort is a helper method to define mock.On call
+func (_e *MockConfigurer_Expecter) ControllerPort() *MockConfigurer_ControllerPort_Call {
+	return &MockConfigurer_ControllerPort_Call{Call: _e.mock.On("ControllerPort")}
+}
+
+func (_c *MockConfigurer_ControllerPort_Call) Run(run func()) *MockConfigurer_ControllerPort_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockConfigurer_ControllerPort_Call) Return(_a0 int) *MockConfigurer_ControllerPort_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockConfigurer_ControllerPort_Call) RunAndReturn(run func() int) *MockConfigurer_ControllerPort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ControllerRequeueInterval provides a mock function with given fields:
 func (_m *MockConfigurer) ControllerRequeueInterval() time.Duration {
 	ret := _m.Called()

@@ -61,22 +61,25 @@ func TestK8sPersister(t *testing.T) {
 
 	t.Run("will retrieve AccessRequest successfully", func(t *testing.T) {
 		// Given
-		arName := "some-ar"
 		nsName := "retrieve-ar-success"
-		username := "some-user"
-		appName := "some-app"
 		roleName := "some-role"
+		key := &backend.AccessRequestKey{
+			Namespace:            nsName,
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
 
 		ns := utils.NewNamespace(nsName)
 		err = k8sClient.Create(ctx, ns)
 		assert.NoError(t, err)
 
-		ar := utils.NewAccessRequest(arName, nsName, appName, roleName, username)
+		ar := newAccessRequest(key, roleName)
 		err = k8sClient.Create(ctx, ar)
 		assert.NoError(t, err)
 
 		// When
-		result, err := p.GetAccessRequest(ctx, arName, nsName)
+		result, err := p.GetAccessRequest(ctx, ar.GetName(), ar.GetNamespace())
 
 		// Then
 		assert.NoError(t, err)

@@ -330,9 +330,9 @@ func (_c *MockService_GetGrantingAccessBinding_Call) RunAndReturn(run func(conte
 	return _c
 }
 
-// ListAccessRequests provides a mock function with given fields: ctx, key
-func (_m *MockService) ListAccessRequests(ctx context.Context, key *backend.AccessRequestKey) ([]*v1alpha1.AccessRequest, error) {
-	ret := _m.Called(ctx, key)
+// ListAccessRequests provides a mock function with given fields: ctx, key, sort
+func (_m *MockService) ListAccessRequests(ctx context.Context, key *backend.AccessRequestKey, sort bool) ([]*v1alpha1.AccessRequest, error) {
+	ret := _m.Called(ctx, key, sort)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListAccessRequests")
@@ -340,19 +340,19 @@ func (_m *MockService) ListAccessRequests(ctx context.Context, key *backend.Acce
 
 	var r0 []*v1alpha1.AccessRequest
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey) ([]*v1alpha1.AccessRequest, error)); ok {
-		return rf(ctx, key)
+	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey, bool) ([]*v1alpha1.AccessRequest, error)); ok {
+		return rf(ctx, key, sort)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey) []*v1alpha1.AccessRequest); ok {
-		r0 = rf(ctx, key)
+	if rf, ok := ret.Get(0).(func(context.Context, *backend.AccessRequestKey, bool) []*v1alpha1.AccessRequest); ok {
+		r0 = rf(ctx, key, sort)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*v1alpha1.AccessRequest)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *backend.AccessRequestKey) error); ok {
-		r1 = rf(ctx, key)
+	if rf, ok := ret.Get(1).(func(context.Context, *backend.AccessRequestKey, bool) error); ok {
+		r1 = rf(ctx, key, sort)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -368,13 +368,14 @@ type MockService_ListAccessRequests_Call struct {
 // ListAccessRequests is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key *backend.AccessRequestKey
-func (_e *MockService_Expecter) ListAccessRequests(ctx interface{}, key interface{}) *MockService_ListAccessRequests_Call {
-	return &MockService_ListAccessRequests_Call{Call: _e.mock.On("ListAccessRequests", ctx, key)}
+//   - sort bool
+func (_e *MockService_Expecter) ListAccessRequests(ctx interface{}, key interface{}, sort interface{}) *MockService_ListAccessRequests_Call {
+	return &MockService_ListAccessRequests_Call{Call: _e.mock.On("ListAccessRequests", ctx, key, sort)}
 }
 
-func (_c *MockService_ListAccessRequests_Call) Run(run func(ctx context.Context, key *backend.AccessRequestKey)) *MockService_ListAccessRequests_Call {
+func (_c *MockService_ListAccessRequests_Call) Run(run func(ctx context.Context, key *backend.AccessRequestKey, sort bool)) *MockService_ListAccessRequests_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*backend.AccessRequestKey))
+		run(args[0].(context.Context), args[1].(*backend.AccessRequestKey), args[2].(bool))
 	})
 	return _c
 }
@@ -384,7 +385,7 @@ func (_c *MockService_ListAccessRequests_Call) Return(_a0 []*v1alpha1.AccessRequ
 	return _c
 }
 
-func (_c *MockService_ListAccessRequests_Call) RunAndReturn(run func(context.Context, *backend.AccessRequestKey) ([]*v1alpha1.AccessRequest, error)) *MockService_ListAccessRequests_Call {
+func (_c *MockService_ListAccessRequests_Call) RunAndReturn(run func(context.Context, *backend.AccessRequestKey, bool) ([]*v1alpha1.AccessRequest, error)) *MockService_ListAccessRequests_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -167,26 +166,27 @@ func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
 	}
 	return &unstructured.Unstructured{Object: obj}, nil
 }
-
-func NewAccessRequest(key *backend.AccessRequestKey, roleName string) *api.AccessRequest {
+func NewAccessRequest(name, namespace, appName, appNamespace, roleName, subject string) *api.AccessRequest {
 	return &api.AccessRequest{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "AccessRequest",
 			APIVersion: "v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      key.ResourceName(roleName),
-			Namespace: key.Namespace,
+			Name:      name,
+			Namespace: namespace,
 		},
 		Spec: api.AccessRequestSpec{
-			Duration:         metav1.Duration{},
-			RoleTemplateName: roleName,
+			Duration: metav1.Duration{},
+			Role: api.TargetRole{
+				TemplateName: roleName,
+			},
 			Application: api.TargetApplication{
-				Name:      key.ApplicationName,
-				Namespace: key.ApplicationNamespace,
+				Name:      appName,
+				Namespace: appNamespace,
 			},
 			Subject: api.Subject{
-				Username: key.Username,
+				Username: subject,
 			},
 		},
 	}

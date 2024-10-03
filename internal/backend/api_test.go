@@ -7,7 +7,6 @@ import (
 
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
-	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -52,7 +51,7 @@ func TestGetAccessRequest(t *testing.T) {
 		}
 		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		roleName := "some-role"
-		ar := utils.NewAccessRequest(key, roleName)
+		ar := newAccessRequest(key, roleName)
 		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(ar, nil)
 
 		// When

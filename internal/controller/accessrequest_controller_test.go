@@ -110,7 +110,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		By("Create the RoleTemplate initial state")
 		rt := utils.NewRoleTemplate(r.roleTemplateName, r.namespace, r.roleName, r.policies)
 		By("Create the AccessRequest initial state")
-		ar := utils.NewAccessRequest(r.arName, r.namespace, r.appName, r.roleTemplateName, r.subject)
+		ar := utils.NewAccessRequest(r.arName, r.namespace, r.appName, r.namespace, r.roleTemplateName, r.subject)
 
 		return &fixture{
 			namespace:      ns,
@@ -306,7 +306,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				ar := &api.AccessRequest{}
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 				Expect(err).NotTo(HaveOccurred())
-				ar.Spec.RoleTemplateName = "NOT-ALLOWED"
+				ar.Spec.Role.TemplateName = "NOT-ALLOWED"
 
 				err = k8sClient.Update(ctx, ar)
 

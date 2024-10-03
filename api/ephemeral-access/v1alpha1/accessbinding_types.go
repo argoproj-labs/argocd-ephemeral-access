@@ -46,11 +46,17 @@ type AccessBindingList struct {
 
 // AccessBindingSpec defines the desired state of AccessBinding
 type AccessBindingSpec struct {
+	// RoleTemplateRef is the reference to the RoleTemplate this bindings grants access to
 	RoleTemplateRef RoleTemplateReference `json:"roleTemplateRef"`
-	Subjects        []string              `json:"subjects"`
-	If              *string               `json:"if,omitempty"`
-	Ordinal         int                   `json:"ordinal,omitempty"`
-	FriendlyName    *string               `json:"friendlyName,omitempty"`
+	// Subjects is list of strings, supporting go template, that a user's group claims must match at least one of to be allowed
+	Subjects []string `json:"subjects"`
+	// If is a condition that must be true to evaluate the subjects
+	If *string `json:"if,omitempty"`
+	// Ordinal defines an ordering number of this role compared to others
+	Ordinal int `json:"ordinal,omitempty"`
+	// FriendlyName defines a name for this role
+	// +kubebuilder:validation:MaxLength=512
+	FriendlyName *string `json:"friendlyName,omitempty"`
 }
 
 type RoleTemplateReference struct {
