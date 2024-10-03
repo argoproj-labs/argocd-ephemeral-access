@@ -116,7 +116,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			ar.UpdateStatusHistory(api.InvalidStatus, err.Error())
 			err = r.Status().Update(ctx, ar)
 			if err != nil {
-				return reconcile.Result{}, fmt.Errorf("Error updating status to invalid: %s", err)
+				return reconcile.Result{}, fmt.Errorf("error updating status to invalid: %s", err)
 			}
 			return ctrl.Result{}, nil
 		}
@@ -179,7 +179,7 @@ func NewAccessRequestConflictError(msg string) *AccessRequestConflictError {
 // Validate will verify if there are existing AccessRequests for the same
 // user/app/role already in progress.
 func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRequest) error {
-	arList, err := r.findAccessRequestsByUserApp(ctx,
+	arList, err := r.findAccessRequestsByUserAndApp(ctx,
 		ar.GetNamespace(),
 		ar.Spec.Subject.Username,
 		ar.Spec.Application.Name,
@@ -188,14 +188,20 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 		return fmt.Errorf("error finding AccessRequests by user and app: %w", err)
 	}
 	for _, arResp := range arList.Items {
-		// skip if it is the same AccessRequest or if the role is different
-		if (arResp.GetName() == ar.GetName() &&
-			arResp.GetNamespace() == ar.GetNamespace()) ||
-			arResp.Spec.RoleTemplateName != ar.Spec.RoleTemplateName {
+		// skip if it is the same AccessRequest
+		if arResp.GetName() == ar.GetName() &&
+			arResp.GetNamespace() == ar.GetNamespace() {
 			continue
 		}
+		// skip if the request is for different role template
+		if arResp.Spec.RoleTemplateName != ar.Spec.RoleTemplateName {
+			continue
+		}
+		// if the existing request is pending, granted, or empty (not reconciled yet)
+		// then the new request is a duplicate and must be rejected
 		if arResp.Status.RequestState == api.GrantedStatus ||
-			arResp.Status.RequestState == api.RequestedStatus {
+			arResp.Status.RequestState == api.RequestedStatus ||
+			arResp.Status.RequestState == "" {
 			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", arResp.GetNamespace(), arResp.GetName(), string(arResp.Status.RequestState)))
 		}
 	}
@@ -359,9 +365,9 @@ func (r *AccessRequestReconciler) callReconcileForRoleTemplate(ctx context.Conte
 	return requests
 }
 
-// findAccessRequestsByUserApp will list all AccessRequests in the given namespace
+// findAccessRequestsByUserAndApp will list all AccessRequests in the given namespace
 // filtering by the given username, appName and appNamespace.
-func (r *AccessRequestReconciler) findAccessRequestsByUserApp(ctx context.Context, namespace, username, appName, appNamespace string) (*api.AccessRequestList, error) {
+func (r *AccessRequestReconciler) findAccessRequestsByUserAndApp(ctx context.Context, namespace, username, appName, appNamespace string) (*api.AccessRequestList, error) {
 	arList := &api.AccessRequestList{}
 	selector := fields.SelectorFromSet(
 		fields.Set{
