@@ -25,7 +25,7 @@ import (
 
 // Status defines the different stages a given access request can be
 // at a given time.
-// +kubebuilder:validation:Enum=requested;granted;expired;denied
+// +kubebuilder:validation:Enum=requested;granted;expired;denied;invalid
 type Status string
 
 const (

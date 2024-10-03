@@ -107,9 +107,9 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 		Expect(err).NotTo(HaveOccurred())
 
-		By("Create the RoleTemplate initial state")
+		By("Instantiate the RoleTemplate initial state")
 		rt := utils.NewRoleTemplate(r.roleTemplateName, r.namespace, r.roleName, r.policies)
-		By("Create the AccessRequest initial state")
+		By("Instantiate the AccessRequest initial state")
 		ar := utils.NewAccessRequest(r.arName, r.namespace, r.appName, r.roleTemplateName, r.subject)
 
 		return &fixture{
@@ -539,6 +539,83 @@ var _ = Describe("AccessRequest Controller", func() {
 					Expect(appProj.Spec.Roles[2].Policies).To(HaveLen(1))
 					return appProj.Spec.Roles[2].Policies[0]
 				}, timeout, interval).Should(Equal(expectedPolicy))
+			})
+		})
+	})
+
+	Context("Validating AccessRequests", Ordered, func() {
+		const (
+			namespace        = "test-ar-validation"
+			arName01         = "test-ar-01"
+			appprojectName   = "sample-test-project"
+			appName          = "some-application"
+			roleTemplateName = "role-template-watch-test"
+			roleName         = "super-user"
+			subject01        = "some-user"
+			expectedPolicy   = "original-policy"
+		)
+
+		var f *fixture
+		var r resources
+		policies := []string{expectedPolicy}
+
+		When("creating conflicting AccessRequest", func() {
+			AfterAll(func() {
+				tearDown(r, f)
+			})
+			BeforeAll(func() {
+				r = resources{
+					arName:           arName01,
+					appName:          appName,
+					namespace:        namespace,
+					appProjName:      appprojectName,
+					roleTemplateName: roleTemplateName,
+					roleName:         roleName,
+					subject:          subject01,
+					policies:         policies,
+				}
+				f = setup(r)
+			})
+			It("will apply the roletemplate resource in k8s", func() {
+				err := k8sClient.Create(ctx, f.roletemplate)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will apply the AccessRequests resources in k8s", func() {
+				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 20}
+				for _, ar := range f.accessrequests {
+					err := k8sClient.Create(ctx, ar)
+					Expect(err).NotTo(HaveOccurred())
+				}
+			})
+			It("will verify if the AccessRequest is created", func() {
+				returnedAR := &api.AccessRequest{}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), returnedAR)
+					Expect(err).NotTo(HaveOccurred())
+					return returnedAR.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+				Expect(returnedAR.Status.History).NotTo(BeEmpty())
+				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
+			})
+			It("will create conflicting AccessRequest", func() {
+				conflictAR := utils.NewAccessRequest("conflict", namespace, appName, roleTemplateName, subject01)
+				err := k8sClient.Create(ctx, conflictAR)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will verify if the conflicting AccessRequest has 'invalid' status", func() {
+				returnedAR := &api.AccessRequest{}
+				key := client.ObjectKey{
+					Namespace: namespace,
+					Name:      "conflict",
+				}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, key, returnedAR)
+					Expect(err).NotTo(HaveOccurred())
+					return returnedAR.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+				Expect(returnedAR.Status.RequestState).To(Equal(api.InvalidStatus))
+				Expect(returnedAR.Status.History).NotTo(BeEmpty())
+				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.InvalidStatus))
 			})
 		})
 	})

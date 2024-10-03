@@ -111,13 +111,16 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger.Debug("Validating AccessRequest")
 	err = r.Validate(ctx, ar)
 	if err != nil {
-		logger.Info(fmt.Sprintf("Validation error: %s", err))
 		if _, ok := err.(*AccessRequestConflictError); ok {
 			logger.Error(err, "AccessRequest conflict error")
 			ar.UpdateStatusHistory(api.InvalidStatus, err.Error())
-			r.Status().Update(ctx, ar)
+			err = r.Status().Update(ctx, ar)
+			if err != nil {
+				return reconcile.Result{}, fmt.Errorf("Error updating status to invalid: %s", err)
+			}
 			return ctrl.Result{}, nil
 		}
+		logger.Info(fmt.Sprintf("Validation error: %s", err))
 		return ctrl.Result{}, fmt.Errorf("error validating the AccessRequest: %w", err)
 	}
 
@@ -192,7 +195,7 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 		}
 		if arResp.Status.RequestState == api.GrantedStatus ||
 			arResp.Status.RequestState == api.RequestedStatus {
-			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", arResp.GetNamespace(), arResp.GetName(), string(ar.Status.RequestState)))
+			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", arResp.GetNamespace(), arResp.GetName(), string(arResp.Status.RequestState)))
 		}
 	}
 	return nil

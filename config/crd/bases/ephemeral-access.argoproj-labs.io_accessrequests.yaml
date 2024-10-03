@@ -118,6 +118,7 @@ spec:
                       - granted
                       - expired
                       - denied
+                      - invalid
                       type: string
                     transitionTime:
                       description: TransitionTime is the time the transition is observed
@@ -137,6 +138,7 @@ spec:
                 - granted
                 - expired
                 - denied
+                - invalid
                 type: string
               roleTemplateHash:
                 type: string
