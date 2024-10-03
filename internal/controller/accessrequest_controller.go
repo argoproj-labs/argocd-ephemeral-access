@@ -187,7 +187,7 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 	for _, ar := range arList.Items {
 		if ar.Status.RequestState == api.GrantedStatus ||
 			ar.Status.RequestState == api.RequestedStatus {
-			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest in %s state", string(ar.Status.RequestState)))
+			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", ar.GetNamespace(), ar.GetName(), string(ar.Status.RequestState)))
 		}
 	}
 	return nil
