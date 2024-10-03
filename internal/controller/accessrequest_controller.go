@@ -184,10 +184,15 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 	if err != nil {
 		return fmt.Errorf("error finding AccessRequests by user and app: %w", err)
 	}
-	for _, ar := range arList.Items {
-		if ar.Status.RequestState == api.GrantedStatus ||
-			ar.Status.RequestState == api.RequestedStatus {
-			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", ar.GetNamespace(), ar.GetName(), string(ar.Status.RequestState)))
+	for _, arResp := range arList.Items {
+		// skip if it is the same AccessRequest
+		if arResp.GetName() == ar.GetName() &&
+			arResp.GetNamespace() == ar.GetNamespace() {
+			continue
+		}
+		if arResp.Status.RequestState == api.GrantedStatus ||
+			arResp.Status.RequestState == api.RequestedStatus {
+			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", arResp.GetNamespace(), arResp.GetName(), string(ar.Status.RequestState)))
 		}
 	}
 	return nil
