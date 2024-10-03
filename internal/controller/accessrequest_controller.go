@@ -109,9 +109,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// stop if the reconciliation was previously concluded
-	if ar.Status.RequestState == api.ExpiredStatus ||
-		ar.Status.RequestState == api.DeniedStatus ||
-		ar.Status.RequestState == api.InvalidStatus {
+	if isConcluded(ar) {
 		logger.Debug(fmt.Sprintf("Reconciliation concluded as the AccessRequest is %s: skipping...", string(ar.Status.RequestState)))
 		return ctrl.Result{}, nil
 	}
@@ -220,7 +218,7 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 // it is in Denied or Expired status.
 func isConcluded(ar *api.AccessRequest) bool {
 	switch ar.Status.RequestState {
-	case api.DeniedStatus, api.ExpiredStatus:
+	case api.DeniedStatus, api.ExpiredStatus, api.InvalidStatus:
 		return true
 	default:
 		return false
