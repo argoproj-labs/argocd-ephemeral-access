@@ -153,6 +153,8 @@ spec:
                 - expired
                 - denied
                 type: string
+              roleName:
+                type: string
               roleTemplateHash:
                 type: string
               targetProject:

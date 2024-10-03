@@ -230,20 +230,29 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 	}
 	requestedAt := ""
 	if len(ar.Status.History) > 0 {
+		// TODO: find the transition in the RequestedStatus
 		requestedAt = ar.Status.History[0].TransitionTime.Format(time.RFC3339)
 	}
+	message := ""
+	if len(ar.Status.History) > 0 && ar.Status.History[len(ar.Status.History)-1].Details != nil {
+		message = *ar.Status.History[len(ar.Status.History)-1].Details
+	}
 
-	//TODO: return correct values based on AccessRequest spec and status
+	permission := ar.Spec.Role.TemplateName
+	if ar.Spec.Role.FriendlyName != nil {
+		permission = *ar.Spec.Role.FriendlyName
+	}
+
 	return AccessRequestResponseBody{
 		Name:        ar.GetName(),
 		Namespace:   ar.GetNamespace(),
 		Username:    ar.Spec.Subject.Username,
-		Permission:  "ReadOnly",
+		Permission:  permission,
 		RequestedAt: requestedAt,
-		Role:        "",
+		Role:        ar.Status.RoleName,
 		Status:      strings.ToUpper(string(ar.Status.RequestState)),
 		ExpiresAt:   expiresAt,
-		Message:     "",
+		Message:     message,
 	}
 }
 

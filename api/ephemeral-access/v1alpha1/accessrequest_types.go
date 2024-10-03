@@ -95,6 +95,7 @@ type AccessRequestStatus struct {
 	TargetProject    string                 `json:"targetProject,omitempty"`
 	ExpiresAt        *metav1.Time           `json:"expiresAt,omitempty"`
 	RoleTemplateHash string                 `json:"roleTemplateHash,omitempty"`
+	RoleName         string                 `json:"roleName,omitempty"`
 	History          []AccessRequestHistory `json:"history,omitempty"`
 }
 
