@@ -120,7 +120,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		}
 	}
 
-	tearDown := func(r resources, f *fixture) {
+	deleteNamespace := func(f *fixture) {
 		By("Delete the test namespace")
 		Expect(k8sClient.Delete(ctx, f.namespace)).To(Succeed())
 	}
@@ -147,7 +147,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		When("The subject has the necessary access", func() {
 			AfterAll(func() {
-				tearDown(r, f)
+				deleteNamespace(f)
 			})
 			BeforeAll(func() {
 				r = resources{
@@ -268,7 +268,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		When("protected fields values change after applied", func() {
 			AfterAll(func() {
-				tearDown(r, f)
+				deleteNamespace(f)
 			})
 			BeforeAll(func() {
 				r = resources{
@@ -371,7 +371,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		When("used by multiple AccessRequests", func() {
 			AfterAll(func() {
-				tearDown(r, f)
+				deleteNamespace(f)
 			})
 			BeforeAll(func() {
 				r = resources{
@@ -471,7 +471,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		When("used by an active AccessRequests", func() {
 			AfterAll(func() {
-				tearDown(r, f)
+				deleteNamespace(f)
 			})
 			BeforeAll(func() {
 				r = resources{
@@ -559,29 +559,32 @@ var _ = Describe("AccessRequest Controller", func() {
 		var r resources
 		policies := []string{expectedPolicy}
 
-		When("creating conflicting AccessRequest", func() {
-			AfterAll(func() {
-				tearDown(r, f)
-			})
-			BeforeAll(func() {
-				r = resources{
-					arName:           arName01,
-					appName:          appName,
-					namespace:        namespace,
-					appProjName:      appprojectName,
-					roleTemplateName: roleTemplateName,
-					roleName:         roleName,
-					subject:          subject01,
-					policies:         policies,
-				}
-				f = setup(r)
-			})
+		AfterAll(func() {
+			deleteNamespace(f)
+		})
+		BeforeAll(func() {
+			r = resources{
+				arName:           arName01,
+				appName:          appName,
+				namespace:        namespace,
+				appProjName:      appprojectName,
+				roleTemplateName: roleTemplateName,
+				roleName:         roleName,
+				subject:          subject01,
+				policies:         policies,
+			}
+			f = setup(r)
+		})
+		When("creating initial resources state in k8s", func() {
 			It("will apply the roletemplate resource in k8s", func() {
 				err := k8sClient.Create(ctx, f.roletemplate)
 				Expect(err).NotTo(HaveOccurred())
+				rt := utils.NewRoleTemplate("anotherrole", namespace, roleName, policies)
+				err = k8sClient.Create(ctx, rt)
+				Expect(err).NotTo(HaveOccurred())
 			})
 			It("will apply the AccessRequests resources in k8s", func() {
-				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 20}
+				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Minute}
 				for _, ar := range f.accessrequests {
 					err := k8sClient.Create(ctx, ar)
 					Expect(err).NotTo(HaveOccurred())
@@ -597,6 +600,8 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(returnedAR.Status.History).NotTo(BeEmpty())
 				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
 			})
+		})
+		When("creating conflicting AccessRequest", func() {
 			It("will create conflicting AccessRequest", func() {
 				conflictAR := utils.NewAccessRequest("conflict", namespace, appName, roleTemplateName, subject01)
 				err := k8sClient.Create(ctx, conflictAR)
@@ -616,6 +621,30 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(returnedAR.Status.RequestState).To(Equal(api.InvalidStatus))
 				Expect(returnedAR.Status.History).NotTo(BeEmpty())
 				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.InvalidStatus))
+			})
+		})
+		When("creating an AccessRequest for the same user/app but different role", func() {
+			It("will create the AccessRequest successfully", func() {
+				anotherroleAR := utils.NewAccessRequest("anotherrole", namespace, appName, "anotherrole", subject01)
+				anotherroleAR.Spec.Duration = metav1.Duration{Duration: time.Minute}
+				err := k8sClient.Create(ctx, anotherroleAR)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will verify that AccessRequest is granted", func() {
+				returnedAR := &api.AccessRequest{}
+				key := client.ObjectKey{
+					Namespace: namespace,
+					Name:      "anotherrole",
+				}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, key, returnedAR)
+					Expect(err).NotTo(HaveOccurred())
+					return returnedAR.Status.RequestState
+				}, timeout, interval).Should(Equal(api.GrantedStatus))
+				Expect(returnedAR.Status.History).NotTo(BeEmpty())
+				Expect(returnedAR.Status.History).Should(HaveLen(2))
+				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.RequestedStatus))
+				Expect(returnedAR.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 			})
 		})
 	})

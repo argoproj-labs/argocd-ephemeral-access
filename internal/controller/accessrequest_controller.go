@@ -188,9 +188,10 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 		return fmt.Errorf("error finding AccessRequests by user and app: %w", err)
 	}
 	for _, arResp := range arList.Items {
-		// skip if it is the same AccessRequest
-		if arResp.GetName() == ar.GetName() &&
-			arResp.GetNamespace() == ar.GetNamespace() {
+		// skip if it is the same AccessRequest or if the role is different
+		if (arResp.GetName() == ar.GetName() &&
+			arResp.GetNamespace() == ar.GetNamespace()) ||
+			arResp.Spec.RoleTemplateName != ar.Spec.RoleTemplateName {
 			continue
 		}
 		if arResp.Status.RequestState == api.GrantedStatus ||
