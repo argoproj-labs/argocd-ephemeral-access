@@ -10,8 +10,6 @@ import (
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestDefaultService(t *testing.T) {
@@ -48,7 +46,7 @@ func TestDefaultService(t *testing.T) {
 		assert.Equal(t, ar.GetName(), result.GetName())
 		assert.Equal(t, ar.GetNamespace(), result.GetNamespace())
 	})
-	t.Run("GetAccessRequest will return nil and no error if accessrequest not found", func(t *testing.T) {
+	t.Run("GetAccessRequest will return nil and no error if accessrequest is not found", func(t *testing.T) {
 		// Given
 		f := setup(t)
 		svc := backend.NewDefaultService(f.persister, f.logger)
@@ -59,16 +57,7 @@ func TestDefaultService(t *testing.T) {
 			Username:             "some-user",
 		}
 		roleName := "some-role"
-		ar := newAccessRequest(key, roleName)
-		r := backend.GetAccessRequestResource()
-
-		gr := schema.GroupResource{
-			Group:    r.Group,
-			Resource: r.Resource,
-		}
-		notFoundError := errors.NewNotFound(gr, "some-err")
-		f.persister.EXPECT().GetAccessRequest(mock.Anything, ar.GetName(), ar.GetNamespace()).
-			Return(nil, notFoundError)
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&v1alpha1.AccessRequestList{}, nil)
 
 		// When
 		ar, err := svc.GetAccessRequest(context.Background(), key, roleName)
