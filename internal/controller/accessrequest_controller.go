@@ -363,13 +363,15 @@ func (r *AccessRequestReconciler) callReconcileForRoleTemplate(ctx context.Conte
 // filtering by the given username, appName and appNamespace.
 func (r *AccessRequestReconciler) findAccessRequestsByUserApp(ctx context.Context, namespace, username, appName, appNamespace string) (*api.AccessRequestList, error) {
 	arList := &api.AccessRequestList{}
-	selectors := []fields.Selector{
-		fields.OneTermEqualSelector(userField, username),
-		fields.OneTermEqualSelector(appField, appName),
-		fields.OneTermEqualSelector(appNamespaceField, appNamespace),
-	}
+	selector := fields.SelectorFromSet(
+		fields.Set{
+			userField:         username,
+			appField:          appName,
+			appNamespaceField: appNamespace,
+		})
+
 	listOps := &client.ListOptions{
-		FieldSelector: fields.AndSelectors(selectors...),
+		FieldSelector: selector,
 		Namespace:     namespace,
 	}
 
