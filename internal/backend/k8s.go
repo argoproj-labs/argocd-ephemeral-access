@@ -24,6 +24,10 @@ import (
 
 const (
 	resourceType = "accessrequests"
+
+	usernameField     = "spec.subject.username"
+	appNameField      = "spec.application.name"
+	appNamespaceField = "spec.application.namespace"
 )
 
 // Persister defines the operations to interact with the backend persistent
@@ -72,6 +76,28 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 	if err != nil {
 		return nil, fmt.Errorf("error creating cluster cache: %w", err)
 	}
+
+	cache.IndexField(context.Background(), &api.AccessRequest{}, usernameField, func(obj client.Object) []string {
+		ar, ok := obj.(*api.AccessRequest)
+		if !ok || ar == nil || ar.Spec.Subject.Username == "" {
+			return nil
+		}
+		return []string{ar.Spec.Subject.Username}
+	})
+	cache.IndexField(context.Background(), &api.AccessRequest{}, appNamespaceField, func(obj client.Object) []string {
+		ar, ok := obj.(*api.AccessRequest)
+		if !ok || ar == nil || ar.Spec.Application.Namespace == "" {
+			return nil
+		}
+		return []string{ar.Spec.Application.Namespace}
+	})
+	cache.IndexField(context.Background(), &api.AccessRequest{}, appNameField, func(obj client.Object) []string {
+		ar, ok := obj.(*api.AccessRequest)
+		if !ok || ar == nil || ar.Spec.Application.Name == "" {
+			return nil
+		}
+		return []string{ar.Spec.Application.Name}
+	})
 
 	clientOpts := client.Options{
 		HTTPClient: httpClient,
@@ -142,13 +168,6 @@ func (p *K8sPersister) GetAccessRequest(ctx context.Context, name, namespace str
 	return ar, nil
 }
 
-// GetFieldIndexer returns a FieldIndexer allowing to configure indexes in the
-// informer used by the K8sPersister cache.
-// See `controller.createRoleTemplateIndex()` as an example to how configure indexes.
-func (p *K8sPersister) GetFieldIndexer() client.FieldIndexer {
-	return p.cache
-}
-
 // CreateAccessRequest implements Persister.
 func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
 	panic("unimplemented")
@@ -156,11 +175,11 @@ func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRe
 
 // ListAccessRequests implements Persister.
 func (c *K8sPersister) ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error) {
-	selector := fields.SelectorFromSet(
+	var selector = fields.SelectorFromSet(
 		fields.Set{
-			"spec.subject.username":      key.Username,
-			"spec.application.name":      key.ApplicationName,
-			"spec.application.namespace": key.ApplicationNamespace,
+			usernameField:     key.Username,
+			appNameField:      key.ApplicationName,
+			appNamespaceField: key.ApplicationNamespace,
 		},
 	)
 

@@ -108,6 +108,7 @@ func main() {
 		logger.Error(err, "error creating a new k8s persister")
 		os.Exit(1)
 	}
+
 	service := backend.NewDefaultService(persister, logger)
 	handler := backend.NewAPIHandler(service, logger)
 
