@@ -108,6 +108,14 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
+	// stop if the reconciliation was previously concluded
+	if ar.Status.RequestState == api.ExpiredStatus ||
+		ar.Status.RequestState == api.DeniedStatus ||
+		ar.Status.RequestState == api.InvalidStatus {
+		logger.Debug(fmt.Sprintf("Reconciliation concluded as the AccessRequest is %s: skipping...", string(ar.Status.RequestState)))
+		return ctrl.Result{}, nil
+	}
+
 	logger.Debug("Validating AccessRequest")
 	err = r.Validate(ctx, ar)
 	if err != nil {
