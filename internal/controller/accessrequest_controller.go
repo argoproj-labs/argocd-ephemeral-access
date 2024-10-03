@@ -111,7 +111,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger.Debug("Validating AccessRequest")
 	err = r.Validate(ctx, ar)
 	if err != nil {
-		logger.Info("Validation error: %s", err)
+		logger.Info(fmt.Sprintf("Validation error: %s", err))
 		if _, ok := err.(*AccessRequestConflictError); ok {
 			logger.Error(err, "AccessRequest conflict error")
 			ar.UpdateStatusHistory(api.InvalidStatus, err.Error())
@@ -350,6 +350,8 @@ func (r *AccessRequestReconciler) callReconcileForRoleTemplate(ctx context.Conte
 	return requests
 }
 
+// findAccessRequestsByUserApp will list all AccessRequests in the given namespace
+// filtering by the given username, appName and appNamespace.
 func (r *AccessRequestReconciler) findAccessRequestsByUserApp(ctx context.Context, namespace, username, appName, appNamespace string) (*api.AccessRequestList, error) {
 	arList := &api.AccessRequestList{}
 	selectors := []fields.Selector{
