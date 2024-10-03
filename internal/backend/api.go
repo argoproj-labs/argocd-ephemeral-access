@@ -128,8 +128,7 @@ func (h *APIHandler) getAccessRequestHandler(ctx context.Context, input *GetAcce
 
 	ar, err := h.service.GetAccessRequest(ctx, key, input.RoleName)
 	if err != nil {
-		h.logger.Error(err, "error getting access request")
-		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving access request for user %s with role %s", key.Username, input.RoleName), err)
+		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error retrieving access request for user %s with role %s", key.Username, input.RoleName), err))
 	}
 
 	if ar == nil {
@@ -154,8 +153,7 @@ func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAc
 
 	accessRequests, err := h.service.ListAccessRequests(ctx, key, true)
 	if err != nil {
-		h.logger.Error(err, "error listing access request")
-		return nil, huma.Error500InternalServerError(fmt.Sprintf("error listing access request for user %s", key.Username), err)
+		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error listing access request for user %s", key.Username), err))
 	}
 
 	return &ListAccessRequestResponse{Body: toListAccessRequestResponseBody(accessRequests)}, nil
@@ -177,8 +175,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	}
 	ar, err := h.service.GetAccessRequest(ctx, key, input.Body.RoleName)
 	if err != nil {
-		h.logger.Error(err, "error getting access request")
-		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving existing access request for user %s with role %s", key.Username, input.Body.RoleName), err)
+		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error retrieving existing access request for user %s with role %s", key.Username, input.Body.RoleName), err))
 	}
 	if ar != nil {
 		return nil, huma.Error409Conflict("Access Request already exist")
@@ -187,7 +184,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	// Validate information in headers necessary to evaluate permissions
 	app, err := h.service.GetApplication(ctx, appName, appNamespace)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("error getting application", err)
+		return nil, h.loggedError(huma.Error500InternalServerError("error getting application", err))
 	}
 	if app == nil {
 		return nil, huma.Error400BadRequest("invalid application", err)
@@ -195,7 +192,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 
 	project, err := h.service.GetAppProject(ctx, input.ArgoCDProjectName, input.ArgoCDNamespace)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("error getting project", err)
+		return nil, h.loggedError(huma.Error500InternalServerError("error getting project", err))
 	}
 	if project == nil {
 		return nil, huma.Error400BadRequest("invalid project", err)
@@ -204,7 +201,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	// Evaluate permissions
 	grantingBinding, err := h.service.GetGrantingAccessBinding(ctx, input.Body.RoleName, input.ArgoCDNamespace, input.Groups(), app, project)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("error getting access binding", err)
+		return nil, h.loggedError(huma.Error500InternalServerError("error getting access binding", err))
 	}
 	if grantingBinding == nil {
 		return nil, huma.Error403Forbidden(fmt.Sprintf("not allowed to request role %s", input.Body.RoleName))
@@ -213,12 +210,16 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	// Create Access Request
 	ar, err = h.service.CreateAccessRequest(ctx, key, grantingBinding)
 	if err != nil {
-		h.logger.Error(err, "error creating accessrequest")
-		return nil, huma.Error500InternalServerError(fmt.Sprintf("error creating access request for role %s", grantingBinding.Spec.RoleTemplateRef.Name), err)
+		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error creating access request for role %s", grantingBinding.Spec.RoleTemplateRef.Name), err))
 	}
 
 	return &CreateAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
 
+}
+
+func (h *APIHandler) loggedError(err huma.StatusError) huma.StatusError {
+	h.logger.Error(err, "backend error")
+	return err
 }
 
 // toAccessRequestResponseBody will convert the given ar into an AccessRequestResponseBody.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func TestDefaultService(t *testing.T) {
 			logger:    mocks.NewMockLogger(t),
 		}
 	}
-	t.Run("will return access request successfully", func(t *testing.T) {
+	t.Run("GetAccessRequest will return access request successfully", func(t *testing.T) {
 		// Given
 		f := setup(t)
 		svc := backend.NewDefaultService(f.persister, f.logger)
@@ -36,7 +37,7 @@ func TestDefaultService(t *testing.T) {
 		}
 		roleName := "some-role"
 		ar := newAccessRequest(key, roleName)
-		f.persister.EXPECT().GetAccessRequest(mock.Anything, ar.GetName(), ar.GetNamespace()).Return(ar, nil)
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&v1alpha1.AccessRequestList{Items: []v1alpha1.AccessRequest{*ar}}, nil)
 
 		// When
 		result, err := svc.GetAccessRequest(context.Background(), key, roleName)
@@ -47,31 +48,7 @@ func TestDefaultService(t *testing.T) {
 		assert.Equal(t, ar.GetName(), result.GetName())
 		assert.Equal(t, ar.GetNamespace(), result.GetNamespace())
 	})
-	t.Run("will return error if k8s request fails", func(t *testing.T) {
-		// Given
-		f := setup(t)
-		svc := backend.NewDefaultService(f.persister, f.logger)
-		key := &backend.AccessRequestKey{
-			Namespace:            "namespace",
-			ApplicationName:      "appName",
-			ApplicationNamespace: "appNs",
-			Username:             "username",
-		}
-		roleName := "some-role"
-		ar := newAccessRequest(key, roleName)
-		f.persister.EXPECT().GetAccessRequest(mock.Anything, ar.GetName(), ar.GetNamespace()).
-			Return(nil, fmt.Errorf("some internal error"))
-		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
-
-		// When
-		result, err := svc.GetAccessRequest(context.Background(), key, roleName)
-
-		// Then
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "some internal error")
-	})
-	t.Run("will return nil and no error if accessrequest not found", func(t *testing.T) {
+	t.Run("GetAccessRequest will return nil and no error if accessrequest not found", func(t *testing.T) {
 		// Given
 		f := setup(t)
 		svc := backend.NewDefaultService(f.persister, f.logger)
@@ -99,6 +76,26 @@ func TestDefaultService(t *testing.T) {
 		// Then
 		assert.NoError(t, err)
 		assert.Nil(t, ar)
+	})
+	t.Run("ListAccessRequests will return error if k8s request fails", func(t *testing.T) {
+		// Given
+		f := setup(t)
+		svc := backend.NewDefaultService(f.persister, f.logger)
+		key := &backend.AccessRequestKey{
+			Namespace:            "namespace",
+			ApplicationName:      "appName",
+			ApplicationNamespace: "appNs",
+			Username:             "username",
+		}
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).
+			Return(nil, fmt.Errorf("some internal error"))
+		// When
+		result, err := svc.ListAccessRequests(context.Background(), key, false)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
 	})
 
 }
