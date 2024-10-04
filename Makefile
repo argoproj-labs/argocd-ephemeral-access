@@ -1,3 +1,4 @@
+CURRENT_DIR=$(shell pwd)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.0
 
@@ -33,6 +34,8 @@ CONTAINER_TOOL ?= docker
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
+
+UI_DIR=${CURRENT_DIR}/ui
 
 .PHONY: all
 all: build
@@ -222,6 +225,15 @@ $(MOCKERY): $(LOCALBIN)
 .PHONY: generate-mocks
 generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
 	$(MOCKERY)
+
+.PHONY: clean-ui
+clean-ui:
+	find ${UI_DIR} -type f -name extension.tar -delete
+
+.PHONY: build-ui
+build-ui: clean-ui
+	yarn --cwd ${UI_DIR} install
+	yarn --cwd ${UI_DIR} build
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
