@@ -144,6 +144,66 @@ func (_c *MockPersister_GetAccessRequest_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// ListAccessBindings provides a mock function with given fields: ctx, roleName, namespace
+func (_m *MockPersister) ListAccessBindings(ctx context.Context, roleName string, namespace string) (*v1alpha1.AccessBindingList, error) {
+	ret := _m.Called(ctx, roleName, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAccessBindings")
+	}
+
+	var r0 *v1alpha1.AccessBindingList
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*v1alpha1.AccessBindingList, error)); ok {
+		return rf(ctx, roleName, namespace)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.AccessBindingList); ok {
+		r0 = rf(ctx, roleName, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.AccessBindingList)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, roleName, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockPersister_ListAccessBindings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAccessBindings'
+type MockPersister_ListAccessBindings_Call struct {
+	*mock.Call
+}
+
+// ListAccessBindings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roleName string
+//   - namespace string
+func (_e *MockPersister_Expecter) ListAccessBindings(ctx interface{}, roleName interface{}, namespace interface{}) *MockPersister_ListAccessBindings_Call {
+	return &MockPersister_ListAccessBindings_Call{Call: _e.mock.On("ListAccessBindings", ctx, roleName, namespace)}
+}
+
+func (_c *MockPersister_ListAccessBindings_Call) Run(run func(ctx context.Context, roleName string, namespace string)) *MockPersister_ListAccessBindings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockPersister_ListAccessBindings_Call) Return(_a0 *v1alpha1.AccessBindingList, _a1 error) *MockPersister_ListAccessBindings_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockPersister_ListAccessBindings_Call) RunAndReturn(run func(context.Context, string, string) (*v1alpha1.AccessBindingList, error)) *MockPersister_ListAccessBindings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAccessRequests provides a mock function with given fields: ctx, key
 func (_m *MockPersister) ListAccessRequests(ctx context.Context, key *backend.AccessRequestKey) (*v1alpha1.AccessRequestList, error) {
 	ret := _m.Called(ctx, key)

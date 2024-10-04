@@ -12,15 +12,24 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+const (
+	ControllerNamespace = "test-controller-ns"
+)
+
 type serviceFixture struct {
 	persister *mocks.MockPersister
 	logger    *mocks.MockLogger
+	svc       backend.Service
 }
 
 func serviceSetup(t *testing.T) *serviceFixture {
+	persister := mocks.NewMockPersister(t)
+	logger := mocks.NewMockLogger(t)
+	svc := backend.NewDefaultService(persister, logger, ControllerNamespace)
 	return &serviceFixture{
-		persister: mocks.NewMockPersister(t),
-		logger:    mocks.NewMockLogger(t),
+		persister: persister,
+		logger:    logger,
+		svc:       svc,
 	}
 }
 
@@ -28,7 +37,6 @@ func TestServiceGetAccessRequest(t *testing.T) {
 	t.Run("GetAccessRequest will return access request successfully", func(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
-		svc := backend.NewDefaultService(f.persister, f.logger)
 		key := &backend.AccessRequestKey{
 			Namespace:            "some-namespace",
 			ApplicationName:      "some-app",
@@ -40,7 +48,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&v1alpha1.AccessRequestList{Items: []v1alpha1.AccessRequest{*ar}}, nil)
 
 		// When
-		result, err := svc.GetAccessRequest(context.Background(), key, roleName)
+		result, err := f.svc.GetAccessRequest(context.Background(), key, roleName)
 
 		// Then
 		assert.NoError(t, err)
@@ -50,8 +58,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 	})
 	t.Run("GetAccessRequest will return nil and no error if accessrequest is not found", func(t *testing.T) {
 		// Given
-		f := setup(t)
-		svc := backend.NewDefaultService(f.persister, f.logger)
+		f := serviceSetup(t)
 		key := &backend.AccessRequestKey{
 			Namespace:            "some-namespace",
 			ApplicationName:      "some-app",
@@ -62,7 +69,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&v1alpha1.AccessRequestList{}, nil)
 
 		// When
-		ar, err := svc.GetAccessRequest(context.Background(), key, roleName)
+		ar, err := f.svc.GetAccessRequest(context.Background(), key, roleName)
 
 		// Then
 		assert.NoError(t, err)
@@ -70,8 +77,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 	})
 	t.Run("ListAccessRequests will return error if k8s request fails", func(t *testing.T) {
 		// Given
-		f := setup(t)
-		svc := backend.NewDefaultService(f.persister, f.logger)
+		f := serviceSetup(t)
 		key := &backend.AccessRequestKey{
 			Namespace:            "namespace",
 			ApplicationName:      "appName",
@@ -81,7 +87,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).
 			Return(nil, fmt.Errorf("some internal error"))
 		// When
-		result, err := svc.ListAccessRequests(context.Background(), key, false)
+		result, err := f.svc.ListAccessRequests(context.Background(), key, false)
 
 		// Then
 		assert.Error(t, err)

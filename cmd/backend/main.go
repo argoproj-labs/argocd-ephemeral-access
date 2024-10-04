@@ -109,7 +109,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	service := backend.NewDefaultService(persister, logger)
+	service := backend.NewDefaultService(persister, logger, "TODO: get namespace from config or env var")
 	handler := backend.NewAPIHandler(service, logger)
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {

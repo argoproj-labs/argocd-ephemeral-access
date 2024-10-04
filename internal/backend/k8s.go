@@ -36,6 +36,8 @@ type Persister interface {
 	CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error)
 	GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error)
 	ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error)
+
+	ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error)
 }
 
 // K8sPersister is a K8s implementation for the Persister interface.
@@ -111,6 +113,7 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 	if err != nil {
 		return nil, fmt.Errorf("error creating k8s client: %w", err)
 	}
+
 	return &K8sPersister{
 		client: k8sClient,
 		cache:  cache,
@@ -189,4 +192,9 @@ func (c *K8sPersister) ListAccessRequests(ctx context.Context, key *AccessReques
 		return nil, fmt.Errorf("error listing accessrequest for user %s in app %s/%s from k8s: %w", key.Username, key.ApplicationNamespace, key.ApplicationName, err)
 	}
 	return list, nil
+}
+
+// ListAccessBindings implements Persister.
+func (c *K8sPersister) ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error) {
+	panic("TODO: unimplemented")
 }

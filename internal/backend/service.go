@@ -35,8 +35,9 @@ type AccessRequestKey struct {
 
 // DefaultService is the real Service implementation
 type DefaultService struct {
-	k8s    Persister
-	logger log.Logger
+	k8s       Persister
+	logger    log.Logger
+	namespace string
 }
 
 var requestStateOrder = map[api.Status]int{
@@ -47,10 +48,11 @@ var requestStateOrder = map[api.Status]int{
 }
 
 // NewDefaultService will return a new DefaultService instance.
-func NewDefaultService(c Persister, l log.Logger) *DefaultService {
+func NewDefaultService(c Persister, l log.Logger, namespace string) *DefaultService {
 	return &DefaultService{
-		k8s:    c,
-		logger: l,
+		k8s:       c,
+		logger:    l,
+		namespace: namespace,
 	}
 }
 
@@ -97,7 +99,7 @@ func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequ
 }
 
 func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error) {
-	bindings, err := s.getAccessBindings(ctx, roleName, namespace)
+	bindings, err := s.listAccessBindings(ctx, roleName, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving access bindings for role %s: %w", roleName, err)
 	}
@@ -117,7 +119,7 @@ func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName 
 		}
 
 		if s.matchSubject(subjects, groups) {
-			grantingBinding = bindings[i]
+			grantingBinding = &bindings[i]
 			break
 		}
 	}
@@ -186,9 +188,18 @@ func (s *DefaultService) GetApplication(ctx context.Context, name string, namesp
 }
 
 // GetAccessBindings implements Service.
-func (s *DefaultService) getAccessBindings(ctx context.Context, name string, namespace string) ([]*api.AccessBinding, error) {
-	// Should get all the binding in namespace AND all bindings in controller namespace
-	panic("TODO: unimplemented")
+func (s *DefaultService) listAccessBindings(ctx context.Context, roleName string, namespace string) ([]api.AccessBinding, error) {
+	// get all the binding in argo namespace
+	namespacedBindings, err := s.k8s.ListAccessBindings(ctx, roleName, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
+	}
+	// get all the binding in controller namespace
+	globalBindings, err := s.k8s.ListAccessBindings(ctx, roleName, s.namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
+	}
+	return append(namespacedBindings.Items, globalBindings.Items...), nil
 }
 
 func defaultAccessRequestSort(a, b *api.AccessRequest) int {
