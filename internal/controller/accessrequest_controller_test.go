@@ -654,7 +654,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				race1AR := utils.NewAccessRequest("race1", namespace, appName, "racerole", subject01)
 				race1AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
 				race2AR := utils.NewAccessRequest("race2", namespace, appName, "racerole", subject01)
-				race1AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
+				race2AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
 				go func() {
 					err := k8sClient.Create(ctx, race1AR)
 					Expect(err).NotTo(HaveOccurred())
@@ -704,8 +704,8 @@ var _ = Describe("AccessRequest Controller", func() {
 					totalValid++
 				}
 
-				Expect(totalValid).To(Equal(1), "totalValid mismatch")
 				Expect(totalInvalid).To(Equal(1), "totalInvalid mismatch")
+				Expect(totalValid).To(Equal(1), "totalValid mismatch")
 			})
 		})
 
