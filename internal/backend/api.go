@@ -249,7 +249,7 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 		Username:    ar.Spec.Subject.Username,
 		Permission:  permission,
 		RequestedAt: requestedAt,
-		Role:        ar.Status.RoleName,
+		Role:        ar.Spec.Role.TemplateName,
 		Status:      strings.ToUpper(string(ar.Status.RequestState)),
 		ExpiresAt:   expiresAt,
 		Message:     message,

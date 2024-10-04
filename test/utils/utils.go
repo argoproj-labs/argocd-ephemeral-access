@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
@@ -166,6 +167,7 @@ func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
 	}
 	return &unstructured.Unstructured{Object: obj}, nil
 }
+
 func NewAccessRequest(name, namespace, appName, appNamespace, roleName, subject string) *api.AccessRequest {
 	return &api.AccessRequest{
 		TypeMeta: metav1.TypeMeta{
@@ -190,6 +192,128 @@ func NewAccessRequest(name, namespace, appName, appNamespace, roleName, subject 
 			},
 		},
 	}
+}
+
+type AccessRequestMutation func(ar *api.AccessRequest)
+
+func WithRole() AccessRequestMutation {
+	name := "Ephemeral Role"
+	return func(ar *api.AccessRequest) {
+		ar.Spec.Role.Ordinal = 1
+		ar.Spec.Role.FriendlyName = &name
+	}
+}
+
+func WithName(name string) AccessRequestMutation {
+	return func(ar *api.AccessRequest) {
+		ar.ObjectMeta.Name = name
+	}
+}
+
+func ToRequestedState() AccessRequestMutation {
+	return func(ar *api.AccessRequest) {
+		ar.Status = api.AccessRequestStatus{
+			RequestState:     api.RequestedStatus,
+			TargetProject:    "my-proj",
+			RoleName:         "ephemeral-some-role",
+			RoleTemplateHash: "0123456789",
+			History: []api.AccessRequestHistory{
+				{
+					RequestState:   api.RequestedStatus,
+					TransitionTime: metav1.Now(),
+				},
+			},
+		}
+	}
+}
+
+func ToGrantedState() AccessRequestMutation {
+	return func(ar *api.AccessRequest) {
+		now := metav1.Now()
+		exp := metav1.NewTime(now.Add(1 * time.Minute))
+		ar.Status.RequestState = api.GrantedStatus
+		ar.Status.ExpiresAt = &exp
+		ar.Status.History = append(ar.Status.History, api.AccessRequestHistory{
+			TransitionTime: now,
+			RequestState:   api.GrantedStatus,
+		})
+	}
+}
+
+func ToDeniedState() AccessRequestMutation {
+	return func(ar *api.AccessRequest) {
+		now := metav1.Now()
+		details := "Denied because this is a test"
+		ar.Status.RequestState = api.DeniedStatus
+		ar.Status.History = append(ar.Status.History, api.AccessRequestHistory{
+			TransitionTime: now,
+			RequestState:   api.DeniedStatus,
+			Details:        &details,
+		})
+	}
+}
+
+func ToExpiredState() AccessRequestMutation {
+	return func(ar *api.AccessRequest) {
+		now := metav1.Now()
+		ar.Status.RequestState = api.ExpiredStatus
+		ar.Status.ExpiresAt = &now
+		ar.Status.History = append(ar.Status.History, api.AccessRequestHistory{
+			TransitionTime: now,
+			RequestState:   api.ExpiredStatus,
+		})
+	}
+}
+
+// newAccessRequest returns an AccessRequest object with the default required fields populated
+func newAccessRequest() *api.AccessRequest {
+	return &api.AccessRequest{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AccessRequest",
+			APIVersion: "v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "access-request-name",
+			Namespace: "access-request-namespace",
+		},
+		Spec: api.AccessRequestSpec{
+			Duration: metav1.Duration{},
+			Role: api.TargetRole{
+				TemplateName: "role-template-name",
+			},
+			Application: api.TargetApplication{
+				Name:      "my-app",
+				Namespace: "my-app-namespace",
+			},
+			Subject: api.Subject{
+				Username: "my@user.com",
+			},
+		},
+	}
+}
+
+func NewAccessRequestCreated(transformers ...AccessRequestMutation) *api.AccessRequest {
+	ar := newAccessRequest()
+	for _, t := range transformers {
+		t(ar)
+	}
+	return ar
+}
+
+func NewAccessRequestRequested(transformers ...AccessRequestMutation) *api.AccessRequest {
+	return NewAccessRequestCreated(append([]AccessRequestMutation{ToRequestedState()}, transformers...)...)
+}
+
+func NewAccessRequestGranted(transformers ...AccessRequestMutation) *api.AccessRequest {
+	return NewAccessRequestRequested(append([]AccessRequestMutation{ToGrantedState()}, transformers...)...)
+}
+
+func NewAccessRequestDenied(transformers ...AccessRequestMutation) *api.AccessRequest {
+	return NewAccessRequestRequested(append([]AccessRequestMutation{ToDeniedState()}, transformers...)...)
+}
+
+func NewAccessRequestExpired(transformers ...AccessRequestMutation) *api.AccessRequest {
+	return NewAccessRequestGranted(append([]AccessRequestMutation{ToExpiredState()}, transformers...)...)
 }
 
 func NewRoleTemplate(templateName, namespace, roleName string, policies []string) *api.RoleTemplate {
