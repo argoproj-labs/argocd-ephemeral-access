@@ -84,7 +84,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		project := &unstructured.Unstructured{}
 		app := &unstructured.Unstructured{}
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, key.Namespace).Return(project, nil)
 		f.service.EXPECT().GetGrantingAccessBinding(mock.Anything, roleName, key.Namespace, []string{group}, app, project).Return(arBinding, nil)
@@ -165,7 +165,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			Username:             ar.Spec.Subject.Username,
 		}
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(nil, nil)
 
 		// When
@@ -193,7 +193,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 		}
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		app := &unstructured.Unstructured{}
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, key.Namespace).Return(nil, nil)
 
@@ -221,7 +221,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			Username:             ar.Spec.Subject.Username,
 		}
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(ar, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(ar, nil)
 
 		// When
 		payload := backend.CreateAccessRequestBody{
@@ -249,7 +249,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		project := &unstructured.Unstructured{}
 		app := &unstructured.Unstructured{}
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, key.Namespace).Return(project, nil)
 		f.service.EXPECT().GetGrantingAccessBinding(mock.Anything, roleName, key.Namespace, []string{group}, app, project).Return(nil, nil)
@@ -278,7 +278,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			Username:             ar.Spec.Subject.Username,
 		}
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(nil, fmt.Errorf("some-error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
 
@@ -307,7 +307,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 		}
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		app := &unstructured.Unstructured{}
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, key.Namespace).Return(nil, fmt.Errorf("some-error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
@@ -338,7 +338,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		project := &unstructured.Unstructured{}
 		app := &unstructured.Unstructured{}
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, key.Namespace).Return(project, nil)
 		f.service.EXPECT().GetGrantingAccessBinding(mock.Anything, roleName, key.Namespace, []string{group}, app, project).Return(nil, fmt.Errorf("some-error"))
@@ -368,7 +368,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			Username:             ar.Spec.Subject.Username,
 		}
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, fmt.Errorf("some-error"))
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, fmt.Errorf("some-error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
 
 		// When
@@ -398,7 +398,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		project := &unstructured.Unstructured{}
 		app := &unstructured.Unstructured{}
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, key.Namespace).Return(project, nil)
 		f.service.EXPECT().GetGrantingAccessBinding(mock.Anything, roleName, key.Namespace, []string{group}, app, project).Return(arBinding, nil)
@@ -430,7 +430,7 @@ func TestApiGetAccessRequest(t *testing.T) {
 		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		roleName := "some-role"
 		ar := newAccessRequest(key, roleName)
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(ar, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(ar, nil)
 
 		// When
 		resp := f.api.Get(fmt.Sprintf("/accessrequests/role/%s", roleName), headers...)
@@ -455,7 +455,7 @@ func TestApiGetAccessRequest(t *testing.T) {
 		}
 		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		roleName := "some-role"
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, nil)
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 
 		// When
 		resp := f.api.Get(fmt.Sprintf("/accessrequests/role/%s", roleName), headers...)
@@ -515,7 +515,7 @@ func TestApiGetAccessRequest(t *testing.T) {
 		}
 		roleName := "some-role"
 		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
-		f.service.EXPECT().GetAccessRequest(mock.Anything, key, roleName).Return(nil, fmt.Errorf("some-error"))
+		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, fmt.Errorf("some-error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
 
 		// When

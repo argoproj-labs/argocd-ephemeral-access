@@ -48,7 +48,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&v1alpha1.AccessRequestList{Items: []v1alpha1.AccessRequest{*ar}}, nil)
 
 		// When
-		result, err := f.svc.GetAccessRequest(context.Background(), key, roleName)
+		result, err := f.svc.GetAccessRequestByRole(context.Background(), key, roleName)
 
 		// Then
 		assert.NoError(t, err)
@@ -69,7 +69,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&v1alpha1.AccessRequestList{}, nil)
 
 		// When
-		ar, err := f.svc.GetAccessRequest(context.Background(), key, roleName)
+		ar, err := f.svc.GetAccessRequestByRole(context.Background(), key, roleName)
 
 		// Then
 		assert.NoError(t, err)

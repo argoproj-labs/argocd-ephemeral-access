@@ -126,7 +126,7 @@ func (h *APIHandler) getAccessRequestHandler(ctx context.Context, input *GetAcce
 		Username:             input.ArgoCDUsername,
 	}
 
-	ar, err := h.service.GetAccessRequest(ctx, key, input.RoleName)
+	ar, err := h.service.GetAccessRequestByRole(ctx, key, input.RoleName)
 	if err != nil {
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error retrieving access request for user %s with role %s", key.Username, input.RoleName), err))
 	}
@@ -173,7 +173,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		ApplicationNamespace: appNamespace,
 		Username:             input.ArgoCDUsername,
 	}
-	ar, err := h.service.GetAccessRequest(ctx, key, input.Body.RoleName)
+	ar, err := h.service.GetAccessRequestByRole(ctx, key, input.Body.RoleName)
 	if err != nil {
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error retrieving existing access request for user %s with role %s", key.Username, input.Body.RoleName), err))
 	}

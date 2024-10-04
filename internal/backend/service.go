@@ -17,7 +17,7 @@ import (
 // logic should be added in implementations of this interface
 type Service interface {
 	CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error)
-	GetAccessRequest(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error)
+	GetAccessRequestByRole(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error)
 	ListAccessRequests(ctx context.Context, key *AccessRequestKey, sort bool) ([]*api.AccessRequest, error)
 
 	GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error)
@@ -56,9 +56,9 @@ func NewDefaultService(c Persister, l log.Logger, namespace string) *DefaultServ
 	}
 }
 
-// GetAccessRequest will retrieve the access request for the specified role.
+// GetAccessRequestByRole will retrieve the access request for the specified role.
 // Will return a nil value without any error if an access request isn't found for this role.
-func (s *DefaultService) GetAccessRequest(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error) {
+func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error) {
 
 	// get all access requests
 	accessRequests, err := s.ListAccessRequests(ctx, key, true)
