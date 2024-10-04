@@ -209,6 +209,12 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 			arResp.Status.RequestState == api.RequestedStatus {
 			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", arResp.GetNamespace(), arResp.GetName(), string(arResp.Status.RequestState)))
 		}
+		// if the existing request reconciliation isn't initialized yet, then we
+		// compare the creation timestamp and just allow the older one to proceed
+		if arResp.Status.RequestState == "" &&
+			arResp.GetCreationTimestamp().After(ar.GetCreationTimestamp().Time) {
+			return NewAccessRequestConflictError(fmt.Sprintf("found older AccessRequest (%s/%s) in progress", arResp.GetNamespace(), arResp.GetName()))
+		}
 	}
 	return nil
 }
