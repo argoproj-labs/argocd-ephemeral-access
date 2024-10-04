@@ -140,6 +140,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Debug("Initializing status")
 		ar.UpdateStatusHistory(api.RequestedStatus, "")
 		ar.Status.TargetProject = application.Spec.Project
+		ar.Status.RoleName = renderedRt.AppProjectRoleName(application.GetName(), application.GetNamespace())
 		ar.Status.RoleTemplateHash = RoleTemplateHash(renderedRt)
 		r.Status().Update(ctx, ar)
 	}
