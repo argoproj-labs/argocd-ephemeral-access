@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
 	"github.com/stretchr/testify/assert"
@@ -33,8 +34,25 @@ func serviceSetup(t *testing.T) *serviceFixture {
 	}
 }
 
-func TestServiceGetAccessRequest(t *testing.T) {
-	t.Run("GetAccessRequest will return access request successfully", func(t *testing.T) {
+func TestServiceCreateAccessRequest(t *testing.T) {
+	t.Run("will create access request successfully", func(t *testing.T) {
+	})
+	t.Run("will return error if k8s request fails", func(t *testing.T) {
+	})
+}
+
+func TestServiceListAccessRequest(t *testing.T) {
+	t.Run("will return access request successfully", func(t *testing.T) {
+	})
+	t.Run("will return error if k8s request fails", func(t *testing.T) {
+	})
+	t.Run("will filter expired access request", func(t *testing.T) {
+	})
+	t.Run("will sort access request", func(t *testing.T) {
+	})
+}
+func TestServiceGetAccessRequestByRole(t *testing.T) {
+	t.Run("will return most important access request matching role", func(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
 		key := &backend.AccessRequestKey{
@@ -56,7 +74,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 		assert.Equal(t, ar.GetName(), result.GetName())
 		assert.Equal(t, ar.GetNamespace(), result.GetNamespace())
 	})
-	t.Run("GetAccessRequest will return nil and no error if accessrequest is not found", func(t *testing.T) {
+	t.Run("will return nil if no access request match role", func(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
 		key := &backend.AccessRequestKey{
@@ -75,7 +93,7 @@ func TestServiceGetAccessRequest(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, ar)
 	})
-	t.Run("ListAccessRequests will return error if k8s request fails", func(t *testing.T) {
+	t.Run("will return error if k8s request fails", func(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
 		key := &backend.AccessRequestKey{
@@ -95,4 +113,41 @@ func TestServiceGetAccessRequest(t *testing.T) {
 		assert.Contains(t, err.Error(), "some internal error")
 	})
 
+}
+
+func TestServiceGetGrantingAccessBinding(t *testing.T) {
+	t.Run("will not return binding when granting", func(t *testing.T) {
+	})
+	t.Run("will get access binding from target namespace", func(t *testing.T) {
+	})
+	t.Run("will get access binding from controller namespace", func(t *testing.T) {
+	})
+	t.Run("will prioritize access binding from target namespace", func(t *testing.T) {
+	})
+	t.Run("will return error if k8s request fails", func(t *testing.T) {
+	})
+	t.Run("will return nil if no bindings are found", func(t *testing.T) {
+	})
+	t.Run("will return nil if no bindings are granting", func(t *testing.T) {
+	})
+	t.Run("will not fail if the binding template is invalid", func(t *testing.T) {
+	})
+}
+
+func Test_defaultAccessRequestSort(t *testing.T) {
+	tests := []struct {
+		name     string
+		a        *api.AccessRequest
+		b        *api.AccessRequest
+		expected int
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := backend.DefaultAccessRequestSort(tt.a, tt.b); got != tt.expected {
+				t.Errorf("defaultAccessRequestSort() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
 }

@@ -164,7 +164,7 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 	//TODO: Set duration. Configurable by the users? Server Config?
 	ar, err := s.k8s.CreateAccessRequest(ctx, ar)
 	if err != nil {
-		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
+		return nil, fmt.Errorf("error creating access request from k8s: %w", err)
 	}
 	return ar, nil
 }
