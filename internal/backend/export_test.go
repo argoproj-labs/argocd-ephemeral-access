@@ -4,3 +4,8 @@ package backend
 var (
 	ToAccessRequestResponseBody = toAccessRequestResponseBody
 )
+
+// Service
+var (
+	DefaultAccessRequestSort = defaultAccessRequestSort
+)

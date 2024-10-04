@@ -12,20 +12,22 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestDefaultService(t *testing.T) {
-	type fixture struct {
-		persister *mocks.MockPersister
-		logger    *mocks.MockLogger
+type serviceFixture struct {
+	persister *mocks.MockPersister
+	logger    *mocks.MockLogger
+}
+
+func serviceSetup(t *testing.T) *serviceFixture {
+	return &serviceFixture{
+		persister: mocks.NewMockPersister(t),
+		logger:    mocks.NewMockLogger(t),
 	}
-	setup := func(t *testing.T) *fixture {
-		return &fixture{
-			persister: mocks.NewMockPersister(t),
-			logger:    mocks.NewMockLogger(t),
-		}
-	}
+}
+
+func TestServiceGetAccessRequest(t *testing.T) {
 	t.Run("GetAccessRequest will return access request successfully", func(t *testing.T) {
 		// Given
-		f := setup(t)
+		f := serviceSetup(t)
 		svc := backend.NewDefaultService(f.persister, f.logger)
 		key := &backend.AccessRequestKey{
 			Namespace:            "some-namespace",

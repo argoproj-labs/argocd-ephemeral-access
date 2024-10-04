@@ -66,7 +66,7 @@ func getHistoryForStatus(history []api.AccessRequestHistory, status api.Status) 
 	return nil
 }
 
-func TestCreateAccessRequest(t *testing.T) {
+func TestApiCreateAccessRequest(t *testing.T) {
 	t.Run("will create access request successfully", func(t *testing.T) {
 		// Given
 		f := apiSetup(t)
@@ -417,7 +417,7 @@ func TestCreateAccessRequest(t *testing.T) {
 	})
 }
 
-func TestGetAccessRequest(t *testing.T) {
+func TestApiGetAccessRequest(t *testing.T) {
 	t.Run("will return access request successfully", func(t *testing.T) {
 		// Given
 		f := apiSetup(t)
@@ -527,7 +527,7 @@ func TestGetAccessRequest(t *testing.T) {
 	})
 }
 
-func TestListAccessRequest(t *testing.T) {
+func TestApiListAccessRequest(t *testing.T) {
 	t.Run("will return access requests successfully", func(t *testing.T) {
 		// Given
 		f := apiSetup(t)

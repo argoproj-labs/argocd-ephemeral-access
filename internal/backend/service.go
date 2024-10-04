@@ -8,7 +8,6 @@ import (
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validation"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -45,35 +44,6 @@ var requestStateOrder = map[api.Status]int{
 	api.RequestedStatus: 1,
 	api.DeniedStatus:    2,
 	api.ExpiredStatus:   3,
-}
-
-var defaultAccessRequestSort = func(a, b *api.AccessRequest) int {
-	// sort by status
-	if a.Status.RequestState != b.Status.RequestState {
-		aOrder := requestStateOrder[a.Status.RequestState]
-		bOrder := requestStateOrder[b.Status.RequestState]
-		return aOrder - bOrder
-	}
-
-	// sort by ordinal ascending
-	if a.Spec.Role.Ordinal != b.Spec.Role.Ordinal {
-		return a.Spec.Role.Ordinal - b.Spec.Role.Ordinal
-	}
-
-	// sort by role name ascending
-	if a.Spec.Role.TemplateName != b.Spec.Role.TemplateName {
-		return strings.Compare(a.Spec.Role.TemplateName, b.Spec.Role.TemplateName)
-	}
-
-	// sort by creation date. Priority to newer request
-	if a.CreationTimestamp != b.CreationTimestamp {
-		if a.CreationTimestamp.Before(&b.CreationTimestamp) {
-			return -1
-		}
-		return +1
-	}
-
-	return 0
 }
 
 // NewDefaultService will return a new DefaultService instance.
@@ -129,7 +99,6 @@ func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequ
 func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error) {
 	bindings, err := s.getAccessBindings(ctx, roleName, namespace)
 	if err != nil {
-		s.logger.Error(err, "error getting access bindings")
 		return nil, fmt.Errorf("error retrieving access bindings for role %s: %w", roleName, err)
 	}
 
@@ -193,10 +162,6 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 	//TODO: Set duration. Configurable by the users? Server Config?
 	ar, err := s.k8s.CreateAccessRequest(ctx, ar)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		s.logger.Error(err, "error getting accessrequest from k8s")
 		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
 	}
 	return ar, nil
@@ -224,4 +189,33 @@ func (s *DefaultService) GetApplication(ctx context.Context, name string, namesp
 func (s *DefaultService) getAccessBindings(ctx context.Context, name string, namespace string) ([]*api.AccessBinding, error) {
 	// Should get all the binding in namespace AND all bindings in controller namespace
 	panic("TODO: unimplemented")
+}
+
+func defaultAccessRequestSort(a, b *api.AccessRequest) int {
+	// sort by status
+	if a.Status.RequestState != b.Status.RequestState {
+		aOrder := requestStateOrder[a.Status.RequestState]
+		bOrder := requestStateOrder[b.Status.RequestState]
+		return aOrder - bOrder
+	}
+
+	// sort by ordinal ascending
+	if a.Spec.Role.Ordinal != b.Spec.Role.Ordinal {
+		return a.Spec.Role.Ordinal - b.Spec.Role.Ordinal
+	}
+
+	// sort by role name ascending
+	if a.Spec.Role.TemplateName != b.Spec.Role.TemplateName {
+		return strings.Compare(a.Spec.Role.TemplateName, b.Spec.Role.TemplateName)
+	}
+
+	// sort by creation date. Priority to newer request
+	if a.CreationTimestamp != b.CreationTimestamp {
+		if a.CreationTimestamp.Before(&b.CreationTimestamp) {
+			return -1
+		}
+		return +1
+	}
+
+	return 0
 }
