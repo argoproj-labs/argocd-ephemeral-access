@@ -215,7 +215,7 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 
 // isConcluded will check the status of the given AccessRequest
 // to determine if it is concluded. Concluded AccessRequest means
-// it is in Denied or Expired status.
+// it is in Denied, Expired or Invalid status.
 func isConcluded(ar *api.AccessRequest) bool {
 	switch ar.Status.RequestState {
 	case api.DeniedStatus, api.ExpiredStatus, api.InvalidStatus:
