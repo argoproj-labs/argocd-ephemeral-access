@@ -579,8 +579,10 @@ var _ = Describe("AccessRequest Controller", func() {
 			It("will apply the roletemplate resource in k8s", func() {
 				err := k8sClient.Create(ctx, f.roletemplate)
 				Expect(err).NotTo(HaveOccurred())
-				rt := utils.NewRoleTemplate("anotherrole", namespace, roleName, policies)
-				err = k8sClient.Create(ctx, rt)
+				rtValidate := utils.NewRoleTemplate("anotherrole", namespace, roleName, policies)
+				err = k8sClient.Create(ctx, rtValidate)
+				rtRace := utils.NewRoleTemplate("racerole", namespace, roleName, policies)
+				err = k8sClient.Create(ctx, rtRace)
 				Expect(err).NotTo(HaveOccurred())
 			})
 			It("will apply the AccessRequests resources in k8s", func() {
@@ -647,6 +649,66 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(returnedAR.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 			})
 		})
+		When("creating two AccessRequests at the same time", func() {
+			It("will create them successfully", func() {
+				race1AR := utils.NewAccessRequest("race1", namespace, appName, "racerole", subject01)
+				race1AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
+				race2AR := utils.NewAccessRequest("race2", namespace, appName, "racerole", subject01)
+				race1AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
+				go func() {
+					err := k8sClient.Create(ctx, race1AR)
+					Expect(err).NotTo(HaveOccurred())
+				}()
+				go func() {
+					err := k8sClient.Create(ctx, race2AR)
+					Expect(err).NotTo(HaveOccurred())
+				}()
+			})
+			It("will verify that one AccessRequest is valid and one is invalid", func() {
+				race1AR := &api.AccessRequest{}
+				key1 := client.ObjectKey{
+					Namespace: namespace,
+					Name:      "race1",
+				}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, key1, race1AR)
+					Expect(client.IgnoreNotFound(err)).NotTo(HaveOccurred())
+					return race1AR.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+
+				race2AR := &api.AccessRequest{}
+				key2 := client.ObjectKey{
+					Namespace: namespace,
+					Name:      "race2",
+				}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, key2, race2AR)
+					Expect(client.IgnoreNotFound(err)).NotTo(HaveOccurred())
+					return race2AR.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+
+				totalInvalid := 0
+				totalValid := 0
+
+				switch race1AR.Status.RequestState {
+				case api.InvalidStatus:
+					totalInvalid++
+				case api.GrantedStatus, api.RequestedStatus:
+					totalValid++
+				}
+
+				switch race2AR.Status.RequestState {
+				case api.InvalidStatus:
+					totalInvalid++
+				case api.GrantedStatus, api.RequestedStatus:
+					totalValid++
+				}
+
+				Expect(totalValid).To(Equal(1), "totalValid mismatch")
+				Expect(totalInvalid).To(Equal(1), "totalInvalid mismatch")
+			})
+		})
+
 	})
 	Context("Deleting RoleTemplate used by multiple AccessRequests", Ordered, func() {
 	})
