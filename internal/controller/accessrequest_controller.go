@@ -56,6 +56,9 @@ const (
 	AccessRequestFinalizerName = "accessrequest.ephemeral-access.argoproj-labs.io/finalizer"
 	roleTemplateField          = ".spec.roleTemplateName"
 	projectField               = ".status.targetProject"
+	userField                  = ".spec.subject.username"
+	appField                   = ".spec.application.name"
+	appNamespaceField          = ".spec.application.namespace"
 )
 
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=accessrequests,verbs=get;list;watch;create;update;patch;delete
@@ -67,24 +70,18 @@ const (
 // +kubebuilder:rbac:groups=argoproj.io,resources=appproject,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=argoproj.io,resources=application,verbs=get
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-//
-// 1. handle finalizer
-// 2. validate AccessRequest
-// 3. verify if accessrequest is expired and status is "granted"
-// 3.1 if so, remove the user from the elevated role
-// 3.2 update the accessrequest status to "expired"
-// 3.3 return
-// 4. verify if user has the necessary access to be promoted
-// 4.1 if they don't, update the accessrequest status to "denied"
-// 4.2 return
-// 5. verify if CR is approved
-// 6. retrieve the Application
-// 7. retrieve the AppProject
-// 8. assign user in the desired role in the AppProject
-// 9. update the accessrequest status to "granted"
-// 10. set the RequeueAfter in Result
+// Reconcile is the main function that will be invoked on every change in
+// AccessRequests desired state. It will:
+//  1. Handle the accessrequest finalizer
+//  2. Validate the AccessRequest
+//  3. Verify if AccessRequest is expired
+//     3.1 If so, remove the user from the elevated role
+//     3.2 Update the accessrequest status to "expired"
+//  4. Verify if user has the necessary access to be promoted
+//     4.1 If they don't, update the accessrequest status to "denied"
+//  5. Invoke preconfigured plugin to check if access can be granted
+//  8. Assign user in the desired role in the AppProject
+//  9. Update the accessrequest status to "granted"
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Reconciliation started")
@@ -111,10 +108,25 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
+	// stop if the reconciliation was previously concluded
+	if isConcluded(ar) {
+		logger.Debug(fmt.Sprintf("Reconciliation concluded as the AccessRequest is %s: skipping...", string(ar.Status.RequestState)))
+		return ctrl.Result{}, nil
+	}
+
 	logger.Debug("Validating AccessRequest")
-	err = ar.Validate()
+	err = r.Validate(ctx, ar)
 	if err != nil {
-		logger.Info("Validation error: %s", err)
+		if _, ok := err.(*AccessRequestConflictError); ok {
+			logger.Error(err, "AccessRequest conflict error")
+			ar.UpdateStatusHistory(api.InvalidStatus, err.Error())
+			err = r.Status().Update(ctx, ar)
+			if err != nil {
+				return reconcile.Result{}, fmt.Errorf("error updating status to invalid: %s", err)
+			}
+			return ctrl.Result{}, nil
+		}
+		logger.Info(fmt.Sprintf("Validation error: %s", err))
 		return ctrl.Result{}, fmt.Errorf("error validating the AccessRequest: %w", err)
 	}
 
@@ -156,12 +168,63 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return result, nil
 }
 
+type AccessRequestConflictError struct {
+	message string
+}
+
+func (e *AccessRequestConflictError) Error() string {
+	return e.message
+}
+
+func NewAccessRequestConflictError(msg string) *AccessRequestConflictError {
+	return &AccessRequestConflictError{
+		message: msg,
+	}
+}
+
+// Validate will verify if there are existing AccessRequests for the same
+// user/app/role already in progress.
+func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRequest) error {
+	arList, err := r.findAccessRequestsByUserAndApp(ctx,
+		ar.GetNamespace(),
+		ar.Spec.Subject.Username,
+		ar.Spec.Application.Name,
+		ar.Spec.Application.Namespace)
+	if err != nil {
+		return fmt.Errorf("error finding AccessRequests by user and app: %w", err)
+	}
+	for _, arResp := range arList.Items {
+		// skip if it is the same AccessRequest
+		if arResp.GetName() == ar.GetName() &&
+			arResp.GetNamespace() == ar.GetNamespace() {
+			continue
+		}
+		// skip if the request is for different role template
+		if arResp.Spec.RoleTemplateName != ar.Spec.RoleTemplateName {
+			continue
+		}
+		// if the existing request is pending or granted, then the new request is
+		// a duplicate and must be rejected
+		if arResp.Status.RequestState == api.GrantedStatus ||
+			arResp.Status.RequestState == api.RequestedStatus {
+			return NewAccessRequestConflictError(fmt.Sprintf("found existing AccessRequest (%s/%s) in %s state", arResp.GetNamespace(), arResp.GetName(), string(arResp.Status.RequestState)))
+		}
+		// if the existing request reconciliation isn't initialized yet, then we
+		// compare the creation timestamp and just allow the older one to proceed
+		if arResp.Status.RequestState == "" &&
+			arResp.GetCreationTimestamp().After(ar.GetCreationTimestamp().Time) {
+			return NewAccessRequestConflictError(fmt.Sprintf("found older AccessRequest (%s/%s) in progress", arResp.GetNamespace(), arResp.GetName()))
+		}
+	}
+	return nil
+}
+
 // isConcluded will check the status of the given AccessRequest
 // to determine if it is concluded. Concluded AccessRequest means
-// it is in Denied or Expired status.
+// it is in Denied, Expired or Invalid status.
 func isConcluded(ar *api.AccessRequest) bool {
 	switch ar.Status.RequestState {
-	case api.DeniedStatus, api.ExpiredStatus:
+	case api.DeniedStatus, api.ExpiredStatus, api.InvalidStatus:
 		return true
 	default:
 		return false
@@ -277,19 +340,16 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 	return true, nil
 }
 
-// findObjectsForRoleTemplate will retrieve all AccessRequest resources referencing
+// callReconcileForRoleTemplate will retrieve all AccessRequest resources referencing
 // the given roleTemplate and build a list of reconcile requests to be sent to the
 // controller. Only non-concluded AccessRequests will be added to the reconciliation
 // list. An AccessRequest is defined as concluded if their status is Expired or Denied.
-func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context, roleTemplate client.Object) []reconcile.Request {
+func (r *AccessRequestReconciler) callReconcileForRoleTemplate(ctx context.Context, roleTemplate client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
 	logger.Debug(fmt.Sprintf("RoleTemplate %s updated: searching for associated AccessRequests...", roleTemplate.GetName()))
 	attachedAccessRequests := &api.AccessRequestList{}
 	listOps := &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(roleTemplateField, roleTemplate.GetName()),
-		// This makes a requirement that the AccessRequest has to live in the
-		// same namespace as the AppProject.
-		Namespace: roleTemplate.GetNamespace(),
 	}
 	err := r.List(ctx, attachedAccessRequests, listOps)
 	if err != nil {
@@ -316,11 +376,34 @@ func (r *AccessRequestReconciler) findObjectsForRoleTemplate(ctx context.Context
 	return requests
 }
 
-// findObjectsForProject will retrieve all AccessRequest resources referencing
+// findAccessRequestsByUserAndApp will list all AccessRequests in the given namespace
+// filtering by the given username, appName and appNamespace.
+func (r *AccessRequestReconciler) findAccessRequestsByUserAndApp(ctx context.Context, namespace, username, appName, appNamespace string) (*api.AccessRequestList, error) {
+	arList := &api.AccessRequestList{}
+	selector := fields.SelectorFromSet(
+		fields.Set{
+			userField:         username,
+			appField:          appName,
+			appNamespaceField: appNamespace,
+		})
+
+	listOps := &client.ListOptions{
+		FieldSelector: selector,
+		Namespace:     namespace,
+	}
+
+	err := r.List(ctx, arList, listOps)
+	if err != nil {
+		return nil, fmt.Errorf("List error: %w", err)
+	}
+	return arList, nil
+}
+
+// callReconcileForProject will retrieve all AccessRequest resources referencing
 // the given project and build a list of reconcile requests to be sent to the
 // controller. Only non-concluded AccessRequests will be added to the reconciliation
 // list. An AccessRequest is defined as concluded if their status is Expired or Denied.
-func (r *AccessRequestReconciler) findObjectsForProject(ctx context.Context, project client.Object) []reconcile.Request {
+func (r *AccessRequestReconciler) callReconcileForProject(ctx context.Context, project client.Object) []reconcile.Request {
 	logger := log.FromContext(ctx)
 	logger.Debug(fmt.Sprintf("Project %s updated: searching for associated AccessRequests...", project.GetName()))
 	associatedAccessRequests := &api.AccessRequestList{}
@@ -390,23 +473,69 @@ func createRoleTemplateIndex(mgr ctrl.Manager) error {
 	return nil
 }
 
+// createRoleTemplateIndex will create an AccessRequest index by the following fields:
+// - .spec.subject.username
+// - .spec.application.name
+// - .spec.application.namespace
+func createUserAppIndex(mgr ctrl.Manager) error {
+	err := mgr.GetFieldIndexer().
+		IndexField(context.Background(), &api.AccessRequest{}, userField, func(rawObj client.Object) []string {
+			ar := rawObj.(*api.AccessRequest)
+			if ar.Spec.Subject.Username == "" {
+				return nil
+			}
+			return []string{ar.Spec.Subject.Username}
+		})
+	if err != nil {
+		return fmt.Errorf("error creating username field index: %w", err)
+	}
+	err = mgr.GetFieldIndexer().
+		IndexField(context.Background(), &api.AccessRequest{}, appField, func(rawObj client.Object) []string {
+			ar := rawObj.(*api.AccessRequest)
+			if ar.Spec.Application.Name == "" {
+				return nil
+			}
+			return []string{ar.Spec.Application.Name}
+		})
+	if err != nil {
+		return fmt.Errorf("error creating application name field index: %w", err)
+	}
+	err = mgr.GetFieldIndexer().
+		IndexField(context.Background(), &api.AccessRequest{}, appNamespaceField, func(rawObj client.Object) []string {
+			ar := rawObj.(*api.AccessRequest)
+			if ar.Spec.Application.Namespace == "" {
+				return nil
+			}
+			return []string{ar.Spec.Application.Namespace}
+		})
+	if err != nil {
+		return fmt.Errorf("error creating application namespace field index: %w", err)
+	}
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	err := createProjectIndex(mgr)
 	if err != nil {
-		return fmt.Errorf("create index error: %w", err)
+		return fmt.Errorf("project index error: %w", err)
 	}
 	err = createRoleTemplateIndex(mgr)
 	if err != nil {
-		return fmt.Errorf("create index error: %w", err)
+		return fmt.Errorf("roleTemplate index error: %w", err)
 	}
+	err = createUserAppIndex(mgr)
+	if err != nil {
+		return fmt.Errorf("userapp index error: %w", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&api.AccessRequest{}).
 		Watches(&api.RoleTemplate{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForRoleTemplate),
+			handler.EnqueueRequestsFromMapFunc(r.callReconcileForRoleTemplate),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Watches(&argocd.AppProject{},
-			handler.EnqueueRequestsFromMapFunc(r.findObjectsForProject),
+			handler.EnqueueRequestsFromMapFunc(r.callReconcileForProject),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
 }
