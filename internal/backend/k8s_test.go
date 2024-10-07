@@ -121,6 +121,16 @@ func TestK8sPersister(t *testing.T) {
 		err = k8sClient.Create(ctx, arNs)
 		assert.NoError(t, err)
 
+		anotherApp := &backend.AccessRequestKey{
+			Namespace:            nsName,
+			ApplicationName:      "another-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		arApp := newAccessRequest(anotherApp, roleName)
+		err = k8sClient.Create(ctx, arApp)
+		assert.NoError(t, err)
+
 		anotherAppNamespaceKey := &backend.AccessRequestKey{
 			Namespace:            nsName,
 			ApplicationName:      "some-app",
@@ -137,8 +147,8 @@ func TestK8sPersister(t *testing.T) {
 			ApplicationNamespace: "app-ns",
 			Username:             "another-user",
 		}
-		ar2 := newAccessRequest(anotherUserKey, roleName)
-		err = k8sClient.Create(ctx, ar2)
+		arUser := newAccessRequest(anotherUserKey, roleName)
+		err = k8sClient.Create(ctx, arUser)
 		assert.NoError(t, err)
 
 		// When

@@ -3,14 +3,19 @@ package backend_test
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
+	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -135,19 +140,130 @@ func TestServiceGetGrantingAccessBinding(t *testing.T) {
 }
 
 func Test_defaultAccessRequestSort(t *testing.T) {
-	tests := []struct {
-		name     string
-		a        *api.AccessRequest
-		b        *api.AccessRequest
-		expected int
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := backend.DefaultAccessRequestSort(tt.a, tt.b); got != tt.expected {
-				t.Errorf("defaultAccessRequestSort() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
+
+	t.Run("equals on object equality", func(t *testing.T) {
+		// Given
+		a := utils.NewAccessRequestCreated()
+		b := a.DeepCopy()
+
+		// When
+		got := backend.DefaultAccessRequestSort(a, b)
+
+		// Then
+		require.Equal(t, 0, got)
+	})
+
+	t.Run("array should be ordered by status", func(t *testing.T) {
+		// Given
+		created := utils.NewAccessRequestCreated()
+		requested := created.DeepCopy()
+		utils.ToRequestedState()(requested)
+
+		granted := requested.DeepCopy()
+		utils.ToGrantedState()(granted)
+
+		denied := requested.DeepCopy()
+		utils.ToDeniedState()(denied)
+
+		expired := granted.DeepCopy()
+		utils.ToExpiredState()(expired)
+
+		items := []*api.AccessRequest{
+			expired,
+			denied,
+			granted,
+			created,
+			requested,
+		}
+
+		// When
+		slices.SortStableFunc(items, backend.DefaultAccessRequestSort)
+
+		// Then
+		require.Equal(t, 5, len(items))
+		// compare each object because it makes it easier to investigate on test failures
+		require.Equal(t, created, items[0])
+		require.Equal(t, requested, items[1])
+		require.Equal(t, granted, items[2])
+		require.Equal(t, denied, items[3])
+		require.Equal(t, expired, items[4])
+	})
+	t.Run("array should be ordered by role ordinal for the same status", func(t *testing.T) {
+		// Given
+		base := utils.NewAccessRequestCreated(utils.WithRole())
+		first := base.DeepCopy()
+		first.Spec.Role.Ordinal = 0
+		second := base.DeepCopy()
+		second.Spec.Role.Ordinal = 1
+		third := base.DeepCopy()
+		third.Spec.Role.Ordinal = 2
+
+		items := []*api.AccessRequest{
+			third,
+			first,
+			second,
+		}
+
+		// When
+		slices.SortStableFunc(items, backend.DefaultAccessRequestSort)
+
+		// Then
+		require.Equal(t, 3, len(items))
+		// compare each object because it makes it easier to investigate on test failures
+		require.Equal(t, first, items[0])
+		require.Equal(t, second, items[1])
+		require.Equal(t, third, items[2])
+	})
+	t.Run("array should be ordered by role name for the same status and ordinal", func(t *testing.T) {
+		// Given
+		base := utils.NewAccessRequestCreated(utils.WithRole())
+		first := base.DeepCopy()
+		first.Spec.Role.TemplateName = "a"
+		second := base.DeepCopy()
+		second.Spec.Role.TemplateName = "b"
+		third := base.DeepCopy()
+		third.Spec.Role.TemplateName = "c"
+
+		items := []*api.AccessRequest{
+			third,
+			first,
+			second,
+		}
+
+		// When
+		slices.SortStableFunc(items, backend.DefaultAccessRequestSort)
+
+		// Then
+		require.Equal(t, 3, len(items))
+		// compare each object because it makes it easier to investigate on test failures
+		require.Equal(t, first, items[0])
+		require.Equal(t, second, items[1])
+		require.Equal(t, third, items[2])
+	})
+	t.Run("array should be ordered by creation for the same status, ordinal and role name", func(t *testing.T) {
+		// Given
+		base := utils.NewAccessRequestCreated(utils.WithRole())
+		first := base.DeepCopy()
+		first.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 1))
+		second := base.DeepCopy()
+		second.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 2))
+		third := base.DeepCopy()
+		third.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 3))
+
+		items := []*api.AccessRequest{
+			third,
+			first,
+			second,
+		}
+
+		// When
+		slices.SortStableFunc(items, backend.DefaultAccessRequestSort)
+
+		// Then
+		require.Equal(t, 3, len(items))
+		// compare each object because it makes it easier to investigate on test failures
+		require.Equal(t, first, items[0])
+		require.Equal(t, second, items[1])
+		require.Equal(t, third, items[2])
+	})
 }

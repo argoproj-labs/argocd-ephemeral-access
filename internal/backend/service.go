@@ -41,8 +41,10 @@ type DefaultService struct {
 }
 
 var requestStateOrder = map[api.Status]int{
-	api.GrantedStatus:   0,
-	api.RequestedStatus: 1,
+	// empty is the default and assumed to be the same as requested
+	"":                  0,
+	api.RequestedStatus: 0,
+	api.GrantedStatus:   1,
 	api.DeniedStatus:    2,
 	api.ExpiredStatus:   3,
 }
