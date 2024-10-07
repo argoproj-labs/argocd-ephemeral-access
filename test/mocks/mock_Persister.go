@@ -84,66 +84,6 @@ func (_c *MockPersister_CreateAccessRequest_Call) RunAndReturn(run func(context.
 	return _c
 }
 
-// GetAccessRequest provides a mock function with given fields: ctx, name, namespace
-func (_m *MockPersister) GetAccessRequest(ctx context.Context, name string, namespace string) (*v1alpha1.AccessRequest, error) {
-	ret := _m.Called(ctx, name, namespace)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAccessRequest")
-	}
-
-	var r0 *v1alpha1.AccessRequest
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*v1alpha1.AccessRequest, error)); ok {
-		return rf(ctx, name, namespace)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.AccessRequest); ok {
-		r0 = rf(ctx, name, namespace)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*v1alpha1.AccessRequest)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, name, namespace)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockPersister_GetAccessRequest_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAccessRequest'
-type MockPersister_GetAccessRequest_Call struct {
-	*mock.Call
-}
-
-// GetAccessRequest is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
-//   - namespace string
-func (_e *MockPersister_Expecter) GetAccessRequest(ctx interface{}, name interface{}, namespace interface{}) *MockPersister_GetAccessRequest_Call {
-	return &MockPersister_GetAccessRequest_Call{Call: _e.mock.On("GetAccessRequest", ctx, name, namespace)}
-}
-
-func (_c *MockPersister_GetAccessRequest_Call) Run(run func(ctx context.Context, name string, namespace string)) *MockPersister_GetAccessRequest_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *MockPersister_GetAccessRequest_Call) Return(_a0 *v1alpha1.AccessRequest, _a1 error) *MockPersister_GetAccessRequest_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockPersister_GetAccessRequest_Call) RunAndReturn(run func(context.Context, string, string) (*v1alpha1.AccessRequest, error)) *MockPersister_GetAccessRequest_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // ListAccessBindings provides a mock function with given fields: ctx, roleName, namespace
 func (_m *MockPersister) ListAccessBindings(ctx context.Context, roleName string, namespace string) (*v1alpha1.AccessBindingList, error) {
 	ret := _m.Called(ctx, roleName, namespace)

@@ -179,12 +179,14 @@ func (s *DefaultService) getAccessRequestPrefix(username, roleName string) strin
 
 // GetAppProject implements Service.
 func (s *DefaultService) GetAppProject(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
-	panic("TODO: unimplemented")
+	s.logger.Error(fmt.Errorf("TODO: unimplemented"), "")
+	return &unstructured.Unstructured{}, nil
 }
 
 // GetApplication implements Service.
 func (s *DefaultService) GetApplication(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
-	panic("TODO: unimplemented")
+	s.logger.Error(fmt.Errorf("TODO: unimplemented"), "")
+	return &unstructured.Unstructured{}, nil
 }
 
 // GetAccessBindings implements Service.

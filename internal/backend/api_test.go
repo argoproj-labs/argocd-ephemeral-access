@@ -15,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -551,7 +552,7 @@ func TestApiListAccessRequest(t *testing.T) {
 		var respBody backend.ListAccessRequestResponseBody
 		err := json.Unmarshal(resp.Body.Bytes(), &respBody)
 		assert.NoError(t, err)
-		assert.Equal(t, 2, len(respBody.Items))
+		require.Equal(t, 2, len(respBody.Items))
 		assert.Equal(t, ar1.GetNamespace(), respBody.Items[0].Namespace)
 		assert.Equal(t, ar1.GetName(), respBody.Items[0].Name)
 		assert.Equal(t, ar2.GetNamespace(), respBody.Items[1].Namespace)

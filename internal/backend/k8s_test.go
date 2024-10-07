@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -59,9 +60,13 @@ func TestK8sPersister(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	t.Run("will retrieve AccessRequest successfully", func(t *testing.T) {
+	t.Run("will list AccessRequest successfully", func(t *testing.T) {
 		// Given
-		nsName := "retrieve-ar-success"
+		nsName := "list-ar-success"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		assert.NoError(t, err)
+
 		roleName := "some-role"
 		key := &backend.AccessRequestKey{
 			Namespace:            nsName,
@@ -70,35 +75,107 @@ func TestK8sPersister(t *testing.T) {
 			Username:             "some-user",
 		}
 
-		ns := utils.NewNamespace(nsName)
-		err = k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
-
 		ar := newAccessRequest(key, roleName)
 		err = k8sClient.Create(ctx, ar)
 		assert.NoError(t, err)
 
 		// When
-		result, err := p.GetAccessRequest(ctx, ar.GetName(), ar.GetNamespace())
+		result, err := p.ListAccessRequests(ctx, key)
 
 		// Then
 		assert.NoError(t, err)
-		assert.NotNil(t, result)
+		require.NotNil(t, result)
+		require.Equal(t, 1, len(result.Items))
+		assert.Equal(t, ar.GetName(), result.Items[0].Name)
+		assert.Equal(t, ar.GetNamespace(), result.Items[0].Namespace)
+		assert.Equal(t, ar.Spec.Application.Name, result.Items[0].Spec.Application.Name)
+		assert.Equal(t, ar.Spec.Application.Namespace, result.Items[0].Spec.Application.Namespace)
+		assert.Equal(t, ar.Spec.Subject.Username, result.Items[0].Spec.Subject.Username)
 	})
 
-	t.Run("will return error if ar not found", func(t *testing.T) {
+	t.Run("will only list AccessRequest matching filters", func(t *testing.T) {
 		// Given
-		nsName := "retrieve-ar-notfound"
+		nsName := "list-ar-filtered"
 		ns := utils.NewNamespace(nsName)
-		err = k8sClient.Create(context.Background(), ns)
+		err = k8sClient.Create(ctx, ns)
+		assert.NoError(t, err)
+
+		roleName := "some-role"
+		key := &backend.AccessRequestKey{
+			Namespace:            nsName,
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		ar := newAccessRequest(key, roleName)
+		err = k8sClient.Create(ctx, ar)
+		assert.NoError(t, err)
+
+		anotherNamespaceKey := &backend.AccessRequestKey{
+			Namespace:            "other-namespace",
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		arNs := newAccessRequest(anotherNamespaceKey, roleName)
+		err = k8sClient.Create(ctx, arNs)
+		assert.NoError(t, err)
+
+		anotherAppNamespaceKey := &backend.AccessRequestKey{
+			Namespace:            nsName,
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "another-app-ns",
+			Username:             "some-user",
+		}
+		arAppNs := newAccessRequest(anotherAppNamespaceKey, roleName)
+		err = k8sClient.Create(ctx, arAppNs)
+		assert.NoError(t, err)
+
+		anotherUserKey := &backend.AccessRequestKey{
+			Namespace:            nsName,
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "another-user",
+		}
+		ar2 := newAccessRequest(anotherUserKey, roleName)
+		err = k8sClient.Create(ctx, ar2)
 		assert.NoError(t, err)
 
 		// When
-		result, err := p.GetAccessRequest(ctx, "NOTFOUND", nsName)
+		result, err := p.ListAccessRequests(ctx, key)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, 1, len(result.Items))
+		assert.Equal(t, ar.GetName(), result.Items[0].Name)
+		assert.Equal(t, ar.GetNamespace(), result.Items[0].Namespace)
+		assert.Equal(t, ar.Spec.Application.Name, result.Items[0].Spec.Application.Name)
+		assert.Equal(t, ar.Spec.Application.Namespace, result.Items[0].Spec.Application.Namespace)
+		assert.Equal(t, ar.Spec.Subject.Username, result.Items[0].Spec.Subject.Username)
+	})
+
+	t.Run("will return empty if no ar are found", func(t *testing.T) {
+		// Given
+		nsName := "list-ar-notfound"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		assert.NoError(t, err)
+
+		key := &backend.AccessRequestKey{
+			Namespace:            nsName,
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+
+		// When
+		result, err := p.ListAccessRequests(ctx, key)
 
 		// Then
 		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "\"NOTFOUND\" not found")
+		require.Nil(t, result)
+		assert.Equal(t, 0, len(result.Items))
 	})
+
 }

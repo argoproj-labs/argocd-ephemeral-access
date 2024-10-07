@@ -4,10 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	// "os"
-	// "os/signal"
-	// "syscall"
-
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -16,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	appprojectv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	argoprojv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
@@ -25,16 +21,17 @@ import (
 const (
 	resourceType = "accessrequests"
 
-	usernameField     = "spec.subject.username"
-	appNameField      = "spec.application.name"
-	appNamespaceField = "spec.application.namespace"
+	accessRequestUsernameField     = "spec.subject.username"
+	accessRequestAppNameField      = "spec.application.name"
+	accessRequestAppNamespaceField = "spec.application.namespace"
+
+	accessBindingRoleField = "spec.roleTemplateRef.name"
 )
 
 // Persister defines the operations to interact with the backend persistent
 // layer (e.g. Kubernetes)
 type Persister interface {
 	CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error)
-	GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error)
 	ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error)
 
 	ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error)
@@ -54,9 +51,9 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		return nil, fmt.Errorf("error adding ephemeralaccessv1alpha1 to k8s scheme: %w", err)
 	}
 
-	err = appprojectv1alpha1.AddToScheme(scheme.Scheme)
+	err = argoprojv1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
-		return nil, fmt.Errorf("error adding appprojectv1alpha1 to k8s scheme: %w", err)
+		return nil, fmt.Errorf("error adding argoprojv1alpha1 to k8s scheme: %w", err)
 	}
 
 	httpClient, err := rest.HTTPClientFor(config)
@@ -79,26 +76,33 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		return nil, fmt.Errorf("error creating cluster cache: %w", err)
 	}
 
-	cache.IndexField(context.Background(), &api.AccessRequest{}, usernameField, func(obj client.Object) []string {
+	cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestUsernameField, func(obj client.Object) []string {
 		ar, ok := obj.(*api.AccessRequest)
 		if !ok || ar == nil || ar.Spec.Subject.Username == "" {
 			return nil
 		}
 		return []string{ar.Spec.Subject.Username}
 	})
-	cache.IndexField(context.Background(), &api.AccessRequest{}, appNamespaceField, func(obj client.Object) []string {
+	cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestAppNamespaceField, func(obj client.Object) []string {
 		ar, ok := obj.(*api.AccessRequest)
 		if !ok || ar == nil || ar.Spec.Application.Namespace == "" {
 			return nil
 		}
 		return []string{ar.Spec.Application.Namespace}
 	})
-	cache.IndexField(context.Background(), &api.AccessRequest{}, appNameField, func(obj client.Object) []string {
+	cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestAppNameField, func(obj client.Object) []string {
 		ar, ok := obj.(*api.AccessRequest)
 		if !ok || ar == nil || ar.Spec.Application.Name == "" {
 			return nil
 		}
 		return []string{ar.Spec.Application.Name}
+	})
+	cache.IndexField(context.Background(), &api.AccessBinding{}, accessBindingRoleField, func(obj client.Object) []string {
+		b, ok := obj.(*api.AccessBinding)
+		if !ok || b == nil || b.Spec.RoleTemplateRef.Name == "" {
+			return nil
+		}
+		return []string{b.Spec.RoleTemplateRef.Name}
 	})
 
 	clientOpts := client.Options{
@@ -156,21 +160,6 @@ func GetAccessRequestResource() schema.GroupVersionResource {
 	}
 }
 
-// GetAccessRequest will retrieve an AccessRequest from k8s identified by the given
-// name and namespace.
-func (p *K8sPersister) GetAccessRequest(ctx context.Context, name, namespace string) (*api.AccessRequest, error) {
-	key := client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}
-	ar := &api.AccessRequest{}
-	err := p.client.Get(ctx, key, ar)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving accessrequest %s/%s from k8s: %w", namespace, name, err)
-	}
-	return ar, nil
-}
-
 // CreateAccessRequest implements Persister.
 func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
 	panic("unimplemented")
@@ -180,21 +169,32 @@ func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRe
 func (c *K8sPersister) ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error) {
 	var selector = fields.SelectorFromSet(
 		fields.Set{
-			usernameField:     key.Username,
-			appNameField:      key.ApplicationName,
-			appNamespaceField: key.ApplicationNamespace,
+			accessRequestUsernameField:     key.Username,
+			accessRequestAppNameField:      key.ApplicationName,
+			accessRequestAppNamespaceField: key.ApplicationNamespace,
 		},
 	)
 
 	list := &api.AccessRequestList{}
 	err := c.client.List(ctx, list, &client.ListOptions{Namespace: key.Namespace, FieldSelector: selector})
 	if err != nil {
-		return nil, fmt.Errorf("error listing accessrequest for user %s in app %s/%s from k8s: %w", key.Username, key.ApplicationNamespace, key.ApplicationName, err)
+		return nil, fmt.Errorf("error listing access request for user %s in app %s/%s from k8s: %w", key.Username, key.ApplicationNamespace, key.ApplicationName, err)
 	}
 	return list, nil
 }
 
 // ListAccessBindings implements Persister.
 func (c *K8sPersister) ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error) {
-	panic("TODO: unimplemented")
+	var selector = fields.SelectorFromSet(
+		fields.Set{
+			accessBindingRoleField: roleName,
+		},
+	)
+
+	list := &api.AccessBindingList{}
+	err := c.client.List(ctx, list, &client.ListOptions{Namespace: namespace, FieldSelector: selector})
+	if err != nil {
+		return nil, fmt.Errorf("error listing access bindings for role %s in namespace %s from k8s: %w", roleName, namespace, err)
+	}
+	return list, nil
 }
