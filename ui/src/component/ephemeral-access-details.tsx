@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { BUTTON_LABELS } from '../constant';
 import { getAccess, requestAccess } from '../config/client';
 import { UserInfo, Application, AccessRequest } from '../models/type';
 import { Spinner } from '../utils/utils';
-import './access-details.scss';
+import './ephemeral-access-details.scss';
 import moment from 'moment/moment';
 
-interface AccessDetailsomponentProps {
+interface AccessDetailsComponentProps {
   application: Application;
   userInfo: UserInfo;
 }
@@ -14,8 +14,8 @@ interface AccessDetailsomponentProps {
 const requestAccessHandler = async (
   application: Application,
   userInfo: UserInfo,
-  setInitiated: React.Dispatch<React.SetStateAction<boolean>>,
-  setAccessRequest: React.Dispatch<React.SetStateAction<AccessRequest>>,
+  setEnabled: React.Dispatch<React.SetStateAction<boolean>>,
+  setAccessRequest: React.Dispatch<React.SetStateAction<AccessRequest>>
 ) => {
   try {
     const response: AccessRequest = await requestAccess(application, userInfo.username);
@@ -23,50 +23,63 @@ const requestAccessHandler = async (
       localStorage.setItem(application.metadata.name, JSON.stringify(response));
     }
     setAccessRequest(response);
-    setInitiated(true);
+    setEnabled(false);
   } catch (error) {
     console.error('Error requesting access:', error);
-    setInitiated(false);
+    setEnabled(true);
   }
 };
 
-const AccessDetails: React.FC<AccessDetailsomponentProps> = ({ application, userInfo }) => {
-  const [accessRequest, setAccessRequest] = useState<AccessRequest>(
-    JSON.parse(localStorage.getItem(application?.metadata?.name)) || (null as AccessRequest)
-  );
-  const [initiated, setInitiated] = useState(false);
+const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
+  application,
+  userInfo
+}) => {
+  const [accessRequest, setAccessRequest] = useState<AccessRequest>(() => {
+    return JSON.parse(localStorage.getItem(application?.metadata?.name)) || null;
+  });
+  const [enabled, setEnabled] = useState(accessRequest === null);
+
+  const fetchAccess = useCallback(async () => {
+    const response = await getAccess(application, userInfo.username);
+    if (response && response?.items) {
+      setAccessRequest(response?.items[0]);
+      setEnabled(false);
+    }
+    console.log('Access Request:', response);
+    if (accessRequest === null || accessRequest?.status === undefined) {
+      setEnabled(true);
+    }
+    if (accessRequest?.status === 'EXPIRED') {
+      localStorage.removeItem(application.metadata.name);
+      setAccessRequest(null);
+      setEnabled(true);
+    }
+  }, [application, accessRequest]);
+
   useEffect(() => {
-    const interval = setInterval(async () => {
-      const response = await getAccess(application, userInfo.username);
-
-      if (response && response?.items) {
-        setInitiated(true);
-        setAccessRequest(response?.items[0]);
-      }
-      if (accessRequest?.status === 'EXPIRED') {
-        localStorage.removeItem(application.metadata.name);
-        setAccessRequest({} as AccessRequest);
-      }
-    }, 5000);
-
+    const interval = setInterval(fetchAccess, 5000);
     return () => clearInterval(interval);
+  }, [fetchAccess]);
+
+  const cancel = useCallback(() => {
+    setAccessRequest(null);
+    setEnabled(true);
   }, []);
 
-  const cancel = () => {
-    setAccessRequest({} as AccessRequest);
-    setInitiated(false);
-  };
   return (
     <div className='access-form'>
       <button
         style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
         className='argo-button argo-button--base'
-        disabled={initiated}
-        onClick={() => requestAccessHandler(application, userInfo, setInitiated, setAccessRequest)}
+        disabled={!enabled}
+        onClick={() => {
+          requestAccessHandler(application, userInfo, setEnabled, setAccessRequest);
+          setEnabled(false);
+        }}
       >
         {accessRequest?.status !== 'ACTIVE' && accessRequest?.status !== 'DENIED' && (
           <span>
-            <Spinner show={initiated} style={{ marginRight: '5px' }} />
+            <Spinner show={!enabled} style={{ marginRight: '5px' }} />
           </span>
         )}
         {BUTTON_LABELS.REQUEST_ACCESS}
@@ -74,7 +87,7 @@ const AccessDetails: React.FC<AccessDetailsomponentProps> = ({ application, user
       <button
         style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
         className='argo-button argo-button--base'
-        disabled={!initiated}
+        disabled={enabled}
         onClick={cancel}
       >
         {BUTTON_LABELS.CANCEL}
@@ -87,17 +100,16 @@ const AccessDetails: React.FC<AccessDetailsomponentProps> = ({ application, user
             About Requesting Temporary Access
           </div>
           <div className='access-form__usrmsg__warning-content'>
-            {window.GLOBAL_ARGOCD_ACCESS_EXT_MAIN_BANNER}
-            {window.GLOBAL_ARGOCD_ACCESS_EXT_MAIN_BANNER_ADDITIONAL_INFO_LINK && (
-              <a
-                style={{ color: 'blue', textDecoration: 'underline' }}
-                href={window.GLOBAL_ARGOCD_ACCESS_EXT_MAIN_BANNER_ADDITIONAL_INFO_LINK}
-                target={'_blank'}
-              >
-                {' '}
-                Read more.
-              </a>
-            )}
+            {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER}
+            <a
+              style={{ color: 'blue', textDecoration: 'underline' }}
+              href={
+                window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK
+              }
+              target={'_blank'}
+            >
+              Read more.
+            </a>
           </div>
         </div>
       </div>
@@ -138,7 +150,10 @@ const AccessDetails: React.FC<AccessDetailsomponentProps> = ({ application, user
                   {accessRequest?.status === 'PENDING' ? (
                     <span style={{ display: 'flex', flexDirection: 'column' }}>
                       {accessRequest?.message}
-                      <a href={window.GLOBAL_ARGOCD_ACCESS_EXT_CHANGE_REQUEST_URL} style={{}}>
+                      <a
+                        href={window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL}
+                        style={{}}
+                      >
                         Click to create change request
                       </a>
                     </span>
@@ -163,4 +178,4 @@ const AccessDetails: React.FC<AccessDetailsomponentProps> = ({ application, user
   );
 };
 
-export default AccessDetails;
+export default EphemeralAccessDetails;

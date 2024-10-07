@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import AccessDetails from './component/access-details';
+import EphemeralAccessDetails from './component/ephemeral-access-details';
 import { getUserInfo } from './config/client';
-import { UserInfo } from './models/type';
+import { Application, UserInfo } from './models/type';
+import { EnableEphemeralAccess } from './utils/utils';
+
+
 
 export const RequestAccessBtn = () => {
   return (
@@ -13,13 +16,8 @@ export const RequestAccessBtn = () => {
   );
 };
 
-export const ShowDeployBtn = (application: any) => {
-  return (
-    application?.metadata?.labels &&
-    window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_KEY &&
-    application?.metadata?.labels[window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_KEY] ===
-      window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_VALUE
-  );
+export const ShowDeployBtn = (application: Application) => {
+  return EnableEphemeralAccess(application);
 };
 
 interface RequestAccessBtnFlyoutProps {
@@ -40,5 +38,5 @@ export const RequestAccessBtnFlyout = ({ application }: RequestAccessBtnFlyoutPr
     fetchUserInfo();
   }, [application]);
 
-  return <>{userInfo && <AccessDetails application={application} userInfo={userInfo} />}</>;
+  return <>{userInfo && <EphemeralAccessDetails application={application} userInfo={userInfo} />}</>;
 };

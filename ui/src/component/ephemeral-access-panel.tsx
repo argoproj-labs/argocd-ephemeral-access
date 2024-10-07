@@ -1,43 +1,44 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import moment from 'moment';
 import { AccessRequest, Application } from '../models/type';
 import { ARGO_GRAY6_COLOR } from '../shared/colors';
 import { HelpIcon } from 'argo-ui/src/components/help-icon/help-icon';
-import { AccessPanel } from '../utils/utils';
+import { AccessPanel, EnableEphemeralAccess } from '../utils/utils';
 import { TIME_FORMAT } from '../constant';
 
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequest | null>(null);
 
-  useEffect(() => {
-    const checkPermission = () => {
-      const storedPermission = localStorage.getItem(application.metadata?.name);
-      if (storedPermission) {
-        const parsedPermission = JSON.parse(storedPermission);
-        const expiryTime = moment(parsedPermission.accessExpires, TIME_FORMAT);
-        const diffInSeconds = expiryTime.diff(moment(), 'seconds');
-        if (diffInSeconds <= 0) {
-          localStorage.removeItem(application.metadata?.name);
-          setAccessRequest(null);
-        } else {
-          setAccessRequest(parsedPermission);
-        }
-      } else {
+  const checkPermission = useCallback(() => {
+    const storedPermission = localStorage.getItem(application.metadata?.name);
+    if (storedPermission) {
+      const parsedPermission = JSON.parse(storedPermission);
+      const expiryTime = moment(parsedPermission.accessExpires, TIME_FORMAT);
+      const diffInSeconds = expiryTime.diff(moment(), 'seconds');
+      if (diffInSeconds <= 0) {
+        localStorage.removeItem(application.metadata?.name);
         setAccessRequest(null);
+      } else {
+        setAccessRequest(parsedPermission);
       }
-    };
-
-    const intervalId = setInterval(checkPermission, 1000);
-    return () => clearInterval(intervalId);
+    } else {
+      setAccessRequest(null);
+    }
   }, [application.metadata?.name]);
 
-  return application?.metadata?.labels &&
-    window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_KEY &&
-    application?.metadata?.labels[window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_KEY] ===
-      window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_VALUE ? (
+  useEffect(() => {
+    const intervalId = setInterval(checkPermission, 1000);
+    return () => clearInterval(intervalId);
+  }, [checkPermission]);
+
+  const handleLinkClick = useCallback(() => {
+    window.location.href = `/applications/argocd/testapp?view=tree&resource=&extension=ephemeral_access`;
+  }, []);
+
+  return EnableEphemeralAccess(application) ? null : (
     <div
-      key='permission-status-icon'
-      qe-id='permission-status-title'
+      key='ephemeral-access-status-icon'
+      qe-id='ephemeral-access-status-title'
       className='application-status-panel__item'
     >
       <label
@@ -56,11 +57,7 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
         <div
           className='application-status-panel__item-value'
-          onClick={() => (
-            <link
-              href={`/applications/argocd/testapp?view=tree&resource=&extension=ephemeral_access`}
-            />
-          )}
+          onClick={handleLinkClick}
           style={{
             color: 'green',
             marginRight: '5px',
@@ -91,7 +88,7 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
         )}
       </div>
     </div>
-  ) : null;
+  );
 };
 
 export default DisplayAccessPermission;
