@@ -1,6 +1,11 @@
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.0
 
+CURRENT_DIR=$(shell pwd)
+DIST_DIR=${CURRENT_DIR}/dist
+UI_DIR=${CURRENT_DIR}/ui
+UI_DIST_DIR=${UI_DIR}/dist
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -218,6 +223,21 @@ $(MOCKERY): $(LOCALBIN)
 .PHONY: generate-mocks
 generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
 	$(MOCKERY)
+
+.PHONY: clean
+clean:
+	-rm -rf ${DIST_DIR}
+
+.PHONY: clean-ui
+clean-ui:
+	-rm -rf ${UI_DIST_DIR}
+	find ${UI_DIR} -type f -name extension.tar -delete
+
+
+.PHONY: build-ui
+build-ui: clean-ui
+	yarn --cwd ${UI_DIR} install
+	yarn --cwd ${UI_DIR} build
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)

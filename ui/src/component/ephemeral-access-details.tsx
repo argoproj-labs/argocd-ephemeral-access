@@ -3,7 +3,7 @@ import { BUTTON_LABELS } from '../constant';
 import { getAccess, requestAccess } from '../config/client';
 import { UserInfo, Application, AccessRequest } from '../models/type';
 import { Spinner } from '../utils/utils';
-import './access-details.scss';
+import './ephemeral-access-details.scss';
 import moment from 'moment/moment';
 
 interface AccessDetailsComponentProps {
@@ -30,7 +30,10 @@ const requestAccessHandler = async (
   }
 };
 
-const AccessDetails: React.FC<AccessDetailsComponentProps> = ({ application, userInfo }) => {
+const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
+  application,
+  userInfo
+}) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequest>(() => {
     return JSON.parse(localStorage.getItem(application?.metadata?.name)) || null;
   });
@@ -97,17 +100,16 @@ const AccessDetails: React.FC<AccessDetailsComponentProps> = ({ application, use
             About Requesting Temporary Access
           </div>
           <div className='access-form__usrmsg__warning-content'>
-            {window.GLOBAL_ARGOCD_ACCESS_EXT_MAIN_BANNER}
-            {window.GLOBAL_ARGOCD_ACCESS_EXT_MAIN_BANNER_ADDITIONAL_INFO_LINK && (
-              <a
-                style={{ color: 'blue', textDecoration: 'underline' }}
-                href={window.GLOBAL_ARGOCD_ACCESS_EXT_MAIN_BANNER_ADDITIONAL_INFO_LINK}
-                target={'_blank'}
-              >
-                {' '}
-                Read more.
-              </a>
-            )}
+            {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER}
+            <a
+              style={{ color: 'blue', textDecoration: 'underline' }}
+              href={
+                window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK
+              }
+              target={'_blank'}
+            >
+              Read more.
+            </a>
           </div>
         </div>
       </div>
@@ -148,7 +150,10 @@ const AccessDetails: React.FC<AccessDetailsComponentProps> = ({ application, use
                   {accessRequest?.status === 'PENDING' ? (
                     <span style={{ display: 'flex', flexDirection: 'column' }}>
                       {accessRequest?.message}
-                      <a href={window.GLOBAL_ARGOCD_ACCESS_EXT_CHANGE_REQUEST_URL} style={{}}>
+                      <a
+                        href={window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL}
+                        style={{}}
+                      >
                         Click to create change request
                       </a>
                     </span>
@@ -173,4 +178,4 @@ const AccessDetails: React.FC<AccessDetailsComponentProps> = ({ application, use
   );
 };
 
-export default AccessDetails;
+export default EphemeralAccessDetails;

@@ -3,7 +3,7 @@ import moment from 'moment';
 import { AccessRequest, Application } from '../models/type';
 import { ARGO_GRAY6_COLOR } from '../shared/colors';
 import { HelpIcon } from 'argo-ui/src/components/help-icon/help-icon';
-import { AccessPanel } from '../utils/utils';
+import { AccessPanel, EnableEphemeralAccess } from '../utils/utils';
 import { TIME_FORMAT } from '../constant';
 
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
@@ -35,19 +35,10 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
     window.location.href = `/applications/argocd/testapp?view=tree&resource=&extension=ephemeral_access`;
   }, []);
 
-  if (
-    !application?.metadata?.labels ||
-    !window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_KEY ||
-    application?.metadata?.labels[window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_KEY] !==
-      window?.GLOBAL_ARGOCD_ACCESS_EXT_LABEL_VALUE
-  ) {
-    return null;
-  }
-
-  return (
+  return EnableEphemeralAccess(application) ? null : (
     <div
-      key='permission-status-icon'
-      qe-id='permission-status-title'
+      key='ephemeral-access-status-icon'
+      qe-id='ephemeral-access-status-title'
       className='application-status-panel__item'
     >
       <label
