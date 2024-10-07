@@ -100,6 +100,11 @@ func TestK8sPersister(t *testing.T) {
 		err = k8sClient.Create(ctx, ns)
 		assert.NoError(t, err)
 
+		otherNsName := nsName + "-other"
+		otherNs := utils.NewNamespace(otherNsName)
+		err = k8sClient.Create(ctx, otherNs)
+		assert.NoError(t, err)
+
 		roleName := "some-role"
 		key := &backend.AccessRequestKey{
 			Namespace:            nsName,
@@ -108,16 +113,18 @@ func TestK8sPersister(t *testing.T) {
 			Username:             "some-user",
 		}
 		ar := newAccessRequest(key, roleName)
+		ar.ObjectMeta.Name = "ar-expected"
 		err = k8sClient.Create(ctx, ar)
 		assert.NoError(t, err)
 
 		anotherNamespaceKey := &backend.AccessRequestKey{
-			Namespace:            "other-namespace",
+			Namespace:            otherNsName,
 			ApplicationName:      "some-app",
 			ApplicationNamespace: "app-ns",
 			Username:             "some-user",
 		}
 		arNs := newAccessRequest(anotherNamespaceKey, roleName)
+		arNs.ObjectMeta.Name = "ar-ns"
 		err = k8sClient.Create(ctx, arNs)
 		assert.NoError(t, err)
 
@@ -128,6 +135,7 @@ func TestK8sPersister(t *testing.T) {
 			Username:             "some-user",
 		}
 		arApp := newAccessRequest(anotherApp, roleName)
+		arApp.ObjectMeta.Name = "ar-app"
 		err = k8sClient.Create(ctx, arApp)
 		assert.NoError(t, err)
 
@@ -138,6 +146,7 @@ func TestK8sPersister(t *testing.T) {
 			Username:             "some-user",
 		}
 		arAppNs := newAccessRequest(anotherAppNamespaceKey, roleName)
+		arAppNs.ObjectMeta.Name = "ar-app-ns"
 		err = k8sClient.Create(ctx, arAppNs)
 		assert.NoError(t, err)
 
@@ -148,6 +157,7 @@ func TestK8sPersister(t *testing.T) {
 			Username:             "another-user",
 		}
 		arUser := newAccessRequest(anotherUserKey, roleName)
+		arUser.ObjectMeta.Name = "ar-user"
 		err = k8sClient.Create(ctx, arUser)
 		assert.NoError(t, err)
 
@@ -183,8 +193,97 @@ func TestK8sPersister(t *testing.T) {
 		result, err := p.ListAccessRequests(ctx, key)
 
 		// Then
-		assert.Error(t, err)
-		require.Nil(t, result)
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, 0, len(result.Items))
+	})
+
+	t.Run("will list AccessBindings successfully", func(t *testing.T) {
+		// Given
+		nsName := "list-ab-success"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		assert.NoError(t, err)
+
+		roleName := "some-role"
+
+		ab := newAccessBinding("")
+		ab.ObjectMeta.Namespace = nsName
+		ab.ObjectMeta.Name = "ab-expected"
+		ab.Spec.RoleTemplateRef.Name = roleName
+		err = k8sClient.Create(ctx, ab)
+		assert.NoError(t, err)
+
+		// When
+		result, err := p.ListAccessBindings(ctx, roleName, nsName)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, 1, len(result.Items))
+		assert.Equal(t, ab.GetName(), result.Items[0].Name)
+		assert.Equal(t, ab.GetNamespace(), result.Items[0].Namespace)
+	})
+
+	t.Run("will only list AccessBindings matching filters", func(t *testing.T) {
+		// Given
+		nsName := "list-ab-filtered"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		assert.NoError(t, err)
+
+		otherNsName := nsName + "-other"
+		otherNs := utils.NewNamespace(otherNsName)
+		err = k8sClient.Create(ctx, otherNs)
+		assert.NoError(t, err)
+
+		roleName := "some-role"
+
+		ab := newAccessBinding("")
+		ab.ObjectMeta.Namespace = nsName
+		ab.ObjectMeta.Name = "ab-expected"
+		ab.Spec.RoleTemplateRef.Name = roleName
+		err = k8sClient.Create(ctx, ab)
+		assert.NoError(t, err)
+
+		abNs := newAccessBinding("")
+		abNs.ObjectMeta.Namespace = otherNsName
+		abNs.ObjectMeta.Name = "ab-other-ns"
+		abNs.Spec.RoleTemplateRef.Name = roleName
+		err = k8sClient.Create(ctx, abNs)
+		assert.NoError(t, err)
+
+		abRole := newAccessBinding("")
+		abRole.ObjectMeta.Namespace = nsName
+		abRole.ObjectMeta.Name = "ab-other-role"
+		abRole.Spec.RoleTemplateRef.Name = "other-role"
+		err = k8sClient.Create(ctx, abRole)
+		assert.NoError(t, err)
+
+		// When
+		result, err := p.ListAccessBindings(ctx, roleName, nsName)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, 1, len(result.Items))
+		assert.Equal(t, ab.GetName(), result.Items[0].Name)
+		assert.Equal(t, ab.GetNamespace(), result.Items[0].Namespace)
+	})
+
+	t.Run("will return empty if no AccessBindings are found", func(t *testing.T) {
+		// Given
+		nsName := "list-ab-notfound"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		assert.NoError(t, err)
+
+		// When
+		result, err := p.ListAccessBindings(ctx, "", nsName)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
 		assert.Equal(t, 0, len(result.Items))
 	})
 
