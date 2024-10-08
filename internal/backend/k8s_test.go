@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
@@ -21,6 +22,22 @@ import (
 const (
 	accessRequestKind = "AccessRequest"
 )
+
+// eventually runs f until it returns true, an error or the timeout expires
+func eventually(f func() (bool, error), timeout time.Duration, interval time.Duration) error {
+	start := time.Now()
+	for {
+		if ok, err := f(); ok {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		if time.Since(start) > timeout {
+			return fmt.Errorf("timed out waiting for eventual success")
+		}
+		time.Sleep(interval)
+	}
+}
 
 // TestK8sPersister This is an integration test and requires EnvTest to be
 // available and properly configured. Run `make setup-envtest` to automatically
@@ -80,12 +97,17 @@ func TestK8sPersister(t *testing.T) {
 		assert.NoError(t, err)
 
 		// When
+		expectedItems := 1
+		eventually(func() (bool, error) {
+			result, err := p.ListAccessRequests(ctx, key)
+			return result != nil && len(result.Items) == expectedItems, err
+		}, 5*time.Second, time.Second)
 		result, err := p.ListAccessRequests(ctx, key)
 
 		// Then
 		assert.NoError(t, err)
 		require.NotNil(t, result)
-		require.Equal(t, 1, len(result.Items))
+		require.Equal(t, expectedItems, len(result.Items))
 		assert.Equal(t, ar.GetName(), result.Items[0].Name)
 		assert.Equal(t, ar.GetNamespace(), result.Items[0].Namespace)
 		assert.Equal(t, ar.Spec.Application.Name, result.Items[0].Spec.Application.Name)
@@ -162,12 +184,17 @@ func TestK8sPersister(t *testing.T) {
 		assert.NoError(t, err)
 
 		// When
+		expectedItems := 1
+		eventually(func() (bool, error) {
+			result, err := p.ListAccessRequests(ctx, key)
+			return result != nil && len(result.Items) == expectedItems, err
+		}, 5*time.Second, time.Second)
 		result, err := p.ListAccessRequests(ctx, key)
 
 		// Then
 		assert.NoError(t, err)
 		require.NotNil(t, result)
-		require.Equal(t, 1, len(result.Items))
+		require.Equal(t, expectedItems, len(result.Items))
 		assert.Equal(t, ar.GetName(), result.Items[0].Name)
 		assert.Equal(t, ar.GetNamespace(), result.Items[0].Namespace)
 		assert.Equal(t, ar.Spec.Application.Name, result.Items[0].Spec.Application.Name)
@@ -215,12 +242,17 @@ func TestK8sPersister(t *testing.T) {
 		assert.NoError(t, err)
 
 		// When
+		expectedItems := 1
+		eventually(func() (bool, error) {
+			result, err := p.ListAccessBindings(ctx, roleName, nsName)
+			return result != nil && len(result.Items) == expectedItems, err
+		}, 5*time.Second, time.Second)
 		result, err := p.ListAccessBindings(ctx, roleName, nsName)
 
 		// Then
 		assert.NoError(t, err)
 		require.NotNil(t, result)
-		require.Equal(t, 1, len(result.Items))
+		require.Equal(t, expectedItems, len(result.Items))
 		assert.Equal(t, ab.GetName(), result.Items[0].Name)
 		assert.Equal(t, ab.GetNamespace(), result.Items[0].Namespace)
 	})
@@ -261,12 +293,17 @@ func TestK8sPersister(t *testing.T) {
 		assert.NoError(t, err)
 
 		// When
+		expectedItems := 1
+		eventually(func() (bool, error) {
+			result, err := p.ListAccessBindings(ctx, roleName, nsName)
+			return result != nil && len(result.Items) == expectedItems, err
+		}, 5*time.Second, time.Second)
 		result, err := p.ListAccessBindings(ctx, roleName, nsName)
 
 		// Then
 		assert.NoError(t, err)
 		require.NotNil(t, result)
-		require.Equal(t, 1, len(result.Items))
+		require.Equal(t, expectedItems, len(result.Items))
 		assert.Equal(t, ab.GetName(), result.Items[0].Name)
 		assert.Equal(t, ab.GetNamespace(), result.Items[0].Namespace)
 	})
