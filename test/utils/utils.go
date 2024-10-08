@@ -169,6 +169,7 @@ func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
 	return &unstructured.Unstructured{Object: obj}, nil
 }
 
+// NewAccessRequest creates an AccessRequest
 func NewAccessRequest(name, namespace, appName, appNamespace, roleName, subject string) *api.AccessRequest {
 	return &api.AccessRequest{
 		TypeMeta: metav1.TypeMeta{
@@ -195,8 +196,10 @@ func NewAccessRequest(name, namespace, appName, appNamespace, roleName, subject 
 	}
 }
 
+// AccessRequestMutation is used to mutate an AccessRequest to simultate the actions of the controller
 type AccessRequestMutation func(ar *api.AccessRequest)
 
+// WithRole adds a role to the AccessRequest spec
 func WithRole() AccessRequestMutation {
 	name := "Ephemeral Role"
 	return func(ar *api.AccessRequest) {
@@ -205,12 +208,14 @@ func WithRole() AccessRequestMutation {
 	}
 }
 
+// WithName updartes the name of the AccessRequest
 func WithName(name string) AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		ar.ObjectMeta.Name = name
 	}
 }
 
+// ToInvalidState transition the AccessRequest to an invalid status
 func ToInvalidState() AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		ar.Status = api.AccessRequestStatus{
@@ -226,6 +231,7 @@ func ToInvalidState() AccessRequestMutation {
 	}
 }
 
+// ToRequestedState transition the AccessRequest to a requested status
 func ToRequestedState() AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		ar.Status = api.AccessRequestStatus{
@@ -243,6 +249,7 @@ func ToRequestedState() AccessRequestMutation {
 	}
 }
 
+// ToGrantedState transition the AccessRequest to a granted status
 func ToGrantedState() AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		now := metav1.Now()
@@ -256,6 +263,7 @@ func ToGrantedState() AccessRequestMutation {
 	}
 }
 
+// ToDeniedState transition the AccessRequest to a denied status
 func ToDeniedState() AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		now := metav1.Now()
@@ -268,6 +276,7 @@ func ToDeniedState() AccessRequestMutation {
 	}
 }
 
+// ToExpiredState transition the AccessRequest to an expired status
 func ToExpiredState() AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		now := metav1.Now()
@@ -307,6 +316,7 @@ func newAccessRequest() *api.AccessRequest {
 	}
 }
 
+// NewAccessRequestCreated creates an AccessRequest
 func NewAccessRequestCreated(transformers ...AccessRequestMutation) *api.AccessRequest {
 	ar := newAccessRequest()
 	for _, t := range transformers {
@@ -315,22 +325,27 @@ func NewAccessRequestCreated(transformers ...AccessRequestMutation) *api.AccessR
 	return ar
 }
 
+// NewAccessRequestCreated creates an AccessRequest transitioned in an invalid state
 func NewAccessRequestInvalid(transformers ...AccessRequestMutation) *api.AccessRequest {
 	return NewAccessRequestCreated(append([]AccessRequestMutation{ToInvalidState()}, transformers...)...)
 }
 
+// NewAccessRequestRequested creates an AccessRequest transitioned in a requested state
 func NewAccessRequestRequested(transformers ...AccessRequestMutation) *api.AccessRequest {
 	return NewAccessRequestCreated(append([]AccessRequestMutation{ToRequestedState()}, transformers...)...)
 }
 
+// NewAccessRequestGranted creates an AccessRequest transitioned in an invalid state
 func NewAccessRequestGranted(transformers ...AccessRequestMutation) *api.AccessRequest {
 	return NewAccessRequestRequested(append([]AccessRequestMutation{ToGrantedState()}, transformers...)...)
 }
 
+// NewAccessRequestDenied creates an AccessRequest transitioned in a denied state
 func NewAccessRequestDenied(transformers ...AccessRequestMutation) *api.AccessRequest {
 	return NewAccessRequestRequested(append([]AccessRequestMutation{ToDeniedState()}, transformers...)...)
 }
 
+// NewAccessRequestExpired creates an AccessRequest transitioned in an expired state
 func NewAccessRequestExpired(transformers ...AccessRequestMutation) *api.AccessRequest {
 	return NewAccessRequestGranted(append([]AccessRequestMutation{ToExpiredState()}, transformers...)...)
 }

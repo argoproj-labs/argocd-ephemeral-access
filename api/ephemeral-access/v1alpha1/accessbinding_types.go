@@ -39,14 +39,16 @@ type AccessBinding struct {
 // AccessBindingList contains a list of AccessBinding
 // +kubebuilder:object:root=true
 type AccessBindingList struct {
-	metav1.TypeMeta `                json:",inline"`
-	metav1.ListMeta `                json:"metadata,omitempty"`
-	Items           []AccessBinding `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+
+	Items []AccessBinding `json:"items"`
 }
 
 // AccessBindingSpec defines the desired state of AccessBinding
 type AccessBindingSpec struct {
 	// RoleTemplateRef is the reference to the RoleTemplate this bindings grants access to
+	// +kubebuilder:validation:Required
 	RoleTemplateRef RoleTemplateReference `json:"roleTemplateRef"`
 	// Subjects is list of strings, supporting go template, that a user's group claims must match at least one of to be allowed
 	Subjects []string `json:"subjects"`
@@ -59,10 +61,14 @@ type AccessBindingSpec struct {
 	FriendlyName *string `json:"friendlyName,omitempty"`
 }
 
+// RoleTemplateReference is a reference to a RoleTemplate
 type RoleTemplateReference struct {
+	// Name of the role template object
+	// +kubebuilder:validation:Required
 	Name string `json:"name"`
 }
 
+// RenderSubjects renders the access bindings subjects when the If condition is evaluated to true
 func (ab *AccessBinding) RenderSubjects(app, project *unstructured.Unstructured) ([]string, error) {
 	if len(ab.Spec.Subjects) == 0 {
 		return nil, nil

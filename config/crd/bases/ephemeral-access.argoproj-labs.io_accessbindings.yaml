@@ -55,6 +55,7 @@ spec:
                   this bindings grants access to
                 properties:
                   name:
+                    description: Name of the role template object
                     type: string
                 required:
                 - name

@@ -78,6 +78,7 @@ type TargetApplication struct {
 type TargetRole struct {
 	// TemplateName defines the role template the user will be assigned
 	// +kubebuilder:validation:MaxLength=512
+	// +kubebuilder:validation:Required
 	TemplateName string `json:"templateName"`
 	// Ordinal defines an ordering number of this role compared to others
 	Ordinal int `json:"ordinal,omitempty"`

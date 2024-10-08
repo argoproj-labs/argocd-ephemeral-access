@@ -81,7 +81,7 @@ type AccessRequestResponseBody struct {
 	Permission  string `json:"permission" example:"ReadOnly" doc:"The current permission description for the user."`
 	RequestedAt string `json:"requestedAt,omitempty" example:"2024-02-14T18:25:50Z" doc:"The timestamp the access was requested (RFC3339 format)." format:"date-time"`
 	Role        string `json:"role,omitempty" example:"DevOps" doc:"The current role the user is associated with."`
-	Status      string `json:"status,omitempty" example:"GRANTED" doc:"The current access request status." enum:"REQUESTED,GRANTED,EXPIRED,DENIED"`
+	Status      string `json:"status,omitempty" example:"GRANTED" doc:"The current access request status." enum:"REQUESTED,GRANTED,EXPIRED,DENIED,INVALID"`
 	ExpiresAt   string `json:"expiresAt,omitempty" example:"2024-02-14T18:25:50Z" doc:"The timestamp the access will expire (RFC3339 format)." format:"date-time"`
 	Message     string `json:"message,omitempty" example:"Click the link to see more details: ..." doc:"A human readeable description with details about the access request."`
 }
@@ -122,7 +122,6 @@ func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAc
 	return &ListAccessRequestResponse{Body: toListAccessRequestResponseBody(accessRequests)}, nil
 }
 
-// TODO implementation
 func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *CreateAccessRequestInput) (*CreateAccessRequestResponse, error) {
 	appNamespace, appName, err := input.Application()
 	if err != nil {
@@ -238,7 +237,7 @@ func listAccessRequestOperation() huma.Operation {
 		Method:      http.MethodGet,
 		Path:        "/accessrequests",
 		Summary:     "List AccessRequests",
-		Description: "Will retrieve a list of access requests for the given context",
+		Description: "Will retrieve an ordered list of access requests for the given context",
 	}
 }
 
@@ -249,7 +248,7 @@ func createAccessRequestOperation() huma.Operation {
 		Method:      http.MethodPost,
 		Path:        "/accessrequests",
 		Summary:     "Create AccessRequest",
-		Description: "Will create an access request for the given context",
+		Description: "Will create an access request for the given role and context",
 	}
 }
 

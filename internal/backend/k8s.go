@@ -30,9 +30,13 @@ const (
 // Persister defines the operations to interact with the backend persistent
 // layer (e.g. Kubernetes)
 type Persister interface {
+
+	// CreateAccessRequest creates a new Access Request object
 	CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error)
+	// ListAccessRequests returns all the AccessRequest matching the key criterias
 	ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error)
 
+	// ListAccessRequests returns all the AccessBindings matching the specified role and namespace
 	ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error)
 }
 
@@ -164,8 +168,7 @@ func (p *K8sPersister) StartCache(ctx context.Context) error {
 	}
 }
 
-// GetAccessRequestResource return a GroupVersionResource schema for the
-// AccessRequest CRD.
+// GetAccessRequestResource return a GroupVersionResource schema for the AccessRequest CRD.
 func GetAccessRequestResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    api.GroupVersion.Group,
@@ -174,12 +177,10 @@ func GetAccessRequestResource() schema.GroupVersionResource {
 	}
 }
 
-// CreateAccessRequest implements Persister.
 func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
 	panic("unimplemented")
 }
 
-// ListAccessRequests implements Persister.
 func (c *K8sPersister) ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error) {
 	var selector = fields.SelectorFromSet(
 		fields.Set{
@@ -197,7 +198,6 @@ func (c *K8sPersister) ListAccessRequests(ctx context.Context, key *AccessReques
 	return list, nil
 }
 
-// ListAccessBindings implements Persister.
 func (c *K8sPersister) ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error) {
 	var selector = fields.SelectorFromSet(
 		fields.Set{

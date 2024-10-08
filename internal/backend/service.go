@@ -79,6 +79,7 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 	return nil, nil
 }
 
+// ListAccessRequests will list non-expired access requests and optionally sort them by importance
 func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequestKey, shouldSort bool) ([]*api.AccessRequest, error) {
 	accessRequests, err := s.k8s.ListAccessRequests(ctx, key)
 	if err != nil {
@@ -101,6 +102,9 @@ func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequ
 	return filtered, nil
 }
 
+// GetGrantingAccessBinding will return the first AccessBinding allowing at least one of the group to request the specified role
+// AccessBinding can be located in the specified namespace or in the controller namespace.
+// If no bindings are granting access, nil is returned
 func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error) {
 	bindings, err := s.listAccessBindings(ctx, roleName, namespace)
 	if err != nil {
@@ -130,18 +134,17 @@ func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName 
 	return grantingBinding, nil
 }
 
+// matchSubject returns true if groups contains at least one of subjects
 func (s *DefaultService) matchSubject(subjects, groups []string) bool {
 	for _, subject := range subjects {
-		for _, g := range groups {
-			if subject == g {
-				return true
-			}
+		if found := slices.Contains(groups, subject); found {
+			return true
 		}
 	}
 	return false
 }
 
-// CreateAccessRequest implements Service.
+// CreateAccessRequest willl crate an AccessRequest for the given key requesting the role speified by the AccessBinding
 func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error) {
 	roleName := binding.Spec.RoleTemplateRef.Name
 	ar := &api.AccessRequest{
@@ -192,7 +195,6 @@ func (s *DefaultService) GetApplication(ctx context.Context, name string, namesp
 	return &unstructured.Unstructured{}, nil
 }
 
-// GetAccessBindings implements Service.
 func (s *DefaultService) listAccessBindings(ctx context.Context, roleName string, namespace string) ([]api.AccessBinding, error) {
 	// get all the binding in argo namespace
 	namespacedBindings, err := s.k8s.ListAccessBindings(ctx, roleName, namespace)
