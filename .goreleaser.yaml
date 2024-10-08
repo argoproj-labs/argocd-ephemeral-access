@@ -1,0 +1,115 @@
+# The lines below are called `modelines`. See `:help modeline`
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.3.2/www/docs/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+project_name: argocd-ephemeral-access
+version: 2
+
+dist: bin/goreleaser
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+    - make build-ui
+
+builds:
+  - id: ephemeral-access
+    main: ./cmd
+    binary: ephemeral-access
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -v
+    goos:
+      - linux
+      - windows
+      - darwin
+    ldflags:
+      - -X github.com/argoproj-labs/argocd-ephemeral-access/common.version={{ .Version }}
+      - -X github.com/argoproj-labs/argocd-ephemeral-access/common.buildDate={{ .Date }}
+      - -extldflags="-static"
+
+dockers:
+  - image_templates:
+    - quay.io/argoprojlabs/argocd-ephemeral-access:latest
+    - quay.io/argoprojlabs/argocd-ephemeral-access:{{ .Tag }}
+    dockerfile: release.Dockerfile
+    skip_push: "{{ .IsSnapshot }}"
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--platform=linux/amd64"
+
+archives:
+  - id: binary
+    format: tar.gz
+    builds:
+      - "ephemeral-access"
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        format: zip
+  - id: ui-extension
+    format: gz
+    name_template: extension.tar
+    meta: true
+    files: 
+    - src: ui/extension.tar
+      strip_parent: true
+
+checksum:
+  name_template: 'extension_checksums.txt'
+  algorithm: sha256
+
+release:
+  prerelease: auto
+  draft: false
+  header: |
+    ## argocd-ephemeral-access
+    {{ .Date }}
+
+    ### Docker images
+
+    - quay.io/argoprojlabs/argocd-ephemeral-access:{{ .Tag }}
+    - quay.io/argoprojlabs/argocd-ephemeral-access:latest
+
+  footer: |
+    **Full Changelog**: https://github.com/argoproj-labs/argocd-ephemeral-access/compare/{{ .PreviousTag }}...{{ .Tag }}
+    <a href="https://argoproj.github.io/cd/"><img src="https://raw.githubusercontent.com/argoproj/argo-site/c42c87e68cea647eadc1564e9e264621442aa8cf/src/images/icon.png" width="25%" ></a>
+
+changelog:
+  use:
+    github
+  sort: asc
+  abbrev: 0
+  groups: # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
+    - title: 'Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 100
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 200
+    - title: 'Documentation'
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 300
+    - title: 'Dependency updates'
+      regexp: '^.*?(feat|fix|chore)\(deps?.+\)!?:.+$'
+      order: 400
+    - title: 'Other work'
+      order: 999
+  filters:
+    exclude:
+      - '^test:'
+      - '^.*?Bump(\([[:word:]]+\))?.+$'

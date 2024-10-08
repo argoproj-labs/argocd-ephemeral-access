@@ -24,8 +24,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - command:
-            - /backend
+        - args:
+            - backend
           env:
             - name: EPHEMERAL_LOG_LEVEL
               valueFrom:
