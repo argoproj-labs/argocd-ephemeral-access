@@ -54,8 +54,7 @@ type AccessRequestSpec struct {
 	// to once the access is approved
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	// +kubebuilder:validation:MaxLength=512
-	RoleTemplateName string `json:"roleTemplateName"`
+	Role TargetRole `json:"role"`
 	// Application defines the Argo CD Application to assign the elevated
 	// permission
 	// +kubebuilder:validation:Required
@@ -67,13 +66,25 @@ type AccessRequestSpec struct {
 	Subject Subject `json:"subject"`
 }
 
-// TargetApplication defines the Argo CD AppProject to assign the elevated
-// permission
+// TargetApplication defines the Argo CD AppProject to assign the elevated permission
 type TargetApplication struct {
 	// Name refers to the Argo CD Application name
 	Name string `json:"name"`
 	// Namespace refers to the namespace where the Argo CD Application lives
 	Namespace string `json:"namespace"`
+}
+
+// TargetRole defines the role that is requested
+type TargetRole struct {
+	// TemplateName defines the role template the user will be assigned
+	// +kubebuilder:validation:MaxLength=512
+	// +kubebuilder:validation:Required
+	TemplateName string `json:"templateName"`
+	// Ordinal defines an ordering number of this role compared to others
+	Ordinal int `json:"ordinal,omitempty"`
+	// FriendlyName defines a name for this role
+	// +kubebuilder:validation:MaxLength=512
+	FriendlyName *string `json:"friendlyName,omitempty"`
 }
 
 // Subject defines the user details to get elevated permissions assigned
@@ -88,6 +99,7 @@ type AccessRequestStatus struct {
 	TargetProject    string                 `json:"targetProject,omitempty"`
 	ExpiresAt        *metav1.Time           `json:"expiresAt,omitempty"`
 	RoleTemplateHash string                 `json:"roleTemplateHash,omitempty"`
+	RoleName         string                 `json:"roleName,omitempty"`
 	History          []AccessRequestHistory `json:"history,omitempty"`
 }
 

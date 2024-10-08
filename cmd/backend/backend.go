@@ -115,7 +115,8 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error creating a new k8s persister: %w", err)
 	}
-	service := backend.NewDefaultService(persister, logger)
+
+	service := backend.NewDefaultService(persister, logger, "TODO: get namespace from config or env var")
 	handler := backend.NewAPIHandler(service, logger)
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {

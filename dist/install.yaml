@@ -73,12 +73,27 @@ spec:
                   Duration defines the ammount of time that the elevated access
                   will be granted once approved
                 type: string
-              roleTemplateName:
+              role:
                 description: |-
                   TargetRoleName defines the role name the user will be assigned
                   to once the access is approved
-                maxLength: 512
-                type: string
+                properties:
+                  friendlyName:
+                    description: FriendlyName defines a name for this role
+                    maxLength: 512
+                    type: string
+                  ordinal:
+                    description: Ordinal defines an ordering number of this role compared
+                      to others
+                    type: integer
+                  templateName:
+                    description: TemplateName defines the role template the user will
+                      be assigned
+                    maxLength: 512
+                    type: string
+                required:
+                - templateName
+                type: object
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
@@ -98,7 +113,7 @@ spec:
             required:
             - application
             - duration
-            - roleTemplateName
+            - role
             - subject
             type: object
           status:
@@ -125,6 +140,7 @@ spec:
                       - granted
                       - expired
                       - denied
+                      - invalid
                       type: string
                     transitionTime:
                       description: TransitionTime is the time the transition is observed
@@ -144,6 +160,9 @@ spec:
                 - granted
                 - expired
                 - denied
+                - invalid
+                type: string
+              roleName:
                 type: string
               roleTemplateHash:
                 type: string
@@ -630,8 +649,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - /backend
+      - args:
+        - backend
         env:
         - name: EPHEMERAL_LOG_LEVEL
           valueFrom:
@@ -728,8 +747,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - /controller
+      - args:
+        - controller
         env:
         - name: EPHEMERAL_LOG_LEVEL
           valueFrom:

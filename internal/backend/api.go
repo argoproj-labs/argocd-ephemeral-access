@@ -26,25 +26,24 @@ type ArgoCDHeaders struct {
 	ArgoCDUserGroups      string `header:"Argocd-User-Groups" required:"true" example:"group1,group2" doc:"The trusted ArgoCD user groups header. This should be automatically sent by Argo CD API server."`
 	ArgoCDApplicationName string `header:"Argocd-Application-Name" required:"true" example:"some-namespace:app-name" doc:"The trusted ArgoCD application header. This should be automatically sent by Argo CD API server."`
 	ArgoCDProjectName     string `header:"Argocd-Project-Name" required:"true" example:"some-project-name" doc:"The trusted ArgoCD project header. This should be automatically sent by Argo CD API server."`
+	ArgoCDNamespace       string `header:"Argocd-Namespace" required:"true" example:"argocd" doc:"The trusted namespace of the ArgoCD control plane. This should be automatically sent by Argo CD API server."`
 }
 
-// GetAccessRequestInput defines the get access input parameters.
-type GetAccessRequestInput struct {
-	ArgoCDHeaders
-	Name      string `path:"name" example:"some-name" doc:"The access request name."`
-	Namespace string `query:"namespace" example:"some-namespace" doc:"The namespace to use while searching for the access request."`
+func (h *ArgoCDHeaders) Application() (namespace string, name string, err error) {
+	parts := strings.Split(h.ArgoCDApplicationName, ":")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", "Argocd-Application-Name")
+	}
+	return parts[0], parts[1], nil
 }
 
-// GetAccessRequestResponse defines the get access response parameters.
-type GetAccessRequestResponse struct {
-	Body AccessRequestResponseBody
+func (h *ArgoCDHeaders) Groups() []string {
+	return strings.Split(h.ArgoCDUserGroups, ",")
 }
 
 // ListAccessRequestInput defines the list access input parameters.
 type ListAccessRequestInput struct {
 	ArgoCDHeaders
-	Username string `query:"username" example:"some-user@acme.org" doc:"Will search for all access requests for the given username."`
-	AppName  string `query:"appName" example:"namespace:some-app-name" doc:"Will search for all access requests for the given application (format <namespace>:<name>)."`
 }
 
 // ListAccessRequestResponse defines the list access response parameters.
@@ -65,8 +64,7 @@ type CreateAccessRequestInput struct {
 
 // CreateAccessRequestBody defines the create access response body.
 type CreateAccessRequestBody struct {
-	Username    string `json:"username" example:"some-user@acme.org" doc:"The user to be associated with the access request."`
-	Application string `json:"appName" example:"some-namespace:app-name" doc:"The application to be associated with the access request (format <namespace>:<name>)."`
+	RoleName string `json:"roleName" example:"custom-role" doc:"The role name to request."`
 }
 
 // CreateAccessRequestResponse defines the create access response.
@@ -81,10 +79,10 @@ type AccessRequestResponseBody struct {
 	Namespace   string `json:"namespace" example:"some-namespace" doc:"The access request namespace."`
 	Username    string `json:"username" example:"some-user@acme.org" doc:"The user associated with the access request."`
 	Permission  string `json:"permission" example:"ReadOnly" doc:"The current permission description for the user."`
-	RequestedAt string `json:"requestedAt,omitempty" format:"date-time" example:"2024-02-14T18:25:50Z" doc:"The timestamp the access was requested (RFC3339 format)."`
+	RequestedAt string `json:"requestedAt,omitempty" example:"2024-02-14T18:25:50Z" doc:"The timestamp the access was requested (RFC3339 format)." format:"date-time"`
 	Role        string `json:"role,omitempty" example:"DevOps" doc:"The current role the user is associated with."`
-	Status      string `json:"status,omitempty" enum:"REQUESTED,GRANTED,EXPIRED,DENIED" example:"GRANTED" doc:"The current access request status."`
-	ExpiresAt   string `json:"expiresAt,omitempty" format:"date-time" example:"2024-02-14T18:25:50Z" doc:"The timestamp the access will expire (RFC3339 format)."`
+	Status      string `json:"status,omitempty" example:"GRANTED" doc:"The current access request status." enum:"REQUESTED,GRANTED,EXPIRED,DENIED,INVALID"`
+	ExpiresAt   string `json:"expiresAt,omitempty" example:"2024-02-14T18:25:50Z" doc:"The timestamp the access will expire (RFC3339 format)." format:"date-time"`
 	Message     string `json:"message,omitempty" example:"Click the link to see more details: ..." doc:"A human readeable description with details about the access request."`
 }
 
@@ -103,36 +101,90 @@ func NewAPIHandler(s Service, logger log.Logger) *APIHandler {
 	}
 }
 
-// getAccessRequestHandler is the handler implementation of the get access request
-// operation.
-func (h *APIHandler) getAccessRequestHandler(ctx context.Context, input *GetAccessRequestInput) (*GetAccessRequestResponse, error) {
-	ar, err := h.service.GetAccessRequest(ctx, input.Name, input.Namespace)
-	if err != nil {
-		h.logger.Error(err, "error getting accessrequest")
-		return nil, huma.Error500InternalServerError(fmt.Sprintf("error retrieving access request for %s/%s", input.Namespace, input.Name), err)
-	}
-
-	if ar == nil {
-		return nil, huma.Error404NotFound(fmt.Sprintf("AccessRequest %s/%s not found", input.Namespace, input.Name))
-	}
-
-	return &GetAccessRequestResponse{
-		Body: toAccessRequestResponseBody(ar),
-	}, nil
-}
-
-// TODO implementation
 func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAccessRequestInput) (*ListAccessRequestResponse, error) {
-	return nil, huma.Error501NotImplemented("not implemented")
+	appNamespace, appName, err := input.Application()
+	if err != nil {
+		return nil, huma.Error400BadRequest("error getting application name", err)
+	}
+
+	key := &AccessRequestKey{
+		Namespace:            input.ArgoCDNamespace,
+		ApplicationName:      appName,
+		ApplicationNamespace: appNamespace,
+		Username:             input.ArgoCDUsername,
+	}
+
+	accessRequests, err := h.service.ListAccessRequests(ctx, key, true)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error listing access request for user %s", key.Username), err))
+	}
+
+	return &ListAccessRequestResponse{Body: toListAccessRequestResponseBody(accessRequests)}, nil
 }
 
-// TODO implementation
 func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *CreateAccessRequestInput) (*CreateAccessRequestResponse, error) {
-	return nil, huma.Error501NotImplemented("not implemented")
+	appNamespace, appName, err := input.Application()
+	if err != nil {
+		return nil, huma.Error400BadRequest("invalid application", err)
+	}
+
+	// Check if AR already exist
+	key := &AccessRequestKey{
+		Namespace:            input.ArgoCDNamespace,
+		ApplicationName:      appName,
+		ApplicationNamespace: appNamespace,
+		Username:             input.ArgoCDUsername,
+	}
+	ar, err := h.service.GetAccessRequestByRole(ctx, key, input.Body.RoleName)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error retrieving existing access request for user %s with role %s", key.Username, input.Body.RoleName), err))
+	}
+	if ar != nil {
+		return nil, huma.Error409Conflict("Access Request already exist")
+	}
+
+	// Validate information in headers necessary to evaluate permissions
+	app, err := h.service.GetApplication(ctx, appName, appNamespace)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError("error getting application", err))
+	}
+	if app == nil {
+		return nil, huma.Error400BadRequest("invalid application", err)
+	}
+
+	project, err := h.service.GetAppProject(ctx, input.ArgoCDProjectName, input.ArgoCDNamespace)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError("error getting project", err))
+	}
+	if project == nil {
+		return nil, huma.Error400BadRequest("invalid project", err)
+	}
+
+	// Evaluate permissions
+	grantingBinding, err := h.service.GetGrantingAccessBinding(ctx, input.Body.RoleName, input.ArgoCDNamespace, input.Groups(), app, project)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError("error getting access binding", err))
+	}
+	if grantingBinding == nil {
+		return nil, huma.Error403Forbidden(fmt.Sprintf("not allowed to request role %s", input.Body.RoleName))
+	}
+
+	// Create Access Request
+	ar, err = h.service.CreateAccessRequest(ctx, key, grantingBinding)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error creating access request for role %s", grantingBinding.Spec.RoleTemplateRef.Name), err))
+	}
+
+	return &CreateAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
+
 }
 
-// toAccessRequestResponseBody will convert the given ar into an
-// AccessRequestResponseBody.
+func (h *APIHandler) loggedError(err huma.StatusError) huma.StatusError {
+	h.logger.Error(err, "backend error")
+	return err
+}
+
+// toAccessRequestResponseBody will convert the given ar into an AccessRequestResponseBody.
 func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBody {
 	expiresAt := ""
 	if ar.Status.ExpiresAt != nil {
@@ -140,31 +192,42 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 	}
 	requestedAt := ""
 	if len(ar.Status.History) > 0 {
-		requestedAt = ar.Status.History[0].TransitionTime.Format(time.RFC3339)
+		for _, h := range ar.Status.History {
+			if h.RequestState == api.RequestedStatus {
+				requestedAt = ar.Status.History[0].TransitionTime.Format(time.RFC3339)
+				break
+			}
+		}
+	}
+	message := ""
+	if len(ar.Status.History) > 0 && ar.Status.History[len(ar.Status.History)-1].Details != nil {
+		message = *ar.Status.History[len(ar.Status.History)-1].Details
+	}
+
+	permission := ar.Spec.Role.TemplateName
+	if ar.Spec.Role.FriendlyName != nil {
+		permission = *ar.Spec.Role.FriendlyName
 	}
 
 	return AccessRequestResponseBody{
 		Name:        ar.GetName(),
 		Namespace:   ar.GetNamespace(),
 		Username:    ar.Spec.Subject.Username,
-		Permission:  "ReadOnly",
+		Permission:  permission,
 		RequestedAt: requestedAt,
-		Role:        "",
+		Role:        ar.Spec.Role.TemplateName,
 		Status:      strings.ToUpper(string(ar.Status.RequestState)),
 		ExpiresAt:   expiresAt,
-		Message:     "",
+		Message:     message,
 	}
 }
 
-// getAccessRequestOperation defines the get access request operation.
-func getAccessRequestOperation() huma.Operation {
-	return huma.Operation{
-		OperationID: "get-accessrequest-by-name",
-		Method:      http.MethodGet,
-		Path:        "/accessrequests/{name}",
-		Summary:     "Get AccessRequest",
-		Description: "Will retrieve the accessrequest by name",
+func toListAccessRequestResponseBody(accessRequests []*api.AccessRequest) ListAccessRequestResponseBody {
+	items := []AccessRequestResponseBody{}
+	for _, ar := range accessRequests {
+		items = append(items, toAccessRequestResponseBody(ar))
 	}
+	return ListAccessRequestResponseBody{Items: items}
 }
 
 // listAccessRequestOperation defines the list access requests operation.
@@ -174,7 +237,7 @@ func listAccessRequestOperation() huma.Operation {
 		Method:      http.MethodGet,
 		Path:        "/accessrequests",
 		Summary:     "List AccessRequests",
-		Description: "Will retrieve a list of accessrequests respecting the search criteria provided as query params.",
+		Description: "Will retrieve an ordered list of access requests for the given context",
 	}
 }
 
@@ -185,14 +248,13 @@ func createAccessRequestOperation() huma.Operation {
 		Method:      http.MethodPost,
 		Path:        "/accessrequests",
 		Summary:     "Create AccessRequest",
-		Description: "Will create an access request for the given user and application.",
+		Description: "Will create an access request for the given role and context",
 	}
 }
 
 // RegisterRoutes will register all routes provided by the access request REST API
 // in the given api.
 func RegisterRoutes(api huma.API, h *APIHandler) {
-	huma.Register(api, getAccessRequestOperation(), h.getAccessRequestHandler)
 	huma.Register(api, listAccessRequestOperation(), h.listAccessRequestHandler)
 	huma.Register(api, createAccessRequestOperation(), h.createAccessRequestHandler)
 }

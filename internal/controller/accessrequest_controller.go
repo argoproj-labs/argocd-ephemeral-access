@@ -54,7 +54,7 @@ const (
 	// AccessRequestFinalizerName defines the name of the AccessRequest finalizer
 	// managed by this controller
 	AccessRequestFinalizerName = "accessrequest.ephemeral-access.argoproj-labs.io/finalizer"
-	roleTemplateField          = ".spec.roleTemplateName"
+	roleTemplateField          = ".spec.role.templateName"
 	projectField               = ".status.targetProject"
 	userField                  = ".spec.subject.username"
 	appField                   = ".spec.application.name"
@@ -139,7 +139,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	roleTemplate, err := r.getRoleTemplate(ctx, ar)
 	if err != nil {
 		// TODO send an event to explain why the access request is failing
-		return ctrl.Result{}, fmt.Errorf("error getting RoleTemplate %s: %w", ar.Spec.RoleTemplateName, err)
+		return ctrl.Result{}, fmt.Errorf("error getting RoleTemplate %s: %w", ar.Spec.Role.TemplateName, err)
 	}
 
 	renderedRt, err := roleTemplate.Render(application.Spec.Project, application.GetName(), application.GetNamespace())
@@ -152,6 +152,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Debug("Initializing status")
 		ar.UpdateStatusHistory(api.RequestedStatus, "")
 		ar.Status.TargetProject = application.Spec.Project
+		ar.Status.RoleName = renderedRt.AppProjectRoleName(application.GetName(), application.GetNamespace())
 		ar.Status.RoleTemplateHash = RoleTemplateHash(renderedRt)
 		r.Status().Update(ctx, ar)
 	}
@@ -200,7 +201,7 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 			continue
 		}
 		// skip if the request is for different role template
-		if arResp.Spec.RoleTemplateName != ar.Spec.RoleTemplateName {
+		if arResp.Spec.Role.TemplateName != ar.Spec.Role.TemplateName {
 			continue
 		}
 		// if the existing request is pending or granted, then the new request is
@@ -269,7 +270,7 @@ func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.Ac
 func (r *AccessRequestReconciler) getRoleTemplate(ctx context.Context, ar *api.AccessRequest) (*api.RoleTemplate, error) {
 	roleTemplate := &api.RoleTemplate{}
 	objKey := client.ObjectKey{
-		Name:      ar.Spec.RoleTemplateName,
+		Name:      ar.Spec.Role.TemplateName,
 		Namespace: ar.GetNamespace(),
 	}
 	err := r.Get(ctx, objKey, roleTemplate)
@@ -462,10 +463,10 @@ func createRoleTemplateIndex(mgr ctrl.Manager) error {
 	err := mgr.GetFieldIndexer().
 		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateField, func(rawObj client.Object) []string {
 			ar := rawObj.(*api.AccessRequest)
-			if ar.Spec.RoleTemplateName == "" {
+			if ar.Spec.Role.TemplateName == "" {
 				return nil
 			}
-			return []string{ar.Spec.RoleTemplateName}
+			return []string{ar.Spec.Role.TemplateName}
 		})
 	if err != nil {
 		return fmt.Errorf("error creating roleTemplateName field index: %w", err)

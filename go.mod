@@ -7,6 +7,7 @@ toolchain go1.22.3
 require (
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08
 	github.com/danielgtaylor/huma/v2 v2.22.1
+	github.com/expr-lang/expr v1.16.9
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-logr/logr v1.4.1
 	github.com/go-logr/zapr v1.3.0
