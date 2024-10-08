@@ -46,7 +46,8 @@ var requestStateOrder = map[api.Status]int{
 	api.RequestedStatus: 0,
 	api.GrantedStatus:   1,
 	api.DeniedStatus:    2,
-	api.ExpiredStatus:   3,
+	api.InvalidStatus:   3,
+	api.ExpiredStatus:   4,
 }
 
 // NewDefaultService will return a new DefaultService instance.

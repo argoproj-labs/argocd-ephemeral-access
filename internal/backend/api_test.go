@@ -740,6 +740,23 @@ func Test_toAccessRequestResponseBody(t *testing.T) {
 			},
 		},
 		{
+			name:          "access request invalid",
+			accessRequest: utils.NewAccessRequestInvalid(utils.WithRole()),
+			expected: func(ar *api.AccessRequest) backend.AccessRequestResponseBody {
+				return backend.AccessRequestResponseBody{
+					Name:        ar.GetName(),
+					Namespace:   ar.GetNamespace(),
+					Username:    ar.Spec.Subject.Username,
+					Role:        ar.Spec.Role.TemplateName,
+					Permission:  *ar.Spec.Role.FriendlyName,
+					RequestedAt: "",
+					Status:      strings.ToUpper(string(ar.Status.RequestState)),
+					ExpiresAt:   "",
+					Message:     *getHistoryForStatus(ar.Status.History, api.InvalidStatus).Details,
+				}
+			},
+		},
+		{
 			name:          "access request requested",
 			accessRequest: utils.NewAccessRequestRequested(utils.WithRole()),
 			expected: func(ar *api.AccessRequest) backend.AccessRequestResponseBody {

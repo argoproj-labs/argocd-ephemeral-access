@@ -201,7 +201,7 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 			continue
 		}
 		// skip if the request is for different role template
-		if arResp.Spec.RoleTemplateName != ar.Spec.RoleTemplateName {
+		if arResp.Spec.Role.TemplateName != ar.Spec.Role.TemplateName {
 			continue
 		}
 		// if the existing request is pending or granted, then the new request is

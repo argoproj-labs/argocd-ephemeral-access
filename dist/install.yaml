@@ -140,6 +140,7 @@ spec:
                       - granted
                       - expired
                       - denied
+                      - invalid
                       type: string
                     transitionTime:
                       description: TransitionTime is the time the transition is observed
@@ -159,6 +160,7 @@ spec:
                 - granted
                 - expired
                 - denied
+                - invalid
                 type: string
               roleName:
                 type: string
@@ -647,8 +649,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - /backend
+      - args:
+        - backend
         env:
         - name: EPHEMERAL_LOG_LEVEL
           valueFrom:
@@ -745,8 +747,8 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - /controller
+      - args:
+        - controller
         env:
         - name: EPHEMERAL_LOG_LEVEL
           valueFrom:

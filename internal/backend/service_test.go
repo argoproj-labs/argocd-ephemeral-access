@@ -447,6 +447,9 @@ func Test_defaultAccessRequestSort(t *testing.T) {
 		requested := created.DeepCopy()
 		utils.ToRequestedState()(requested)
 
+		invalid := created.DeepCopy()
+		utils.ToInvalidState()(invalid)
+
 		granted := requested.DeepCopy()
 		utils.ToGrantedState()(granted)
 
@@ -462,19 +465,21 @@ func Test_defaultAccessRequestSort(t *testing.T) {
 			granted,
 			created,
 			requested,
+			invalid,
 		}
 
 		// When
 		slices.SortStableFunc(items, backend.DefaultAccessRequestSort)
 
 		// Then
-		require.Equal(t, 5, len(items))
+		require.Equal(t, 6, len(items))
 		// compare each object because it makes it easier to investigate on test failures
 		require.Equal(t, created, items[0])
 		require.Equal(t, requested, items[1])
 		require.Equal(t, granted, items[2])
 		require.Equal(t, denied, items[3])
-		require.Equal(t, expired, items[4])
+		require.Equal(t, invalid, items[4])
+		require.Equal(t, expired, items[5])
 	})
 	t.Run("array should be ordered by role ordinal for the same status", func(t *testing.T) {
 		// Given

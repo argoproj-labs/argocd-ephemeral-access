@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 )
 
@@ -210,6 +211,21 @@ func WithName(name string) AccessRequestMutation {
 	}
 }
 
+func ToInvalidState() AccessRequestMutation {
+	return func(ar *api.AccessRequest) {
+		ar.Status = api.AccessRequestStatus{
+			RequestState: api.InvalidStatus,
+			History: []api.AccessRequestHistory{
+				{
+					TransitionTime: metav1.Now(),
+					RequestState:   api.InvalidStatus,
+					Details:        ptr.To("invalid for some reasons"),
+				},
+			},
+		}
+	}
+}
+
 func ToRequestedState() AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		ar.Status = api.AccessRequestStatus{
@@ -219,8 +235,8 @@ func ToRequestedState() AccessRequestMutation {
 			RoleTemplateHash: "0123456789",
 			History: []api.AccessRequestHistory{
 				{
-					RequestState:   api.RequestedStatus,
 					TransitionTime: metav1.Now(),
+					RequestState:   api.RequestedStatus,
 				},
 			},
 		}
@@ -243,12 +259,11 @@ func ToGrantedState() AccessRequestMutation {
 func ToDeniedState() AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		now := metav1.Now()
-		details := "Denied because this is a test"
 		ar.Status.RequestState = api.DeniedStatus
 		ar.Status.History = append(ar.Status.History, api.AccessRequestHistory{
 			TransitionTime: now,
 			RequestState:   api.DeniedStatus,
-			Details:        &details,
+			Details:        ptr.To("Denied because this is a test"),
 		})
 	}
 }
@@ -298,6 +313,10 @@ func NewAccessRequestCreated(transformers ...AccessRequestMutation) *api.AccessR
 		t(ar)
 	}
 	return ar
+}
+
+func NewAccessRequestInvalid(transformers ...AccessRequestMutation) *api.AccessRequest {
+	return NewAccessRequestCreated(append([]AccessRequestMutation{ToInvalidState()}, transformers...)...)
 }
 
 func NewAccessRequestRequested(transformers ...AccessRequestMutation) *api.AccessRequest {
