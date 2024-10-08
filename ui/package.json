@@ -1,5 +1,5 @@
 {
-  "name": "@ashutosh16/argocd-ephemeral-access",
+  "name": "argocd-ephemeral-access",
   "version": "0.1.1",
   "private": false,
   "dependencies": {

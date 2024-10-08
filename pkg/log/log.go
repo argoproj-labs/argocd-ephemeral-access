@@ -24,7 +24,10 @@ const (
 	JsonFormat LogFormat = "json"
 )
 
+// LogLevel can be DebugLevel or InfoLevel
 type LogLevel string
+
+// LogFormat can be TextFormat or JsonFormat
 type LogFormat string
 
 // String will return the string representation for this LogLevel

@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package backend
 
 import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
@@ -30,6 +29,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/humacli"
 	"github.com/go-chi/chi/v5"
 	"github.com/sethvargo/go-envconfig"
+	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -83,30 +83,37 @@ func readEnvConfigs() (*Options, error) {
 	return &config, nil
 }
 
-func main() {
+func NewCommand() *cobra.Command {
+	command := cobra.Command{
+		Use:               "backend",
+		Short:             "Run the Ephemeral Access backend service",
+		Long:              "The Argo CD Ephemeral Access extension requires this backend service to operate. It serves the REST API used by the UI extension.",
+		DisableAutoGenTag: true,
+		RunE:              run,
+	}
+	return &command
+}
+
+func run(cmd *cobra.Command, args []string) error {
 	opts, err := readEnvConfigs()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error retrieving configurations: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error retrieving configurations: %s", err)
 	}
 
 	level := log.LogLevel(opts.Log.Level)
 	format := log.LogFormat(opts.Log.Format)
 	logger, err := log.New(log.WithLevel(level), log.WithFormat(format))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error creating logger: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error creating logger: %s", err)
 	}
 
 	restConfig, err := newRestConfig(opts.Backend.Kubeconfig, logger)
 	if err != nil {
-		logger.Error(err, "error creating new rest config")
-		os.Exit(1)
+		return fmt.Errorf("error creating new rest config: %w", err)
 	}
 	persister, err := backend.NewK8sPersister(restConfig, logger)
 	if err != nil {
-		logger.Error(err, "error creating a new k8s persister")
-		os.Exit(1)
+		return fmt.Errorf("error creating a new k8s persister: %w", err)
 	}
 
 	service := backend.NewDefaultService(persister, logger, "TODO: get namespace from config or env var")
@@ -157,6 +164,7 @@ func main() {
 		})
 	})
 	cli.Run()
+	return nil
 }
 
 func shutdownServer(server *http.Server) {
