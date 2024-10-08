@@ -172,9 +172,9 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 }
 
 func (s *DefaultService) getAccessRequestPrefix(username, roleName string) string {
-	prefix := fmt.Sprintf("%s-", "TODO")
+	prefix := strings.ToLower(fmt.Sprintf("%s-", "TODO"))
 	if len(validation.NameIsDNSSubdomain(prefix, true)) != 0 {
-		prefix = "TODO-fallback-"
+		prefix = strings.ToLower("TODO-fallback-")
 	}
 	return prefix
 }

@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
@@ -16,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -31,6 +31,8 @@ type serviceFixture struct {
 func serviceSetup(t *testing.T) *serviceFixture {
 	persister := mocks.NewMockPersister(t)
 	logger := mocks.NewMockLogger(t)
+	logger.EXPECT().Debug(mock.Anything, mock.Anything).Maybe()
+	logger.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
 	svc := backend.NewDefaultService(persister, logger, ControllerNamespace)
 	return &serviceFixture{
 		persister: persister,
@@ -41,21 +43,153 @@ func serviceSetup(t *testing.T) *serviceFixture {
 
 func TestServiceCreateAccessRequest(t *testing.T) {
 	t.Run("will create access request successfully", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		key := &backend.AccessRequestKey{
+			Namespace:            "some-namespace",
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		ab := newDefaultAccessBinding()
+		f.persister.EXPECT().CreateAccessRequest(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
+			return ar, nil
+		})
+
+		// When
+		result, err := f.svc.CreateAccessRequest(context.Background(), key, ab)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "todo-", result.GetGenerateName())
+		assert.Equal(t, key.Namespace, result.GetNamespace())
+		assert.Equal(t, key.ApplicationName, result.Spec.Application.Name)
+		assert.Equal(t, key.ApplicationNamespace, result.Spec.Application.Namespace)
+		assert.Equal(t, key.Username, result.Spec.Subject.Username)
+		assert.Equal(t, ab.Spec.FriendlyName, result.Spec.Role.FriendlyName)
+		assert.Equal(t, ab.Spec.Ordinal, result.Spec.Role.Ordinal)
+		assert.Equal(t, ab.Spec.RoleTemplateRef.Name, result.Spec.Role.TemplateName)
 	})
 	t.Run("will return error if k8s request fails", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		key := &backend.AccessRequestKey{
+			Namespace:            "some-namespace",
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		ab := newDefaultAccessBinding()
+		f.persister.EXPECT().CreateAccessRequest(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("some internal error"))
+
+		// When
+		result, err := f.svc.CreateAccessRequest(context.Background(), key, ab)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
 	})
 }
 
 func TestServiceListAccessRequest(t *testing.T) {
 	t.Run("will return access request successfully", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		key := &backend.AccessRequestKey{
+			Namespace:            "some-namespace",
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		ar := newAccessRequest(key, "some-role")
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*ar}}, nil)
+
+		// When
+		result, err := f.svc.ListAccessRequests(context.Background(), key, false)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, len(result))
+		assert.Equal(t, ar, result[0])
 	})
 	t.Run("will return error if k8s request fails", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		key := &backend.AccessRequestKey{
+			Namespace:            "some-namespace",
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(nil, fmt.Errorf("some internal error"))
+
+		// When
+		result, err := f.svc.ListAccessRequests(context.Background(), key, false)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
 	})
 	t.Run("will filter expired access request", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		key := &backend.AccessRequestKey{
+			Namespace:            "some-namespace",
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		ar := newAccessRequest(key, "some-role")
+		ar2 := newAccessRequest(key, "some-role")
+		utils.ToRequestedState()(ar2)
+		utils.ToGrantedState()(ar2)
+		utils.ToExpiredState()(ar2)
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*ar, *ar2}}, nil)
+
+		// When
+		result, err := f.svc.ListAccessRequests(context.Background(), key, false)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, 1, len(result))
+		assert.Equal(t, ar, result[0])
 	})
 	t.Run("will sort access request", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		key := &backend.AccessRequestKey{
+			Namespace:            "some-namespace",
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		ar := newAccessRequest(key, "some-role")
+		ar2 := newAccessRequest(key, "some-role")
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*ar2, *ar}}, nil)
+
+		// When
+		result, err := f.svc.ListAccessRequests(context.Background(), key, false)
+		resultSorted, errSorted := f.svc.ListAccessRequests(context.Background(), key, true)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NoError(t, errSorted)
+		assert.NotNil(t, result)
+		assert.NotNil(t, resultSorted)
+		assert.Equal(t, 2, len(result))
+		assert.Equal(t, 2, len(resultSorted))
+		assert.Equal(t, ar, result[1])
+		assert.Equal(t, ar2, result[0])
+		assert.Equal(t, ar, resultSorted[0])
+		assert.Equal(t, ar2, resultSorted[1])
 	})
 }
+
 func TestServiceGetAccessRequestByRole(t *testing.T) {
 	t.Run("will return most important access request matching role", func(t *testing.T) {
 		// Given
@@ -68,7 +202,7 @@ func TestServiceGetAccessRequestByRole(t *testing.T) {
 		}
 		roleName := "some-role"
 		ar := newAccessRequest(key, roleName)
-		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&v1alpha1.AccessRequestList{Items: []v1alpha1.AccessRequest{*ar}}, nil)
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*ar}}, nil)
 
 		// When
 		result, err := f.svc.GetAccessRequestByRole(context.Background(), key, roleName)
@@ -89,7 +223,7 @@ func TestServiceGetAccessRequestByRole(t *testing.T) {
 			Username:             "some-user",
 		}
 		roleName := "some-role"
-		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&v1alpha1.AccessRequestList{}, nil)
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{}, nil)
 
 		// When
 		ar, err := f.svc.GetAccessRequestByRole(context.Background(), key, roleName)
@@ -117,25 +251,179 @@ func TestServiceGetAccessRequestByRole(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "some internal error")
 	})
-
 }
 
 func TestServiceGetGrantingAccessBinding(t *testing.T) {
-	t.Run("will not return binding when granting", func(t *testing.T) {
+	t.Run("will return binding when granting in target namespace", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{}
+		project := &unstructured.Unstructured{}
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := "my-subject"
+		groups := []string{subject}
+		ab := newAccessBinding(namespace, roleName, subject)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{}, nil)
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, ab, result)
 	})
-	t.Run("will get access binding from target namespace", func(t *testing.T) {
-	})
-	t.Run("will get access binding from controller namespace", func(t *testing.T) {
+	t.Run("will return binding when granting in controller namespace", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{}
+		project := &unstructured.Unstructured{}
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := "my-subject"
+		groups := []string{subject}
+		ab := newAccessBinding(namespace, roleName, subject)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{}, nil)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil)
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, ab, result)
 	})
 	t.Run("will prioritize access binding from target namespace", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{}
+		project := &unstructured.Unstructured{}
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := "my-subject"
+		groups := []string{subject}
+		ab := newAccessBinding(namespace, roleName, subject)
+		ab2 := newAccessBinding(namespace, roleName, subject)
+		ab2.Name = "controller-binding"
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab2}}, nil)
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, ab, result)
 	})
-	t.Run("will return error if k8s request fails", func(t *testing.T) {
+	t.Run("will return error if k8s request fails for target namespace", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{}
+		project := &unstructured.Unstructured{}
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := "my-subject"
+		groups := []string{subject}
+		ab := newAccessBinding(namespace, roleName, subject)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(nil, fmt.Errorf("some internal error"))
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil).Maybe()
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
+	})
+	t.Run("will return error if k8s request fails for controller namespace", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{}
+		project := &unstructured.Unstructured{}
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := "my-subject"
+		groups := []string{subject}
+		ab := newAccessBinding(namespace, roleName, subject)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil).Maybe()
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(nil, fmt.Errorf("some internal error"))
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
 	})
 	t.Run("will return nil if no bindings are found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{}
+		project := &unstructured.Unstructured{}
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := "my-subject"
+		groups := []string{subject}
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{}, nil)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{}, nil)
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Nil(t, result)
 	})
 	t.Run("will return nil if no bindings are granting", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{}
+		project := &unstructured.Unstructured{}
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := "my-subject"
+		groups := []string{"another-subject-that-does-not-match"}
+		ab := newAccessBinding(namespace, roleName, subject)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{}, nil)
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Nil(t, result)
 	})
 	t.Run("will not fail if the binding template is invalid", func(t *testing.T) {
+		// Given
+		var errorMsg string
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{}
+		project := &unstructured.Unstructured{}
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := "{{ invalid go template }}"
+		groups := []string{"some group"}
+		ab := newAccessBinding(namespace, roleName, subject)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{}, nil)
+		f.logger.EXPECT().Error(mock.Anything, mock.Anything).Run(func(err error, msg string, keysAndValues ...interface{}) {
+			errorMsg = msg
+		}).Once()
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, errorMsg, "cannot render subjects")
 	})
 }
 

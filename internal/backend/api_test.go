@@ -75,7 +75,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 		roleName := "my-custom-role"
 		group := "group1"
 		ar := utils.NewAccessRequestCreated(utils.WithName("created"))
-		arBinding := newAccessBinding(group)
+		arBinding := newDefaultAccessBinding()
 		key := &backend.AccessRequestKey{
 			Namespace:            ar.GetNamespace(),
 			ApplicationName:      ar.Spec.Application.Name,
@@ -389,7 +389,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 		roleName := "my-custom-role"
 		group := "group1"
 		ar := utils.NewAccessRequestCreated(utils.WithName("created"))
-		arBinding := newAccessBinding(group)
+		arBinding := newDefaultAccessBinding()
 		key := &backend.AccessRequestKey{
 			Namespace:            ar.GetNamespace(),
 			ApplicationName:      ar.Spec.Application.Name,

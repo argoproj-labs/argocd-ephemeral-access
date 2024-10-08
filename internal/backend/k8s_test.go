@@ -234,7 +234,7 @@ func TestK8sPersister(t *testing.T) {
 
 		roleName := "some-role"
 
-		ab := newAccessBinding("")
+		ab := newDefaultAccessBinding()
 		ab.ObjectMeta.Namespace = nsName
 		ab.ObjectMeta.Name = "ab-expected"
 		ab.Spec.RoleTemplateRef.Name = roleName
@@ -271,21 +271,21 @@ func TestK8sPersister(t *testing.T) {
 
 		roleName := "some-role"
 
-		ab := newAccessBinding("")
+		ab := newDefaultAccessBinding()
 		ab.ObjectMeta.Namespace = nsName
 		ab.ObjectMeta.Name = "ab-expected"
 		ab.Spec.RoleTemplateRef.Name = roleName
 		err = k8sClient.Create(ctx, ab)
 		assert.NoError(t, err)
 
-		abNs := newAccessBinding("")
+		abNs := newDefaultAccessBinding()
 		abNs.ObjectMeta.Namespace = otherNsName
 		abNs.ObjectMeta.Name = "ab-other-ns"
 		abNs.Spec.RoleTemplateRef.Name = roleName
 		err = k8sClient.Create(ctx, abNs)
 		assert.NoError(t, err)
 
-		abRole := newAccessBinding("")
+		abRole := newDefaultAccessBinding()
 		abRole.ObjectMeta.Namespace = nsName
 		abRole.ObjectMeta.Name = "ab-other-role"
 		abRole.Spec.RoleTemplateRef.Name = "other-role"
