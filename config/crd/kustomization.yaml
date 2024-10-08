@@ -7,6 +7,7 @@ kind: Kustomization
 resources:
   - bases/ephemeral-access.argoproj-labs.io_accessrequests.yaml
   - bases/ephemeral-access.argoproj-labs.io_roletemplates.yaml
+  - bases/ephemeral-access.argoproj-labs.io_accessbindings.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 # patches:
