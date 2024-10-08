@@ -76,34 +76,49 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		return nil, fmt.Errorf("error creating cluster cache: %w", err)
 	}
 
-	cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestUsernameField, func(obj client.Object) []string {
+	err = cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestUsernameField, func(obj client.Object) []string {
 		ar, ok := obj.(*api.AccessRequest)
 		if !ok || ar == nil || ar.Spec.Subject.Username == "" {
 			return nil
 		}
 		return []string{ar.Spec.Subject.Username}
 	})
-	cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestAppNamespaceField, func(obj client.Object) []string {
+	if err != nil {
+		return nil, fmt.Errorf("error adding AccessRequest index for field %s: %w", accessRequestUsernameField, err)
+	}
+
+	err = cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestAppNamespaceField, func(obj client.Object) []string {
 		ar, ok := obj.(*api.AccessRequest)
 		if !ok || ar == nil || ar.Spec.Application.Namespace == "" {
 			return nil
 		}
 		return []string{ar.Spec.Application.Namespace}
 	})
-	cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestAppNameField, func(obj client.Object) []string {
+	if err != nil {
+		return nil, fmt.Errorf("error adding AccessRequest index for field %s: %w", accessRequestAppNamespaceField, err)
+	}
+
+	err = cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestAppNameField, func(obj client.Object) []string {
 		ar, ok := obj.(*api.AccessRequest)
 		if !ok || ar == nil || ar.Spec.Application.Name == "" {
 			return nil
 		}
 		return []string{ar.Spec.Application.Name}
 	})
-	cache.IndexField(context.Background(), &api.AccessBinding{}, accessBindingRoleField, func(obj client.Object) []string {
+	if err != nil {
+		return nil, fmt.Errorf("error adding AccessRequest index for field %s: %w", accessRequestAppNameField, err)
+	}
+
+	err = cache.IndexField(context.Background(), &api.AccessBinding{}, accessBindingRoleField, func(obj client.Object) []string {
 		b, ok := obj.(*api.AccessBinding)
 		if !ok || b == nil || b.Spec.RoleTemplateRef.Name == "" {
 			return nil
 		}
 		return []string{b.Spec.RoleTemplateRef.Name}
 	})
+	if err != nil {
+		return nil, fmt.Errorf("error adding AccessBinding index for field %s: %w", accessBindingRoleField, err)
+	}
 
 	clientOpts := client.Options{
 		HTTPClient: httpClient,
