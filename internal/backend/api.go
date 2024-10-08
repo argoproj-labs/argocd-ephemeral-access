@@ -41,17 +41,6 @@ func (h *ArgoCDHeaders) Groups() []string {
 	return strings.Split(h.ArgoCDUserGroups, ",")
 }
 
-// GetAccessRequestInput defines the get access input parameters.
-type GetAccessRequestInput struct {
-	ArgoCDHeaders
-	RoleName string `path:"roleName" example:"custom-role" doc:"The role name to request."`
-}
-
-// GetAccessRequestResponse defines the get access response parameters.
-type GetAccessRequestResponse struct {
-	Body AccessRequestResponseBody
-}
-
 // ListAccessRequestInput defines the list access input parameters.
 type ListAccessRequestInput struct {
 	ArgoCDHeaders
@@ -110,32 +99,6 @@ func NewAPIHandler(s Service, logger log.Logger) *APIHandler {
 		service: s,
 		logger:  logger,
 	}
-}
-
-// getAccessRequestHandler is the handler implementation of the get access request operation.
-func (h *APIHandler) getAccessRequestHandler(ctx context.Context, input *GetAccessRequestInput) (*GetAccessRequestResponse, error) {
-	appNamespace, appName, err := input.Application()
-	if err != nil {
-		return nil, huma.Error400BadRequest("error getting application name", err)
-	}
-
-	key := &AccessRequestKey{
-		Namespace:            input.ArgoCDNamespace,
-		ApplicationName:      appName,
-		ApplicationNamespace: appNamespace,
-		Username:             input.ArgoCDUsername,
-	}
-
-	ar, err := h.service.GetAccessRequestByRole(ctx, key, input.RoleName)
-	if err != nil {
-		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error retrieving access request for user %s with role %s", key.Username, input.RoleName), err))
-	}
-
-	if ar == nil {
-		return nil, huma.Error404NotFound("Access Request not found")
-	}
-
-	return &GetAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
 }
 
 func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAccessRequestInput) (*ListAccessRequestResponse, error) {
@@ -230,8 +193,12 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 	}
 	requestedAt := ""
 	if len(ar.Status.History) > 0 {
-		// TODO: find the transition in the RequestedStatus
-		requestedAt = ar.Status.History[0].TransitionTime.Format(time.RFC3339)
+		for _, h := range ar.Status.History {
+			if h.RequestState == api.RequestedStatus {
+				requestedAt = ar.Status.History[0].TransitionTime.Format(time.RFC3339)
+				break
+			}
+		}
 	}
 	message := ""
 	if len(ar.Status.History) > 0 && ar.Status.History[len(ar.Status.History)-1].Details != nil {
@@ -264,17 +231,6 @@ func toListAccessRequestResponseBody(accessRequests []*api.AccessRequest) ListAc
 	return ListAccessRequestResponseBody{Items: items}
 }
 
-// getAccessRequestOperation defines the get access request operation.
-func getAccessRequestOperation() huma.Operation {
-	return huma.Operation{
-		OperationID: "get-accessrequest-by-role",
-		Method:      http.MethodGet,
-		Path:        "/accessrequests/role/{roleName}",
-		Summary:     "Get AccessRequest",
-		Description: "Will retrieve the access request by role for the given context",
-	}
-}
-
 // listAccessRequestOperation defines the list access requests operation.
 func listAccessRequestOperation() huma.Operation {
 	return huma.Operation{
@@ -300,7 +256,6 @@ func createAccessRequestOperation() huma.Operation {
 // RegisterRoutes will register all routes provided by the access request REST API
 // in the given api.
 func RegisterRoutes(api huma.API, h *APIHandler) {
-	huma.Register(api, getAccessRequestOperation(), h.getAccessRequestHandler)
 	huma.Register(api, listAccessRequestOperation(), h.listAccessRequestHandler)
 	huma.Register(api, createAccessRequestOperation(), h.createAccessRequestHandler)
 }
