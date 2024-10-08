@@ -62,19 +62,19 @@ func TestK8sPersister(t *testing.T) {
 	// Initialize envTest process
 	var err error
 	restConfig, err := envTest.Start()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	k8sClient, err := client.New(restConfig, client.Options{Scheme: scheme.Scheme})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer envTest.Stop()
 
 	// Initialize the backend persister
 	logger := log.NewFake()
 	p, err := backend.NewK8sPersister(restConfig, logger)
-	assert.NoError(t, err)
-	assert.NotNil(t, p)
+	require.NoError(t, err)
+	require.NotNil(t, p)
 	go func() {
 		err := p.StartCache(ctx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}()
 
 	t.Run("will list AccessRequest successfully", func(t *testing.T) {
@@ -82,7 +82,7 @@ func TestK8sPersister(t *testing.T) {
 		nsName := "list-ar-success"
 		ns := utils.NewNamespace(nsName)
 		err = k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		roleName := "some-role"
 		key := &backend.AccessRequestKey{
@@ -94,7 +94,7 @@ func TestK8sPersister(t *testing.T) {
 
 		ar := newAccessRequest(key, roleName)
 		err = k8sClient.Create(ctx, ar)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// When
 		expectedItems := 1
@@ -120,12 +120,12 @@ func TestK8sPersister(t *testing.T) {
 		nsName := "list-ar-filtered"
 		ns := utils.NewNamespace(nsName)
 		err = k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		otherNsName := nsName + "-other"
 		otherNs := utils.NewNamespace(otherNsName)
 		err = k8sClient.Create(ctx, otherNs)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		roleName := "some-role"
 		key := &backend.AccessRequestKey{
@@ -137,7 +137,7 @@ func TestK8sPersister(t *testing.T) {
 		ar := newAccessRequest(key, roleName)
 		ar.ObjectMeta.Name = "ar-expected"
 		err = k8sClient.Create(ctx, ar)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		anotherNamespaceKey := &backend.AccessRequestKey{
 			Namespace:            otherNsName,
@@ -148,7 +148,7 @@ func TestK8sPersister(t *testing.T) {
 		arNs := newAccessRequest(anotherNamespaceKey, roleName)
 		arNs.ObjectMeta.Name = "ar-ns"
 		err = k8sClient.Create(ctx, arNs)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		anotherApp := &backend.AccessRequestKey{
 			Namespace:            nsName,
@@ -159,7 +159,7 @@ func TestK8sPersister(t *testing.T) {
 		arApp := newAccessRequest(anotherApp, roleName)
 		arApp.ObjectMeta.Name = "ar-app"
 		err = k8sClient.Create(ctx, arApp)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		anotherAppNamespaceKey := &backend.AccessRequestKey{
 			Namespace:            nsName,
@@ -170,7 +170,7 @@ func TestK8sPersister(t *testing.T) {
 		arAppNs := newAccessRequest(anotherAppNamespaceKey, roleName)
 		arAppNs.ObjectMeta.Name = "ar-app-ns"
 		err = k8sClient.Create(ctx, arAppNs)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		anotherUserKey := &backend.AccessRequestKey{
 			Namespace:            nsName,
@@ -181,7 +181,7 @@ func TestK8sPersister(t *testing.T) {
 		arUser := newAccessRequest(anotherUserKey, roleName)
 		arUser.ObjectMeta.Name = "ar-user"
 		err = k8sClient.Create(ctx, arUser)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// When
 		expectedItems := 1
@@ -207,7 +207,7 @@ func TestK8sPersister(t *testing.T) {
 		nsName := "list-ar-notfound"
 		ns := utils.NewNamespace(nsName)
 		err = k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		key := &backend.AccessRequestKey{
 			Namespace:            nsName,
@@ -230,7 +230,7 @@ func TestK8sPersister(t *testing.T) {
 		nsName := "list-ab-success"
 		ns := utils.NewNamespace(nsName)
 		err = k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		roleName := "some-role"
 
@@ -239,7 +239,7 @@ func TestK8sPersister(t *testing.T) {
 		ab.ObjectMeta.Name = "ab-expected"
 		ab.Spec.RoleTemplateRef.Name = roleName
 		err = k8sClient.Create(ctx, ab)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// When
 		expectedItems := 1
@@ -262,12 +262,12 @@ func TestK8sPersister(t *testing.T) {
 		nsName := "list-ab-filtered"
 		ns := utils.NewNamespace(nsName)
 		err = k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		otherNsName := nsName + "-other"
 		otherNs := utils.NewNamespace(otherNsName)
 		err = k8sClient.Create(ctx, otherNs)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		roleName := "some-role"
 
@@ -276,21 +276,21 @@ func TestK8sPersister(t *testing.T) {
 		ab.ObjectMeta.Name = "ab-expected"
 		ab.Spec.RoleTemplateRef.Name = roleName
 		err = k8sClient.Create(ctx, ab)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		abNs := newDefaultAccessBinding()
 		abNs.ObjectMeta.Namespace = otherNsName
 		abNs.ObjectMeta.Name = "ab-other-ns"
 		abNs.Spec.RoleTemplateRef.Name = roleName
 		err = k8sClient.Create(ctx, abNs)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		abRole := newDefaultAccessBinding()
 		abRole.ObjectMeta.Namespace = nsName
 		abRole.ObjectMeta.Name = "ab-other-role"
 		abRole.Spec.RoleTemplateRef.Name = "other-role"
 		err = k8sClient.Create(ctx, abRole)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// When
 		expectedItems := 1
@@ -313,7 +313,7 @@ func TestK8sPersister(t *testing.T) {
 		nsName := "list-ab-notfound"
 		ns := utils.NewNamespace(nsName)
 		err = k8sClient.Create(ctx, ns)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// When
 		result, err := p.ListAccessBindings(ctx, "", nsName)

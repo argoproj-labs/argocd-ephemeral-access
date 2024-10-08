@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
@@ -399,6 +400,41 @@ func TestServiceGetGrantingAccessBinding(t *testing.T) {
 		// Then
 		assert.NoError(t, err)
 		assert.Nil(t, result)
+	})
+	t.Run("will return binding when the go template match", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app, err := utils.ToUnstructured(&v1alpha1.Application{
+			ObjectMeta: v1.ObjectMeta{
+				Annotations: map[string]string{
+					"hello": "world",
+				},
+			},
+		})
+		require.NoError(t, err)
+		project, err := utils.ToUnstructured(&v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{
+				Annotations: map[string]string{
+					"foo": "bar",
+				},
+			},
+		})
+		require.NoError(t, err)
+		roleName := "some-role"
+		namespace := "some-namespace"
+		subject := `group:{{ index .app.metadata.annotations "hello" }}[{{ index .project.metadata.annotations "foo" }}]`
+		groups := []string{"group:world[bar]"}
+		ab := newAccessBinding(namespace, roleName, subject)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil)
+		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{}, nil)
+
+		// When
+		result, err := f.svc.GetGrantingAccessBinding(context.Background(), roleName, namespace, groups, app, project)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, ab, result)
 	})
 	t.Run("will not fail if the binding template is invalid", func(t *testing.T) {
 		// Given

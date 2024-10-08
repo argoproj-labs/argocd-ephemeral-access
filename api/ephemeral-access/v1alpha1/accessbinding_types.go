@@ -69,6 +69,7 @@ func (ab *AccessBinding) RenderSubjects(app, project *unstructured.Unstructured)
 	}
 
 	values := map[string]interface{}{
+		"app":         app.Object,
 		"application": app.Object,
 		"project":     project.Object,
 	}
