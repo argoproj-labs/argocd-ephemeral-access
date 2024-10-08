@@ -605,7 +605,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating conflicting AccessRequest", func() {
 			It("will create conflicting AccessRequest", func() {
-				conflictAR := utils.NewAccessRequest("conflict", namespace, appName, roleTemplateName, subject01)
+				conflictAR := utils.NewAccessRequest("conflict", namespace, appName, namespace, roleTemplateName, subject01)
 				err := k8sClient.Create(ctx, conflictAR)
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -627,7 +627,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating an AccessRequest for the same user/app but different role", func() {
 			It("will create the AccessRequest successfully", func() {
-				anotherroleAR := utils.NewAccessRequest("anotherrole", namespace, appName, "anotherrole", subject01)
+				anotherroleAR := utils.NewAccessRequest("anotherrole", namespace, appName, namespace, "anotherrole", subject01)
 				anotherroleAR.Spec.Duration = metav1.Duration{Duration: time.Minute}
 				err := k8sClient.Create(ctx, anotherroleAR)
 				Expect(err).NotTo(HaveOccurred())
@@ -651,9 +651,9 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating two AccessRequests at the same time", func() {
 			It("will create them successfully", func() {
-				race1AR := utils.NewAccessRequest("race1", namespace, appName, "racerole", subject01)
+				race1AR := utils.NewAccessRequest("race1", namespace, appName, namespace, "racerole", subject01)
 				race1AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
-				race2AR := utils.NewAccessRequest("race2", namespace, appName, "racerole", subject01)
+				race2AR := utils.NewAccessRequest("race2", namespace, appName, namespace, "racerole", subject01)
 				race2AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
 				go func() {
 					err := k8sClient.Create(ctx, race1AR)
