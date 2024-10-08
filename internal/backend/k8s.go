@@ -14,7 +14,6 @@ import (
 
 	argoprojv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 )
 
@@ -46,7 +45,7 @@ type K8sPersister struct {
 
 // NewK8sPersister will return a new K8sPersister instance.
 func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, error) {
-	err := ephemeralaccessv1alpha1.AddToScheme(scheme.Scheme)
+	err := api.AddToScheme(scheme.Scheme)
 	if err != nil {
 		return nil, fmt.Errorf("error adding ephemeralaccessv1alpha1 to k8s scheme: %w", err)
 	}
@@ -77,8 +76,8 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 	}
 
 	err = cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestUsernameField, func(obj client.Object) []string {
-		ar, ok := obj.(*api.AccessRequest)
-		if !ok || ar == nil || ar.Spec.Subject.Username == "" {
+		ar := obj.(*api.AccessRequest)
+		if ar.Spec.Subject.Username == "" {
 			return nil
 		}
 		return []string{ar.Spec.Subject.Username}
@@ -88,8 +87,8 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 	}
 
 	err = cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestAppNamespaceField, func(obj client.Object) []string {
-		ar, ok := obj.(*api.AccessRequest)
-		if !ok || ar == nil || ar.Spec.Application.Namespace == "" {
+		ar := obj.(*api.AccessRequest)
+		if ar.Spec.Application.Namespace == "" {
 			return nil
 		}
 		return []string{ar.Spec.Application.Namespace}
@@ -99,8 +98,8 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 	}
 
 	err = cache.IndexField(context.Background(), &api.AccessRequest{}, accessRequestAppNameField, func(obj client.Object) []string {
-		ar, ok := obj.(*api.AccessRequest)
-		if !ok || ar == nil || ar.Spec.Application.Name == "" {
+		ar := obj.(*api.AccessRequest)
+		if ar.Spec.Application.Name == "" {
 			return nil
 		}
 		return []string{ar.Spec.Application.Name}
@@ -110,8 +109,8 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 	}
 
 	err = cache.IndexField(context.Background(), &api.AccessBinding{}, accessBindingRoleField, func(obj client.Object) []string {
-		b, ok := obj.(*api.AccessBinding)
-		if !ok || b == nil || b.Spec.RoleTemplateRef.Name == "" {
+		b := obj.(*api.AccessBinding)
+		if b.Spec.RoleTemplateRef.Name == "" {
 			return nil
 		}
 		return []string{b.Spec.RoleTemplateRef.Name}
