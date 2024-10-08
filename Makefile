@@ -100,16 +100,15 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/controller cmd/controller/main.go
-	go build -o bin/backend cmd/backend/main.go
+	go build -o bin/ephemeral cmd/main.go
 
 .PHONY: run-controller
 run-controller: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/controller/main.go $(ARGS)
+	go run ./cmd/main.go controller $(ARGS)
 
 .PHONY: run-backend
-run-backend: fmt vet ## Run the api server backend
-	go run ./cmd/backend/main.go $(ARGS)
+run-backend: fmt vet ## Run the api backend server
+	go run ./cmd/main.go backend $(ARGS)
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -188,6 +187,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 MOCKERY ?= $(LOCALBIN)/mockery-$(MOCKERY_VERSION)
+GORELEASER ?= $(LOCALBIN)/goreleaser-$(GORELEASER_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.4.1
@@ -195,6 +195,7 @@ CONTROLLER_TOOLS_VERSION ?= v0.15.0
 ENVTEST_VERSION ?= release-0.18
 GOLANGCI_LINT_VERSION ?= v1.57.2
 MOCKERY_VERSION ?= v2.45.0
+GORELEASER_VERSION ?= v2.3.2
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -221,6 +222,15 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 mockery: $(MOCKERY) ## Download mockery locally if necessary.
 $(MOCKERY): $(LOCALBIN)
 	$(call go-install-tool,$(MOCKERY),github.com/vektra/mockery/v2,$(MOCKERY_VERSION))
+
+.PHONY: goreleaser 
+goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
+$(GORELEASER): $(LOCALBIN)
+	$(call go-install-tool,$(GORELEASER),github.com/goreleaser/goreleaser/v2,$(GORELEASER_VERSION))
+
+.PHONY: goreleaser-build-local
+goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to validate the goreleaser configuration.
+	$(GORELEASER) build --snapshot --clean --single-target
 
 .PHONY: generate-mocks
 generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml

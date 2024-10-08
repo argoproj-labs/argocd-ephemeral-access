@@ -14,12 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package controller
 
 import (
 	"crypto/tls"
 	"fmt"
-	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -38,6 +37,7 @@ import (
 	"github.com/argoproj-labs/ephemeral-access/internal/controller"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
+	"github.com/spf13/cobra"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -53,19 +53,28 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func main() {
+func NewCommand() *cobra.Command {
+	command := cobra.Command{
+		Use:               "controller",
+		Short:             "Run the Ephemeral Access Controller",
+		Long:              "The Argo CD Ephemeral Access extension requires this controller to operate. It reconciles AccessRequest CRDs.",
+		DisableAutoGenTag: true,
+		RunE:              run,
+	}
+	return &command
+}
+
+func run(cmd *cobra.Command, args []string) error {
 	config, err := config.ReadEnvConfigs()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error retrieving configurations: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error retrieving configurations: %s", err)
 	}
 
 	level := log.LogLevel(config.LogLevel())
 	format := log.LogFormat(config.LogFormat())
 	logger, err := log.NewLogger(log.WithLevel(level), log.WithFormat(format))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error creating logger: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error creating logger: %s", err)
 	}
 
 	ctrl.SetLogger(logger)
@@ -117,8 +126,7 @@ func main() {
 		// LeaderElectionReleaseOnCancel: true,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		return fmt.Errorf("unable to start manager: %w", err)
 	}
 
 	service := controller.NewService(mgr.GetClient(), config)
@@ -129,23 +137,20 @@ func main() {
 		Service: service,
 		Config:  config,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AccessRequest")
-		os.Exit(1)
+		return fmt.Errorf("unable to create controller AccessRequest controller: %w", err)
 	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		return fmt.Errorf("unable to set up health check: %w", err)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		return fmt.Errorf("unable to set up ready check: %w", err)
 	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		return fmt.Errorf("problem running manager: %w", err)
 	}
+	return nil
 }

@@ -1,43 +1,41 @@
+# The lines below are called `modelines`. See `:help modeline`
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.3.2/www/docs/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
 project_name: argocd-ephemeral-access
+version: 2
+
+dist: bin/goreleaser
 
 before:
   hooks:
+    - go mod tidy
     - go mod download
     - make build-ui
 
 builds:
-  - id: controller
+  - id: ephemeral-access
     main: ./cmd
-    binary: metrics-server
+    binary: ephemeral-access
     env:
       - CGO_ENABLED=0
     flags:
       - -v
+    goos:
+      - linux
+      - windows
+      - darwin
     ldflags:
       - -X github.com/argoproj-labs/argocd-ephemeral-access/common.version={{ .Version }}
       - -X github.com/argoproj-labs/argocd-ephemeral-access/common.buildDate={{ .Date }}
       - -extldflags="-static"
-    goos:
-      - linux
-    goarch:
-      - amd64
-    ignore:
-      - goos: darwin
-        goarch: s390x
-      - goos: darwin
-        goarch: ppc64le
-      - goos: windows
-        goarch: s390x
-      - goos: windows
-        goarch: ppc64le
-      - goos: windows
-        goarch: arm64
 
 dockers:
   - image_templates:
     - quay.io/argoprojlabs/argocd-ephemeral-access:latest
     - quay.io/argoprojlabs/argocd-ephemeral-access:{{ .Tag }}
     dockerfile: release.Dockerfile
+    skip_push: "{{ .IsSnapshot }}"
     build_flag_templates:
     - "--pull"
     - "--label=org.opencontainers.image.created={{.Date}}"
@@ -47,12 +45,24 @@ dockers:
     - "--platform=linux/amd64"
 
 archives:
-  # - format: tar.gz
-  #   id: binary
-  #   builds:
-  #   - metrics-server
-  - format: gz
-    id: ui-extension
+  - id: binary
+    format: tar.gz
+    builds:
+      - "ephemeral-access"
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        format: zip
+  - id: ui-extension
+    format: gz
     name_template: extension.tar
     meta: true
     files: 
@@ -103,5 +113,3 @@ changelog:
     exclude:
       - '^test:'
       - '^.*?Bump(\([[:word:]]+\))?.+$'
-
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
