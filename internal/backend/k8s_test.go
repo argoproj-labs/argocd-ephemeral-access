@@ -81,6 +81,47 @@ func TestK8sPersister(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
+	t.Run("will create AccessRequest successfully", func(t *testing.T) {
+		// Given
+		nsName := "create-ar-success"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		ar := utils.NewAccessRequestCreated()
+		ar.ObjectMeta.Namespace = nsName
+
+		// When
+		result, err := p.CreateAccessRequest(ctx, ar)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		assert.NotEqual(t, ar, result)
+		assert.Equal(t, ar.GetName(), result.GetName())
+		assert.Equal(t, ar.GetNamespace(), result.GetNamespace())
+	})
+
+	t.Run("will return an error if create fails", func(t *testing.T) {
+		// Given
+		nsName := "create-ar-error"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		ar := utils.NewAccessRequestCreated()
+		ar.ObjectMeta.Namespace = nsName
+		ar.ObjectMeta.Name = "--invalid--"
+
+		// When
+		result, err := p.CreateAccessRequest(ctx, ar)
+
+		// Then
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "metadata.name: Invalid value")
+		assert.Nil(t, result)
+	})
+
 	t.Run("will list AccessRequest successfully", func(t *testing.T) {
 		// Given
 		nsName := "list-ar-success"
@@ -399,7 +440,7 @@ func TestK8sPersister(t *testing.T) {
 			},
 			Spec: v1alpha1.AppProjectSpec{
 				Roles: []v1alpha1.ProjectRole{
-					v1alpha1.ProjectRole{Name: "test"},
+					{Name: "test"},
 				},
 			},
 		}

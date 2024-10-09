@@ -6,7 +6,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -19,7 +18,7 @@ import (
 )
 
 const (
-	resourceType = "accessrequests"
+	managerName = "argocd-ephemeral-access-backend"
 
 	accessRequestUsernameField     = "spec.subject.username"
 	accessRequestAppNameField      = "spec.application.name"
@@ -176,19 +175,10 @@ func (p *K8sPersister) StartCache(ctx context.Context) error {
 	}
 }
 
-// GetAccessRequestResource return a GroupVersionResource schema for the AccessRequest CRD.
-func GetAccessRequestResource() schema.GroupVersionResource {
-	return schema.GroupVersionResource{
-		Group:    api.GroupVersion.Group,
-		Version:  api.GroupVersion.Version,
-		Resource: resourceType,
-	}
-}
-
 func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
 	obj := ar.DeepCopy()
 	err := c.client.Create(ctx, obj, &client.CreateOptions{
-		FieldManager: "argocd-ephemeral-access-backend",
+		FieldManager: managerName,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error creating access request: %w", err)
