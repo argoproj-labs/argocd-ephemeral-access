@@ -20,7 +20,6 @@ IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-quay.io/argoprojlabs}"
 IMAGE_FULLNAME="$IMAGE_NAMESPACE/argocd-ephemeral-access:$IMAGE_TAG"
 
 $KUSTOMIZE version
-which $KUSTOMIZE
 
 cd ${SRCROOT}/config/default && $KUSTOMIZE edit set image argoproj-labs/argocd-ephemeral-access=${IMAGE_FULLNAME}
 
