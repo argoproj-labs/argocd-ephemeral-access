@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	ControllerNamespace = "test-controller-ns"
+	ControllerNamespace   = "test-controller-ns"
+	AccessRequestDuration = time.Minute
 )
 
 type serviceFixture struct {
@@ -34,7 +35,7 @@ func serviceSetup(t *testing.T) *serviceFixture {
 	logger := mocks.NewMockLogger(t)
 	logger.EXPECT().Debug(mock.Anything, mock.Anything).Maybe()
 	logger.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
-	svc := backend.NewDefaultService(persister, logger, ControllerNamespace)
+	svc := backend.NewDefaultService(persister, logger, ControllerNamespace, AccessRequestDuration)
 	return &serviceFixture{
 		persister: persister,
 		logger:    logger,
@@ -53,9 +54,10 @@ func TestServiceCreateAccessRequest(t *testing.T) {
 			Username:             "some-user",
 		}
 		ab := newDefaultAccessBinding()
-		f.persister.EXPECT().CreateAccessRequest(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
-			return ar, nil
-		})
+		f.persister.EXPECT().CreateAccessRequest(mock.Anything, mock.Anything).
+			RunAndReturn(func(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
+				return ar, nil
+			})
 
 		// When
 		result, err := f.svc.CreateAccessRequest(context.Background(), key, ab)
@@ -71,6 +73,7 @@ func TestServiceCreateAccessRequest(t *testing.T) {
 		assert.Equal(t, ab.Spec.FriendlyName, result.Spec.Role.FriendlyName)
 		assert.Equal(t, ab.Spec.Ordinal, result.Spec.Role.Ordinal)
 		assert.Equal(t, ab.Spec.RoleTemplateRef.Name, result.Spec.Role.TemplateName)
+		assert.Equal(t, time.Minute, result.Spec.Duration.Duration)
 	})
 	t.Run("will return error if k8s request fails", func(t *testing.T) {
 		// Given

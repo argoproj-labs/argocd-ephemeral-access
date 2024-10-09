@@ -40,9 +40,17 @@ type Options struct {
 	Backend BackendConfig
 }
 
+// BackendConfig defines the exposed backend configurations
 type BackendConfig struct {
-	Port       int    `env:"EPHEMERAL_BACKEND_PORT, default=8888"`
+	// Port defines the port used to listen to http requests sent to this service
+	Port int `env:"EPHEMERAL_BACKEND_PORT, default=8888"`
+	// Kubeconfig is an optional configuration to allow connecting to a k8s cluster
+	// remotelly
 	Kubeconfig string `env:"KUBECONFIG"`
+	// Namespace must point to the namespace where this backend service is running
+	Namespace string `env:"EPHEMERAL_BACKEND_NAMESPACE, required"`
+	// AccessDuration defines the duration to be used when creating AccessRequests
+	AccessDuration time.Duration `env:"EPHEMERAL_BACKEND_ACCESS_DURATION, default=4h"`
 }
 
 // LogConfig defines the log configurations
@@ -116,7 +124,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error creating a new k8s persister: %w", err)
 	}
 
-	service := backend.NewDefaultService(persister, logger, "TODO: get namespace from config or env var")
+	service := backend.NewDefaultService(persister, logger, opts.Backend.Namespace)
 	handler := backend.NewAPIHandler(service, logger)
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {
