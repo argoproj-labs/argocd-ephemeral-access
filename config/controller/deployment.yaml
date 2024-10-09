@@ -30,55 +30,55 @@ spec:
             - name: EPHEMERAL_LOG_LEVEL
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.log.level
                   optional: true
             - name: EPHEMERAL_LOG_FORMAT
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.log.format
                   optional: true
             - name: EPHEMERAL_METRICS_ADDR
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.metrics.address
                   optional: true
             - name: EPHEMERAL_METRICS_SECURE
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.metrics.secure
                   optional: true
             - name: EPHEMERAL_CONTROLLER_PORT
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.port
                   optional: true
             - name: EPHEMERAL_CONTROLLER_ENABLE_LEADER_ELECTION
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.leader.election.enabled
                   optional: true
             - name: EPHEMERAL_CONTROLLER_HEALTH_PROBE_ADDR
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.health.probe.address
                   optional: true
             - name: EPHEMERAL_CONTROLLER_ENABLE_HTTP2
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.http2.enabled
                   optional: true
             - name: EPHEMERAL_CONTROLLER_REQUEUE_INTERVAL
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: controller-cm
                   key: controller.requeue.interval
                   optional: true
           image: argoproj-labs/argocd-ephemeral-access:latest

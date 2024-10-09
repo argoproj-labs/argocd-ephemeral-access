@@ -20,7 +20,6 @@ namePrefix: argocd-ephemeral-access-
 resources:
 - ../crd
 - ../rbac
-- ../config
 - ../controller
 - ../backend
 images:

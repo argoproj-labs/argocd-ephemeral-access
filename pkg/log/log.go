@@ -141,11 +141,12 @@ func NewZapLogger(opts ...Opts) (*zap.Logger, error) {
 	}
 
 	zapConfig := zap.Config{
-		Level:            zap.NewAtomicLevelAt(logLevel),
-		Development:      false,
-		DisableCaller:    true,
-		OutputPaths:      []string{"stderr"},
-		ErrorOutputPaths: []string{"stderr"},
+		Level:             zap.NewAtomicLevelAt(logLevel),
+		Development:       false,
+		DisableCaller:     true,
+		DisableStacktrace: true,
+		OutputPaths:       []string{"stderr"},
+		ErrorOutputPaths:  []string{"stderr"},
 	}
 	switch cfg.logFormat {
 	case JsonFormat:
@@ -196,9 +197,9 @@ func NewPluginLogger(opts ...Opts) (hclog.Logger, error) {
 	}), nil
 }
 
-// NewLogger will use the given LogConfigurer to build a new logr.Logger instance.
+// NewLogger will use the given opts to build a new logr.Logger instance.
 // It will use zap and the underlying Logger implementation.
-// This function should be called only during the controller initialization.
+// This function should be called only during the service initialization.
 func NewLogger(opts ...Opts) (logr.Logger, error) {
 	zapLogger, err := NewZapLogger(opts...)
 	if err != nil {
