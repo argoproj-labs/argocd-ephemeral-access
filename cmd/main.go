@@ -26,12 +26,13 @@ func main() {
 	command.AddCommand(controller.NewCommand())
 
 	if err := command.Execute(); err != nil {
+		msg := "ephemeral-access execution error"
 		logger, logerr := log.NewLogger()
 		if logerr != nil {
-			fmt.Fprintf(os.Stderr, "Backend execution error: %s", err)
+			fmt.Fprintf(os.Stderr, "%s: %s", msg, err)
 			os.Exit(1)
 		}
-		logger.Error(err, "Backend execution error")
+		logger.Error(err, msg)
 		os.Exit(1)
 	}
 }
