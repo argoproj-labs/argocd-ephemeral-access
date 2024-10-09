@@ -3,12 +3,13 @@ package backend
 import (
 	"context"
 	"fmt"
+	"math"
+	"regexp"
 	"slices"
 	"strings"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
-	"k8s.io/apimachinery/pkg/api/validation"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -49,6 +50,18 @@ var requestStateOrder = map[api.Status]int{
 	api.InvalidStatus:   3,
 	api.ExpiredStatus:   4,
 }
+
+const (
+	// Same as https://github.com/kubernetes/apiserver/blob/v0.31.1/pkg/storage/names/generate.go#L46
+	maxNameLength          = 63
+	randomLength           = 5
+	MaxGeneratedNameLength = maxNameLength - randomLength
+)
+
+var (
+	DNS1123SubdomainInvalidCharSet       = regexp.MustCompile("[^a-z0-9-.]")
+	DNS1123SubdomainInvalidStartChartSet = regexp.MustCompile("^[^a-z0-9]+")
+)
 
 // NewDefaultService will return a new DefaultService instance.
 func NewDefaultService(c Persister, l log.Logger, namespace string) *DefaultService {
@@ -150,7 +163,7 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 	ar := &api.AccessRequest{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace:    key.Namespace,
-			GenerateName: s.getAccessRequestPrefix(key.Username, roleName),
+			GenerateName: getAccessRequestPrefix(key.Username, roleName),
 		},
 		Spec: api.AccessRequestSpec{
 			Role: api.TargetRole{
@@ -175,11 +188,39 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 	return ar, nil
 }
 
-func (s *DefaultService) getAccessRequestPrefix(username, roleName string) string {
-	prefix := strings.ToLower(fmt.Sprintf("%s-", "TODO"))
-	if len(validation.NameIsDNSSubdomain(prefix, true)) != 0 {
-		prefix = strings.ToLower("TODO-fallback-")
+func getAccessRequestPrefix(username, roleName string) string {
+	// If username is an email, we don't care about the email domain
+	username, _, _ = strings.Cut(username, "@")
+
+	username = strings.ToLower(username)
+	username = DNS1123SubdomainInvalidCharSet.ReplaceAllString(username, "")
+	username = DNS1123SubdomainInvalidStartChartSet.ReplaceAllString(username, "")
+
+	roleName = strings.ToLower(roleName)
+	roleName = DNS1123SubdomainInvalidCharSet.ReplaceAllString(roleName, "")
+	roleName = DNS1123SubdomainInvalidStartChartSet.ReplaceAllString(roleName, "")
+
+	prefix := fmt.Sprintf("%s-%s-", username, roleName)
+
+	if MaxGeneratedNameLength-len(prefix) < 0 {
+		// If the prefix is too long, use the maximum length available
+		// giving back any available space to the other element
+		usernameLength := len(username)
+		roleNameLength := len(roleName)
+		formatLength := len(prefix) - usernameLength - roleNameLength
+		halfLength := (MaxGeneratedNameLength - formatLength) / 2
+		minLength := int(math.Min(float64(usernameLength), float64(roleNameLength)))
+		available := int(math.Max(0, float64(halfLength-minLength)))
+
+		if usernameLength > halfLength+available {
+			username = username[:halfLength+available]
+		}
+		if roleNameLength > halfLength+available {
+			roleName = roleName[:halfLength+available]
+		}
+		prefix = fmt.Sprintf("%s-%s-", username, roleName)
 	}
+
 	return prefix
 }
 

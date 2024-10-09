@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/validation"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -595,4 +597,72 @@ func Test_defaultAccessRequestSort(t *testing.T) {
 		require.Equal(t, second, items[1])
 		require.Equal(t, third, items[2])
 	})
+}
+
+func Test_getAccessRequestPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		username string
+		roleName string
+		expected string
+	}{
+		{
+			name:     "should use the first part of email",
+			username: "test@argoproj.io",
+			roleName: "my-role",
+			expected: "test-my-role-",
+		},
+		{
+			name:     "should not exceed max length",
+			username: "loremipsumdolorsitametconsecteturadipiscingelitsuspendissetempussemperleoeuvestibulumsemtincidunttinciduntvestibulumaccumsanmaurissedrisusdignissimaliq",
+			roleName: "uamaeneanabibendumtellusaeneandapibuslacusetinterdumfeugiatsuspendissevehiculaliberodignissimturpistincidunttristiquepraesentmolestietemporduieugravida",
+			expected: "loremipsumdolorsitametconsec-uamaeneanabibendumtellusaene-",
+		},
+		{
+			name:     "should use the maximum amount available for username",
+			username: "loremipsumdolorsitametconsecteturadipiscingelitsuspendissetem",
+			roleName: "uamaenea",
+			expected: "loremipsumdolorsitametconsecteturadipiscingelits-uamaenea-",
+		},
+		{
+			name:     "should use the maximum amount available for roleName",
+			username: "uamaenea",
+			roleName: "loremipsumdolorsitametconsecteturadipiscingelitsuspe",
+			expected: "uamaenea-loremipsumdolorsitametconsecteturadipiscingelits-",
+		},
+		{
+			name:     "should not contain any invalid char",
+			username: "my.(user)[1234567890] +_)(*&^%$#@!~",
+			roleName: "a-role +_)(*&^%$#@!~",
+			expected: "my.user1234567890-a-role-",
+		},
+		{
+			name:     "should not start with a dash",
+			username: "---username",
+			roleName: "---role",
+			expected: "username-role-",
+		},
+		{
+			name:     "should not start with a period",
+			username: ".username",
+			roleName: "...role",
+			expected: "username-role-",
+		},
+		{
+			name:     "should be lowercase",
+			username: "UserName",
+			roleName: "Role",
+			expected: "username-role-",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := backend.GetAccessRequestPrefix(tt.username, tt.roleName)
+			validationErrors := validation.NameIsDNSSubdomain(got, true)
+
+			assert.Equal(t, tt.expected, got)
+			assert.Equalf(t, 0, len(validationErrors), fmt.Sprintf("Validation Errors: \n%s", strings.Join(validationErrors, "\n")))
+			assert.LessOrEqual(t, len(got), backend.MaxGeneratedNameLength)
+		})
+	}
 }
