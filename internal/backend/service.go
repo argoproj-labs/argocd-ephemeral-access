@@ -192,36 +192,46 @@ func getAccessRequestPrefix(username, roleName string) string {
 	// If username is an email, we don't care about the email domain
 	username, _, _ = strings.Cut(username, "@")
 
-	username = strings.ToLower(username)
-	username = DNS1123SubdomainInvalidCharSet.ReplaceAllString(username, "")
-	username = DNS1123SubdomainInvalidStartChartSet.ReplaceAllString(username, "")
-
-	roleName = strings.ToLower(roleName)
-	roleName = DNS1123SubdomainInvalidCharSet.ReplaceAllString(roleName, "")
-	roleName = DNS1123SubdomainInvalidStartChartSet.ReplaceAllString(roleName, "")
+	username = toDNS1123Subdomain(username)
+	roleName = toDNS1123Subdomain(roleName)
 
 	prefix := fmt.Sprintf("%s-%s-", username, roleName)
 
 	if MaxGeneratedNameLength-len(prefix) < 0 {
 		// If the prefix is too long, use the maximum length available
-		// giving back any available space to the other element
-		usernameLength := len(username)
-		roleNameLength := len(roleName)
-		formatLength := len(prefix) - usernameLength - roleNameLength
-		halfLength := (MaxGeneratedNameLength - formatLength) / 2
-		minLength := int(math.Min(float64(usernameLength), float64(roleNameLength)))
-		available := int(math.Max(0, float64(halfLength-minLength)))
-
-		if usernameLength > halfLength+available {
-			username = username[:halfLength+available]
-		}
-		if roleNameLength > halfLength+available {
-			roleName = roleName[:halfLength+available]
-		}
+		extraCharLength := 2 // the format adds 2 dashes
+		username, roleName = toMaxLength(username, roleName, MaxGeneratedNameLength-extraCharLength)
 		prefix = fmt.Sprintf("%s-%s-", username, roleName)
 	}
 
 	return prefix
+}
+
+func toDNS1123Subdomain(data string) string {
+	data = strings.ToLower(data)
+	data = DNS1123SubdomainInvalidCharSet.ReplaceAllString(data, "")
+	data = DNS1123SubdomainInvalidStartChartSet.ReplaceAllString(data, "")
+	return data
+}
+
+// toMaxLength reduce the total length of the strings, balancing the length as evently as possible
+func toMaxLength(a, b string, max int) (string, string) {
+	aLength := len(a)
+	bLength := len(b)
+	halfLength := max / 2
+	remainder := max % 2
+	minLength := int(math.Min(float64(aLength), float64(bLength)))
+	available := int(math.Max(0, float64(halfLength-minLength)))
+
+	if aLength >= halfLength+available+remainder {
+		a = a[:halfLength+available+remainder]
+		remainder = 0
+	}
+	if bLength >= halfLength+available+remainder {
+		b = b[:halfLength+available+remainder]
+		remainder = 0
+	}
+	return a, b
 }
 
 // GetAppProject implements Service.
