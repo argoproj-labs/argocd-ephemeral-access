@@ -22,6 +22,5 @@ IMAGE_FULLNAME="$IMAGE_NAMESPACE/argocd-ephemeral-access:$IMAGE_TAG"
 $KUSTOMIZE version
 
 cd ${SRCROOT}/config/default && $KUSTOMIZE edit set image argoproj-labs/argocd-ephemeral-access=${IMAGE_FULLNAME}
-
 echo "${AUTOGENMSG}" > "${SRCROOT}/dist/install.yaml"
 $KUSTOMIZE build "${SRCROOT}/config/default" >> "${SRCROOT}/dist/install.yaml"

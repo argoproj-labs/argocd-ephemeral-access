@@ -104,11 +104,11 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: run-controller
 run-controller: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go controller $(ARGS)
+	go run ./cmd/main.go controller
 
 .PHONY: run-backend
 run-backend: fmt vet ## Run the api backend server
-	go run ./cmd/main.go backend $(ARGS)
+	go run ./cmd/main.go backend
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -117,9 +117,9 @@ run-backend: fmt vet ## Run the api backend server
 docker-build: ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${IMG} .
 
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${IMG}
+.PHONY: goreleaser-build-local
+goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to validate the goreleaser configuration.
+	$(GORELEASER) build --snapshot --clean --single-target --verbose
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -144,6 +144,11 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	cd config/default && $(KUSTOMIZE) edit set image argoproj-labs/argocd-ephemeral-access=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 
+.PHONY: manifests-release
+manifests-release: generate manifests kustomize ## Generate the consolidated install.yaml with the release tag.
+	mkdir -p dist
+	./scripts/manifests-release.sh $(KUSTOMIZE) $(IMAGE_TAG)
+
 ##@ Deployment
 
 ifndef ignore-not-found
@@ -164,14 +169,6 @@ deploy-local: manifests kustomize ## Deploy controller to the K8s cluster specif
 	cp -R config/default config/local/
 	cd config/local && $(KUSTOMIZE) edit set image argoproj-labs/argocd-ephemeral-access=${IMG}
 	$(KUSTOMIZE) build config/local | $(KUBECTL) apply -f -
-
-.PHONY: deploy
-deploy: build-installer ## Deploy distribution to the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) apply -f dist/install.yaml
-
-.PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Dependencies
 
@@ -228,10 +225,6 @@ goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
 $(GORELEASER): $(LOCALBIN)
 	$(call go-install-tool,$(GORELEASER),github.com/goreleaser/goreleaser/v2,$(GORELEASER_VERSION))
 
-.PHONY: goreleaser-build-local
-goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to validate the goreleaser configuration.
-	$(GORELEASER) build --snapshot --clean --single-target --verbose
-
 .PHONY: generate-mocks
 generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
 	$(MOCKERY)
@@ -244,10 +237,6 @@ clean-ui:
 build-ui: clean-ui
 	yarn --cwd ${UI_DIR} install
 	yarn --cwd ${UI_DIR} build
-
-.PHONY: manifests-release
-manifests-release: manifests $(KUSTOMIZE)
-	./scripts/manifests-release.sh $(KUSTOMIZE) $(IMAGE_TAG)
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
