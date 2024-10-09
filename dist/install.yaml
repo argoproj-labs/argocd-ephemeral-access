@@ -1,3 +1,4 @@
+# This is an auto-generated file. DO NOT EDIT
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -5,6 +6,81 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: argocd-ephemeral-access
   name: argocd-ephemeral-access
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.15.0
+  name: accessbindings.ephemeral-access.argoproj-labs.io
+spec:
+  group: ephemeral-access.argoproj-labs.io
+  names:
+    kind: AccessBinding
+    listKind: AccessBindingList
+    plural: accessbindings
+    singular: accessbinding
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AccessBinding is the Schema for the accessbindings API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AccessBindingSpec defines the desired state of AccessBinding
+            properties:
+              friendlyName:
+                description: FriendlyName defines a name for this role
+                maxLength: 512
+                type: string
+              if:
+                description: If is a condition that must be true to evaluate the subjects
+                type: string
+              ordinal:
+                description: Ordinal defines an ordering number of this role compared
+                  to others
+                type: integer
+              roleTemplateRef:
+                description: RoleTemplateRef is the reference to the RoleTemplate
+                  this bindings grants access to
+                properties:
+                  name:
+                    description: Name of the role template object
+                    type: string
+                required:
+                - name
+                type: object
+              subjects:
+                description: Subjects is list of strings, supporting go template,
+                  that a user's group claims must match at least one of to be allowed
+                items:
+                  type: string
+                type: array
+            required:
+            - roleTemplateRef
+            - subjects
+            type: object
+        type: object
+    served: true
+    storage: true
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -545,13 +621,21 @@ subjects:
   namespace: argocd-ephemeral-access
 ---
 apiVersion: v1
-data: {}
 kind: ConfigMap
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: argocd-ephemeral-access
-  name: argocd-ephemeral-access-config-cm
+  name: argocd-ephemeral-access-backend-cm
+  namespace: argocd-ephemeral-access
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: argocd-ephemeral-access
+  name: argocd-ephemeral-access-controller-cm
   namespace: argocd-ephemeral-access
 ---
 apiVersion: v1
@@ -656,33 +740,43 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: backend.log.level
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-backend-cm
               optional: true
         - name: EPHEMERAL_LOG_FORMAT
           valueFrom:
             configMapKeyRef:
               key: backend.log.format
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-backend-cm
               optional: true
         - name: EPHEMERAL_METRICS_ADDR
           valueFrom:
             configMapKeyRef:
               key: backend.metrics.address
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-backend-cm
               optional: true
         - name: EPHEMERAL_METRICS_SECURE
           valueFrom:
             configMapKeyRef:
               key: backend.metrics.secure
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-backend-cm
               optional: true
         - name: EPHEMERAL_BACKEND_PORT
           valueFrom:
             configMapKeyRef:
               key: backend.port
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-backend-cm
               optional: true
-        image: argoproj-labs/argocd-ephemeral-access:latest
+        - name: EPHEMERAL_BACKEND_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION
+          valueFrom:
+            configMapKeyRef:
+              key: backend.defaultAccessDuration
+              name: argocd-ephemeral-access-backend-cm
+              optional: true
+        image: quay.io/argoprojlabs/argocd-ephemeral-access:v0.0.1-rc5
         imagePullPolicy: Always
         livenessProbe:
           initialDelaySeconds: 15
@@ -754,57 +848,57 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.log.level
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
         - name: EPHEMERAL_LOG_FORMAT
           valueFrom:
             configMapKeyRef:
               key: controller.log.format
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
         - name: EPHEMERAL_METRICS_ADDR
           valueFrom:
             configMapKeyRef:
               key: controller.metrics.address
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
         - name: EPHEMERAL_METRICS_SECURE
           valueFrom:
             configMapKeyRef:
               key: controller.metrics.secure
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
         - name: EPHEMERAL_CONTROLLER_PORT
           valueFrom:
             configMapKeyRef:
               key: controller.port
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
         - name: EPHEMERAL_CONTROLLER_ENABLE_LEADER_ELECTION
           valueFrom:
             configMapKeyRef:
               key: controller.leader.election.enabled
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
         - name: EPHEMERAL_CONTROLLER_HEALTH_PROBE_ADDR
           valueFrom:
             configMapKeyRef:
               key: controller.health.probe.address
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
         - name: EPHEMERAL_CONTROLLER_ENABLE_HTTP2
           valueFrom:
             configMapKeyRef:
               key: controller.http2.enabled
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
         - name: EPHEMERAL_CONTROLLER_REQUEUE_INTERVAL
           valueFrom:
             configMapKeyRef:
               key: controller.requeue.interval
-              name: argocd-ephemeral-access-config-cm
+              name: argocd-ephemeral-access-controller-cm
               optional: true
-        image: argoproj-labs/argocd-ephemeral-access:latest
+        image: quay.io/argoprojlabs/argocd-ephemeral-access:v0.0.1-rc5
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

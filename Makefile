@@ -230,7 +230,7 @@ $(GORELEASER): $(LOCALBIN)
 
 .PHONY: goreleaser-build-local
 goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to validate the goreleaser configuration.
-	$(GORELEASER) build --snapshot --clean --single-target
+	$(GORELEASER) build --snapshot --clean --single-target --verbose
 
 .PHONY: generate-mocks
 generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
@@ -244,6 +244,10 @@ clean-ui:
 build-ui: clean-ui
 	yarn --cwd ${UI_DIR} install
 	yarn --cwd ${UI_DIR} build
+
+.PHONY: manifests-release
+manifests-release: manifests $(KUSTOMIZE)
+	./scripts/manifests-release.sh $(KUSTOMIZE) $(IMAGE_TAG)
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
