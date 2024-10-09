@@ -51,7 +51,7 @@ type BackendConfig struct {
 	Namespace string `env:"EPHEMERAL_BACKEND_NAMESPACE, required"`
 	// DefaultAccessDuration defines the default duration to be used when creating
 	// AccessRequests
-	DefaultAccessDuration time.Duration `env:"EPHEMERAL_BACKEND_ACCESS_DURATION, default=4h"`
+	DefaultAccessDuration time.Duration `env:"EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION, default=4h"`
 }
 
 // LogConfig defines the log configurations

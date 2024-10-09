@@ -30,32 +30,42 @@ spec:
             - name: EPHEMERAL_LOG_LEVEL
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: backend-cm
                   key: backend.log.level
                   optional: true
             - name: EPHEMERAL_LOG_FORMAT
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: backend-cm
                   key: backend.log.format
                   optional: true
             - name: EPHEMERAL_METRICS_ADDR
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: backend-cm
                   key: backend.metrics.address
                   optional: true
             - name: EPHEMERAL_METRICS_SECURE
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: backend-cm
                   key: backend.metrics.secure
                   optional: true
             - name: EPHEMERAL_BACKEND_PORT
               valueFrom:
                 configMapKeyRef:
-                  name: config-cm
+                  name: backend-cm
                   key: backend.port
+                  optional: true
+            - name: EPHEMERAL_BACKEND_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-cm
+                  key: backend.defaultAccessDuration
                   optional: true
           image: argoproj-labs/argocd-ephemeral-access:latest
           imagePullPolicy: Always
