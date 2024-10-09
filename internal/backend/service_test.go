@@ -15,8 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -460,6 +462,110 @@ func TestServiceGetGrantingAccessBinding(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, errorMsg, "cannot render subjects")
+	})
+}
+
+func TestServiceGetApplication(t *testing.T) {
+	t.Run("will return the application when found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"hello": "world",
+			},
+		}
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetApplication(mock.Anything, name, namespace).Return(app, nil)
+
+		// When
+		result, err := f.svc.GetApplication(context.Background(), name, namespace)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, app, result)
+	})
+	t.Run("will return nil if not found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetApplication(mock.Anything, name, namespace).Return(nil, errors.NewNotFound(schema.GroupResource{}, "some-err"))
+
+		// When
+		ar, err := f.svc.GetApplication(context.Background(), name, namespace)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Nil(t, ar)
+	})
+	t.Run("will return error if k8s request fails", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetApplication(mock.Anything, name, namespace).Return(nil, fmt.Errorf("some internal error"))
+
+		// When
+		result, err := f.svc.GetApplication(context.Background(), name, namespace)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
+	})
+}
+
+func TestServiceGetAppProject(t *testing.T) {
+	t.Run("will return the project when found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		project := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"hello": "world",
+			},
+		}
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetAppProject(mock.Anything, name, namespace).Return(project, nil)
+
+		// When
+		result, err := f.svc.GetAppProject(context.Background(), name, namespace)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, project, result)
+	})
+	t.Run("will return nil if not found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetAppProject(mock.Anything, name, namespace).Return(nil, errors.NewNotFound(schema.GroupResource{}, "some-err"))
+
+		// When
+		ar, err := f.svc.GetAppProject(context.Background(), name, namespace)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Nil(t, ar)
+	})
+	t.Run("will return error if k8s request fails", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetAppProject(mock.Anything, name, namespace).Return(nil, fmt.Errorf("some internal error"))
+
+		// When
+		result, err := f.svc.GetAppProject(context.Background(), name, namespace)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
 	})
 }
 

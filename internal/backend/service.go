@@ -8,6 +8,7 @@ import (
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validation"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -183,16 +184,26 @@ func (s *DefaultService) getAccessRequestPrefix(username, roleName string) strin
 	return prefix
 }
 
-// GetAppProject implements Service.
-func (s *DefaultService) GetAppProject(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
-	s.logger.Error(fmt.Errorf("TODO: unimplemented"), "")
-	return &unstructured.Unstructured{}, nil
+func (s *DefaultService) GetApplication(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
+	app, err := s.k8s.GetApplication(ctx, name, namespace)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return app, nil
 }
 
-// GetApplication implements Service.
-func (s *DefaultService) GetApplication(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
-	s.logger.Error(fmt.Errorf("TODO: unimplemented"), "")
-	return &unstructured.Unstructured{}, nil
+func (s *DefaultService) GetAppProject(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
+	project, err := s.k8s.GetAppProject(ctx, name, namespace)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return project, nil
 }
 
 func (s *DefaultService) listAccessBindings(ctx context.Context, roleName string, namespace string) ([]api.AccessBinding, error) {

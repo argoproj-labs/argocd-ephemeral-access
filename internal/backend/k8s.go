@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -12,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 )
@@ -31,13 +32,19 @@ const (
 // layer (e.g. Kubernetes)
 type Persister interface {
 
-	// CreateAccessRequest creates a new Access Request object
+	// CreateAccessRequest creates a new Access Request object and returns it
 	CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error)
 	// ListAccessRequests returns all the AccessRequest matching the key criterias
 	ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error)
 
 	// ListAccessRequests returns all the AccessBindings matching the specified role and namespace
 	ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error)
+
+	// GetApplication return an Unstructured object that represents the Application
+	GetApplication(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
+
+	// GetAppProject return an Unstructured object that represents the AppProject
+	GetAppProject(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
 }
 
 // K8sPersister is a K8s implementation for the Persister interface.
@@ -54,7 +61,7 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		return nil, fmt.Errorf("error adding ephemeralaccessv1alpha1 to k8s scheme: %w", err)
 	}
 
-	err = argoprojv1alpha1.AddToScheme(scheme.Scheme)
+	err = v1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		return nil, fmt.Errorf("error adding argoprojv1alpha1 to k8s scheme: %w", err)
 	}
@@ -128,7 +135,8 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		Scheme:     scheme.Scheme,
 		Mapper:     mapper,
 		Cache: &client.CacheOptions{
-			Reader: cache,
+			Reader:       cache,
+			Unstructured: true,
 		},
 	}
 	k8sClient, err := client.New(config, clientOpts)
@@ -178,7 +186,14 @@ func GetAccessRequestResource() schema.GroupVersionResource {
 }
 
 func (c *K8sPersister) CreateAccessRequest(ctx context.Context, ar *api.AccessRequest) (*api.AccessRequest, error) {
-	panic("unimplemented")
+	obj := ar.DeepCopy()
+	err := c.client.Create(ctx, obj, &client.CreateOptions{
+		FieldManager: "argocd-ephemeral-access-backend",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creating access request: %w", err)
+	}
+	return obj, nil
 }
 
 func (c *K8sPersister) ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error) {
@@ -211,4 +226,32 @@ func (c *K8sPersister) ListAccessBindings(ctx context.Context, roleName, namespa
 		return nil, fmt.Errorf("error listing access bindings for role %s in namespace %s from k8s: %w", roleName, namespace, err)
 	}
 	return list, nil
+}
+
+func (c *K8sPersister) GetApplication(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error) {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(v1alpha1.ApplicationGroupVersionKind)
+	key := client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}
+	err := c.client.Get(ctx, key, obj)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving application %s/%s from k8s: %w", namespace, name, err)
+	}
+	return obj, nil
+}
+
+func (c *K8sPersister) GetAppProject(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error) {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(v1alpha1.AppProjectGroupVersionKind)
+	key := client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}
+	err := c.client.Get(ctx, key, obj)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving appproject %s/%s from k8s: %w", namespace, name, err)
+	}
+	return obj, nil
 }
