@@ -49,8 +49,9 @@ type BackendConfig struct {
 	Kubeconfig string `env:"KUBECONFIG"`
 	// Namespace must point to the namespace where this backend service is running
 	Namespace string `env:"EPHEMERAL_BACKEND_NAMESPACE, required"`
-	// AccessDuration defines the duration to be used when creating AccessRequests
-	AccessDuration time.Duration `env:"EPHEMERAL_BACKEND_ACCESS_DURATION, default=4h"`
+	// DefaultAccessDuration defines the default duration to be used when creating
+	// AccessRequests
+	DefaultAccessDuration time.Duration `env:"EPHEMERAL_BACKEND_ACCESS_DURATION, default=4h"`
 }
 
 // LogConfig defines the log configurations
@@ -124,7 +125,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error creating a new k8s persister: %w", err)
 	}
 
-	service := backend.NewDefaultService(persister, logger, opts.Backend.Namespace, opts.Backend.AccessDuration)
+	service := backend.NewDefaultService(persister, logger, opts.Backend.Namespace, opts.Backend.DefaultAccessDuration)
 	handler := backend.NewAPIHandler(service, logger)
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {

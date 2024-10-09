@@ -73,7 +73,7 @@ func TestServiceCreateAccessRequest(t *testing.T) {
 		assert.Equal(t, ab.Spec.FriendlyName, result.Spec.Role.FriendlyName)
 		assert.Equal(t, ab.Spec.Ordinal, result.Spec.Role.Ordinal)
 		assert.Equal(t, ab.Spec.RoleTemplateRef.Name, result.Spec.Role.TemplateName)
-		assert.Equal(t, time.Minute, result.Spec.Duration.Duration)
+		assert.Equal(t, AccessRequestDuration, result.Spec.Duration.Duration)
 	})
 	t.Run("will return error if k8s request fails", func(t *testing.T) {
 		// Given
