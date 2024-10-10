@@ -20,5 +20,5 @@ IMAGE_QUAY="quay.io/argoprojlabs/argocd-ephemeral-access:$IMAGE_TAG"
 
 $KUSTOMIZE version
 cd ${SRCROOT}/config/default && $KUSTOMIZE edit set image argoproj-labs/argocd-ephemeral-access=${IMAGE_QUAY}
-echo "${AUTOGENMSG}" > "${SRCROOT}/dist/install.yaml"
-$KUSTOMIZE build "${SRCROOT}/config/default" >> "${SRCROOT}/dist/install.yaml"
+echo "${AUTOGENMSG}" > "${SRCROOT}/install.yaml"
+$KUSTOMIZE build "${SRCROOT}/config/default" >> "${SRCROOT}/install.yaml"
