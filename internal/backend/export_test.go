@@ -8,4 +8,5 @@ var (
 // Service
 var (
 	DefaultAccessRequestSort = defaultAccessRequestSort
+	GetAccessRequestPrefix   = getAccessRequestPrefix
 )
