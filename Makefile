@@ -114,8 +114,12 @@ run-backend: fmt vet ## Run the api backend server
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
-docker-build: ## Build docker image with the manager.
+docker-build: ## Build docker image.
 	$(CONTAINER_TOOL) build -t ${IMG} .
+
+.PHONY: docker-push
+docker-push: ## Push docker image.
+	$(CONTAINER_TOOL) push ${IMG}
 
 .PHONY: goreleaser-build-local
 goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to validate the goreleaser configuration.
