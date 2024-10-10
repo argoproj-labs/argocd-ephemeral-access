@@ -61,11 +61,6 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
-  # - id: manifests 
-  #   format: binary
-  #   name_template: install
-  #   files: 
-  #   - src: install.yaml
   - id: ui-extension
     format: gz
     name_template: extension.tar
