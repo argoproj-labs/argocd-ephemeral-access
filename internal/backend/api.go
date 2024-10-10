@@ -64,7 +64,7 @@ type CreateAccessRequestInput struct {
 
 // CreateAccessRequestBody defines the create access response body.
 type CreateAccessRequestBody struct {
-	RoleName string `json:"roleName" example:"custom-role" doc:"The role name to request."`
+	RoleName string `json:"roleName" example:"custom-role-template" doc:"The role name to request."`
 }
 
 // CreateAccessRequestResponse defines the create access response.
@@ -78,9 +78,9 @@ type AccessRequestResponseBody struct {
 	Name        string `json:"name" example:"some-accessrequest" doc:"The access request name."`
 	Namespace   string `json:"namespace" example:"some-namespace" doc:"The access request namespace."`
 	Username    string `json:"username" example:"some-user@acme.org" doc:"The user associated with the access request."`
-	Permission  string `json:"permission" example:"ReadOnly" doc:"The current permission description for the user."`
+	Permission  string `json:"permission" example:"Operator Access" doc:"The permission description of the role associated to this access request."`
+	Role        string `json:"role" example:"custom-role-template" doc:"The role template associated to this access request."`
 	RequestedAt string `json:"requestedAt,omitempty" example:"2024-02-14T18:25:50Z" doc:"The timestamp the access was requested (RFC3339 format)." format:"date-time"`
-	Role        string `json:"role,omitempty" example:"DevOps" doc:"The current role the user is associated with."`
 	Status      string `json:"status,omitempty" example:"GRANTED" doc:"The current access request status." enum:"REQUESTED,GRANTED,EXPIRED,DENIED,INVALID"`
 	ExpiresAt   string `json:"expiresAt,omitempty" example:"2024-02-14T18:25:50Z" doc:"The timestamp the access will expire (RFC3339 format)." format:"date-time"`
 	Message     string `json:"message,omitempty" example:"Click the link to see more details: ..." doc:"A human readeable description with details about the access request."`
