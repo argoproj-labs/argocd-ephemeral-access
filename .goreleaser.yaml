@@ -12,6 +12,7 @@ before:
     - go mod tidy
     - go mod download
     - make build-ui
+    - make manifests-release IMAGE_TAG={{ .Tag }}
 
 builds:
   - id: ephemeral-access
@@ -61,6 +62,13 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+  - id: manifests 
+    format: binary # necessary to publish the yaml as is
+    name_template: install.yaml
+    meta: true
+    files: 
+    - src: dist/install.yaml
+      strip_parent: true
   - id: ui-extension
     format: gz
     name_template: extension.tar

@@ -22,7 +22,3 @@ resources:
 - ../rbac
 - ../controller
 - ../backend
-images:
-- name: argoproj-labs/argocd-ephemeral-access
-  newName: argoproj-labs/argocd-ephemeral-access
-  newTag: latest
