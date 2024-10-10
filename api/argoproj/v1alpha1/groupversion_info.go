@@ -32,6 +32,12 @@ var (
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
+	// ApplicationGroupVersionKind is group version kind used to identify an Application
+	ApplicationGroupVersionKind = schema.GroupVersionKind{Group: GroupVersion.Group, Version: GroupVersion.Version, Kind: "Application"}
+
+	// ApplicationGroupVersionKind is group version kind used to identify an AppProject
+	AppProjectGroupVersionKind = schema.GroupVersionKind{Group: GroupVersion.Group, Version: GroupVersion.Version, Kind: "AppProject"}
+
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
