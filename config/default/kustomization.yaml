@@ -22,7 +22,3 @@ resources:
 - ../rbac
 - ../controller
 - ../backend
-images:
-- name: argoproj-labs/argocd-ephemeral-access
-  newName: quay.io/argoprojlabs/argocd-ephemeral-access
-  newTag: v0.0.1-rc5
