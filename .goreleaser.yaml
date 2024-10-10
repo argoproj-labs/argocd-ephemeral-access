@@ -9,7 +9,7 @@ before:
   hooks:
     - go mod tidy
     - go mod download
-    # - make build-ui
+    - make build-ui
     - make manifests-release IMAGE_TAG={{ .Tag }}
     - rm -rf dist
 
