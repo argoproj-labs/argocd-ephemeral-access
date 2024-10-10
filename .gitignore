@@ -30,3 +30,4 @@ ui/extension.tar
 dist/
 dist-goreleaser/
 bin/
+install.yaml
