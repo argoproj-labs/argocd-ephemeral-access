@@ -9,6 +9,8 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	unstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	v1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 )
 
@@ -80,6 +82,126 @@ func (_c *MockPersister_CreateAccessRequest_Call) Return(_a0 *v1alpha1.AccessReq
 }
 
 func (_c *MockPersister_CreateAccessRequest_Call) RunAndReturn(run func(context.Context, *v1alpha1.AccessRequest) (*v1alpha1.AccessRequest, error)) *MockPersister_CreateAccessRequest_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAppProject provides a mock function with given fields: ctx, name, namespace
+func (_m *MockPersister) GetAppProject(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
+	ret := _m.Called(ctx, name, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAppProject")
+	}
+
+	var r0 *unstructured.Unstructured
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*unstructured.Unstructured, error)); ok {
+		return rf(ctx, name, namespace)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *unstructured.Unstructured); ok {
+		r0 = rf(ctx, name, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*unstructured.Unstructured)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, name, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockPersister_GetAppProject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAppProject'
+type MockPersister_GetAppProject_Call struct {
+	*mock.Call
+}
+
+// GetAppProject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - namespace string
+func (_e *MockPersister_Expecter) GetAppProject(ctx interface{}, name interface{}, namespace interface{}) *MockPersister_GetAppProject_Call {
+	return &MockPersister_GetAppProject_Call{Call: _e.mock.On("GetAppProject", ctx, name, namespace)}
+}
+
+func (_c *MockPersister_GetAppProject_Call) Run(run func(ctx context.Context, name string, namespace string)) *MockPersister_GetAppProject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockPersister_GetAppProject_Call) Return(_a0 *unstructured.Unstructured, _a1 error) *MockPersister_GetAppProject_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockPersister_GetAppProject_Call) RunAndReturn(run func(context.Context, string, string) (*unstructured.Unstructured, error)) *MockPersister_GetAppProject_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetApplication provides a mock function with given fields: ctx, name, namespace
+func (_m *MockPersister) GetApplication(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
+	ret := _m.Called(ctx, name, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetApplication")
+	}
+
+	var r0 *unstructured.Unstructured
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*unstructured.Unstructured, error)); ok {
+		return rf(ctx, name, namespace)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *unstructured.Unstructured); ok {
+		r0 = rf(ctx, name, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*unstructured.Unstructured)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, name, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockPersister_GetApplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetApplication'
+type MockPersister_GetApplication_Call struct {
+	*mock.Call
+}
+
+// GetApplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - name string
+//   - namespace string
+func (_e *MockPersister_Expecter) GetApplication(ctx interface{}, name interface{}, namespace interface{}) *MockPersister_GetApplication_Call {
+	return &MockPersister_GetApplication_Call{Call: _e.mock.On("GetApplication", ctx, name, namespace)}
+}
+
+func (_c *MockPersister_GetApplication_Call) Run(run func(ctx context.Context, name string, namespace string)) *MockPersister_GetApplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockPersister_GetApplication_Call) Return(_a0 *unstructured.Unstructured, _a1 error) *MockPersister_GetApplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockPersister_GetApplication_Call) RunAndReturn(run func(context.Context, string, string) (*unstructured.Unstructured, error)) *MockPersister_GetApplication_Call {
 	_c.Call.Return(run)
 	return _c
 }

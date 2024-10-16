@@ -4,18 +4,18 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
 func TestAccessBinding_RenderSubjects(t *testing.T) {
-	app, err := utils.ToUnstructured(&v1alpha1.Application{
-		ObjectMeta: v1.ObjectMeta{
+	app, err := utils.ToUnstructured(&argocd.Application{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
 			Annotations: map[string]string{
 				"test": "hello",
@@ -23,8 +23,8 @@ func TestAccessBinding_RenderSubjects(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	project, err := utils.ToUnstructured(&v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+	project, err := utils.ToUnstructured(&argocd.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
 			Annotations: map[string]string{
 				"test": "world",

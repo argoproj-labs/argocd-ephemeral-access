@@ -6,6 +6,7 @@ import (
 
 	"github.com/argoproj-labs/ephemeral-access/cmd/backend"
 	"github.com/argoproj-labs/ephemeral-access/cmd/controller"
+	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	"github.com/spf13/cobra"
 )
 
@@ -18,13 +19,20 @@ func main() {
 		},
 		DisableAutoGenTag: true,
 		SilenceUsage:      true,
+		SilenceErrors:     true,
 	}
 
 	command.AddCommand(backend.NewCommand())
 	command.AddCommand(controller.NewCommand())
 
 	if err := command.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		msg := "ephemeral-access execution error"
+		logger, logerr := log.NewLogger()
+		if logerr != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s", msg, err)
+			os.Exit(1)
+		}
+		logger.Error(err, msg)
 		os.Exit(1)
 	}
 }
