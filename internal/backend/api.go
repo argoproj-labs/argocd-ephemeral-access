@@ -64,7 +64,7 @@ type CreateAccessRequestInput struct {
 
 // CreateAccessRequestBody defines the create access response body.
 type CreateAccessRequestBody struct {
-	RoleName string `json:"roleName" example:"custom-role-template" doc:"The role name to request."`
+	RoleName string `json:"roleName" example:"custom-role-template" doc:"The role template name to request."`
 }
 
 // CreateAccessRequestResponse defines the create access response.
