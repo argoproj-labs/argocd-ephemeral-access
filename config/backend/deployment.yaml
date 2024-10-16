@@ -72,7 +72,11 @@ spec:
           name: backend
           ports:
             - containerPort: 8888
+              name: backend
+              protocol: TCP
             - containerPort: 8883
+              name: metrics
+              protocol: TCP
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
