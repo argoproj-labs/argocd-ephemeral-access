@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/pkg/generator"
+	"github.com/argoproj-labs/ephemeral-access/internal/pkg/generator"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
