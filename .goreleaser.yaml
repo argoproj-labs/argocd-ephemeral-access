@@ -5,13 +5,13 @@
 project_name: argocd-ephemeral-access
 version: 2
 
-dist: bin/goreleaser
-
 before:
   hooks:
     - go mod tidy
     - go mod download
     - make build-ui
+    - make manifests-release IMAGE_TAG={{ .Tag }}
+    - rm -rf dist
 
 builds:
   - id: ephemeral-access
@@ -76,6 +76,8 @@ checksum:
 release:
   prerelease: auto
   draft: false
+  extra_files:
+    - glob: ./install.yaml
   header: |
     ## argocd-ephemeral-access
     {{ .Date }}

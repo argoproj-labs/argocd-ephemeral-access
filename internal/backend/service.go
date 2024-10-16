@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
@@ -48,9 +49,10 @@ type AccessRequestKey struct {
 
 // DefaultService is the real Service implementation
 type DefaultService struct {
-	k8s       Persister
-	logger    log.Logger
-	namespace string
+	k8s                   Persister
+	logger                log.Logger
+	namespace             string
+	accessRequestDuration time.Duration
 }
 
 var requestStateOrder = map[api.Status]int{
@@ -64,11 +66,12 @@ var requestStateOrder = map[api.Status]int{
 }
 
 // NewDefaultService will return a new DefaultService instance.
-func NewDefaultService(c Persister, l log.Logger, namespace string) *DefaultService {
+func NewDefaultService(c Persister, l log.Logger, namespace string, arDuration time.Duration) *DefaultService {
 	return &DefaultService{
-		k8s:       c,
-		logger:    l,
-		namespace: namespace,
+		k8s:                   c,
+		logger:                l,
+		namespace:             namespace,
+		accessRequestDuration: arDuration,
 	}
 }
 
@@ -159,21 +162,23 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 			GenerateName: s.getAccessRequestPrefix(key.Username, roleName),
 		},
 		Spec: api.AccessRequestSpec{
+			Duration: v1.Duration{
+				Duration: s.accessRequestDuration,
+			},
 			Role: api.TargetRole{
 				TemplateName: binding.Spec.RoleTemplateRef.Name,
 				Ordinal:      binding.Spec.Ordinal,
 				FriendlyName: binding.Spec.FriendlyName,
 			},
-			Subject: api.Subject{
-				Username: key.Username,
-			},
 			Application: api.TargetApplication{
 				Name:      key.ApplicationName,
 				Namespace: key.ApplicationNamespace,
 			},
+			Subject: api.Subject{
+				Username: key.Username,
+			},
 		},
 	}
-	//TODO: Set duration. Configurable by the users? Server Config?
 	ar, err := s.k8s.CreateAccessRequest(ctx, ar)
 	if err != nil {
 		return nil, fmt.Errorf("error creating access request from k8s: %w", err)
