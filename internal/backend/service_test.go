@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -406,16 +406,16 @@ func TestServiceGetGrantingAccessBinding(t *testing.T) {
 	t.Run("will return binding when the go template match", func(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
-		app, err := utils.ToUnstructured(&v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{
+		app, err := utils.ToUnstructured(&argocd.Application{
+			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					"hello": "world",
 				},
 			},
 		})
 		require.NoError(t, err)
-		project, err := utils.ToUnstructured(&v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+		project, err := utils.ToUnstructured(&argocd.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					"foo": "bar",
 				},
@@ -679,11 +679,11 @@ func Test_defaultAccessRequestSort(t *testing.T) {
 		// Given
 		base := utils.NewAccessRequestCreated(utils.WithRole())
 		first := base.DeepCopy()
-		first.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 1))
+		first.CreationTimestamp = metav1.NewTime(metav1.Now().Add(time.Second * 1))
 		second := base.DeepCopy()
-		second.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 2))
+		second.CreationTimestamp = metav1.NewTime(metav1.Now().Add(time.Second * 2))
 		third := base.DeepCopy()
-		third.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 3))
+		third.CreationTimestamp = metav1.NewTime(metav1.Now().Add(time.Second * 3))
 
 		items := []*api.AccessRequest{
 			third,

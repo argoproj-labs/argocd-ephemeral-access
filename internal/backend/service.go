@@ -10,7 +10,7 @@ import (
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validation"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -149,7 +149,7 @@ func (s *DefaultService) matchSubject(subjects, groups []string) bool {
 func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error) {
 	roleName := binding.Spec.RoleTemplateRef.Name
 	ar := &api.AccessRequest{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    key.Namespace,
 			GenerateName: s.getAccessRequestPrefix(key.Username, roleName),
 		},

@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	"github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 )
@@ -60,7 +60,7 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		return nil, fmt.Errorf("error adding ephemeralaccessv1alpha1 to k8s scheme: %w", err)
 	}
 
-	err = v1alpha1.AddToScheme(scheme.Scheme)
+	err = argocd.AddToScheme(scheme.Scheme)
 	if err != nil {
 		return nil, fmt.Errorf("error adding argoprojv1alpha1 to k8s scheme: %w", err)
 	}
@@ -220,7 +220,7 @@ func (c *K8sPersister) ListAccessBindings(ctx context.Context, roleName, namespa
 
 func (c *K8sPersister) GetApplication(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error) {
 	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(v1alpha1.ApplicationGroupVersionKind)
+	obj.SetGroupVersionKind(argocd.ApplicationGroupVersionKind)
 	key := client.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
@@ -234,7 +234,7 @@ func (c *K8sPersister) GetApplication(ctx context.Context, name, namespace strin
 
 func (c *K8sPersister) GetAppProject(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error) {
 	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(v1alpha1.AppProjectGroupVersionKind)
+	obj.SetGroupVersionKind(argocd.AppProjectGroupVersionKind)
 	key := client.ObjectKey{
 		Namespace: namespace,
 		Name:      name,

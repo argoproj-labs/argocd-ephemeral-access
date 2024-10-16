@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -378,16 +378,16 @@ func TestK8sPersister(t *testing.T) {
 		err = k8sClient.Create(ctx, ns)
 		require.NoError(t, err)
 
-		app := &v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{
+		app := &argocd.Application{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: nsName,
 				Name:      name,
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argocd.ApplicationSpec{
 				Project: "test",
 			},
 		}
-		app.SetGroupVersionKind(v1alpha1.ApplicationGroupVersionKind)
+		app.SetGroupVersionKind(argocd.ApplicationGroupVersionKind)
 		appU, err := utils.ToUnstructured(app)
 		require.NoError(t, err)
 		// spec.destination is required, but not defined in the ephemeral-access-spec
@@ -433,13 +433,13 @@ func TestK8sPersister(t *testing.T) {
 		err = k8sClient.Create(ctx, ns)
 		require.NoError(t, err)
 
-		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+		project := &argocd.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: nsName,
 				Name:      name,
 			},
-			Spec: v1alpha1.AppProjectSpec{
-				Roles: []v1alpha1.ProjectRole{
+			Spec: argocd.AppProjectSpec{
+				Roles: []argocd.ProjectRole{
 					{Name: "test"},
 				},
 			},
