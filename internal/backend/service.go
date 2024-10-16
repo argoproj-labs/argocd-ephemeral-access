@@ -8,7 +8,7 @@ import (
 	"time"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/pkg/generator"
+	"github.com/argoproj-labs/ephemeral-access/internal/backend/generator"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
