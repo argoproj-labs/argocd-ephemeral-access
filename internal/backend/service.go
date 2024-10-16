@@ -8,9 +8,9 @@ import (
 	"time"
 
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/ephemeral-access/internal/pkg/generator"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -64,6 +64,13 @@ var requestStateOrder = map[api.Status]int{
 	api.InvalidStatus:   3,
 	api.ExpiredStatus:   4,
 }
+
+const (
+	// Same as https://github.com/kubernetes/apiserver/blob/v0.31.1/pkg/storage/names/generate.go#L46
+	maxNameLength          = 63
+	randomLength           = 5
+	MaxGeneratedNameLength = maxNameLength - randomLength
+)
 
 // NewDefaultService will return a new DefaultService instance.
 func NewDefaultService(c Persister, l log.Logger, namespace string, arDuration time.Duration) *DefaultService {
@@ -159,7 +166,7 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 	ar := &api.AccessRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    key.Namespace,
-			GenerateName: s.getAccessRequestPrefix(key.Username, roleName),
+			GenerateName: getAccessRequestPrefix(key.Username, roleName),
 		},
 		Spec: api.AccessRequestSpec{
 			Duration: metav1.Duration{
@@ -186,11 +193,22 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 	return ar, nil
 }
 
-func (s *DefaultService) getAccessRequestPrefix(username, roleName string) string {
-	prefix := strings.ToLower(fmt.Sprintf("%s-", "TODO"))
-	if len(validation.NameIsDNSSubdomain(prefix, true)) != 0 {
-		prefix = strings.ToLower("TODO-fallback-")
+func getAccessRequestPrefix(username, roleName string) string {
+	// If username is an email, we don't care about the email domain
+	username, _, _ = strings.Cut(username, "@")
+
+	username = generator.ToDNS1123Subdomain(username)
+	roleName = generator.ToDNS1123Subdomain(roleName)
+
+	prefix := fmt.Sprintf("%s-%s-", username, roleName)
+
+	if MaxGeneratedNameLength-len(prefix) < 0 {
+		// If the prefix is too long, use the maximum length available
+		extraCharLength := 2 // the format adds 2 dashes
+		username, roleName = generator.ToMaxLength(username, roleName, MaxGeneratedNameLength-extraCharLength)
+		prefix = fmt.Sprintf("%s-%s-", username, roleName)
 	}
+
 	return prefix
 }
 
