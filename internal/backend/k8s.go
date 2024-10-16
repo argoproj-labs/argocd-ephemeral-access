@@ -39,10 +39,14 @@ type Persister interface {
 	// ListAccessRequests returns all the AccessBindings matching the specified role and namespace
 	ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error)
 
-	// GetApplication return an Unstructured object that represents the Application
+	// GetApplication returns an Unstructured object that represents the Application.
+	// An Unstructured object is returned to avoid importing the full object type or losing properties
+	// during unmarshalling from the partial typed object.
 	GetApplication(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
 
-	// GetAppProject return an Unstructured object that represents the AppProject
+	// GetAppProject return an Unstructured object that represents the AppProject.
+	// An Unstructured object is returned to avoid importing the full object type or losing properties
+	// during unmarshalling from the partial typed object.
 	GetAppProject(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
 }
 

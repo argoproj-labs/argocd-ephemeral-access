@@ -17,13 +17,25 @@ import (
 // Service defines the operations provided by the backend. Backend business
 // logic should be added in implementations of this interface
 type Service interface {
+	// CreateAccessRequest will create an AccessRequest for the given key requesting the role specified by the AccessBinding
 	CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error)
+	// GetAccessRequestByRole will retrieve the access request for the specified role.
+	// Will return a nil value without any error if an access request isn't found for this role.
 	GetAccessRequestByRole(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error)
+	// ListAccessRequests will list non-expired access requests and optionally sort them by importance.
+	// The importance sort is based on status, role ordinal, name and creation date.
 	ListAccessRequests(ctx context.Context, key *AccessRequestKey, sort bool) ([]*api.AccessRequest, error)
 
+	// GetGrantingAccessBinding will return the first AccessBinding allowing at least one of the group to request the specified role
+	// AccessBinding can be located in the specified namespace or in the controller namespace.
+	// If no bindings are granting access, nil is returned
 	GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error)
 
+	// GetApplication returns the Unstructured object representing the application. The Unstructured object
+	// can be used to evaluate granting AccessBinding.
 	GetApplication(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
+	// GetAppProject returns the Unstructured object representing the app project. The Unstructured object
+	// can be used to evaluate granting AccessBinding.
 	GetAppProject(ctx context.Context, name, namespace string) (*unstructured.Unstructured, error)
 }
 
@@ -60,8 +72,6 @@ func NewDefaultService(c Persister, l log.Logger, namespace string) *DefaultServ
 	}
 }
 
-// GetAccessRequestByRole will retrieve the access request for the specified role.
-// Will return a nil value without any error if an access request isn't found for this role.
 func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error) {
 
 	// get all access requests
@@ -80,7 +90,6 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 	return nil, nil
 }
 
-// ListAccessRequests will list non-expired access requests and optionally sort them by importance
 func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequestKey, shouldSort bool) ([]*api.AccessRequest, error) {
 	accessRequests, err := s.k8s.ListAccessRequests(ctx, key)
 	if err != nil {
@@ -103,9 +112,6 @@ func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequ
 	return filtered, nil
 }
 
-// GetGrantingAccessBinding will return the first AccessBinding allowing at least one of the group to request the specified role
-// AccessBinding can be located in the specified namespace or in the controller namespace.
-// If no bindings are granting access, nil is returned
 func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error) {
 	bindings, err := s.listAccessBindings(ctx, roleName, namespace)
 	if err != nil {
@@ -145,7 +151,6 @@ func (s *DefaultService) matchSubject(subjects, groups []string) bool {
 	return false
 }
 
-// CreateAccessRequest willl crate an AccessRequest for the given key requesting the role speified by the AccessBinding
 func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error) {
 	roleName := binding.Spec.RoleTemplateRef.Name
 	ar := &api.AccessRequest{
