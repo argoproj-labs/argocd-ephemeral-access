@@ -86,7 +86,7 @@ func (_c *MockPersister_CreateAccessRequest_Call) RunAndReturn(run func(context.
 	return _c
 }
 
-// GetAppProject provides a mock function with given fields: ctx, name, namespace TEST
+// GetAppProject provides a mock function with given fields: ctx, name, namespace
 func (_m *MockPersister) GetAppProject(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
 	ret := _m.Called(ctx, name, namespace)
 
