@@ -162,7 +162,7 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 			GenerateName: s.getAccessRequestPrefix(key.Username, roleName),
 		},
 		Spec: api.AccessRequestSpec{
-			Duration: v1.Duration{
+			Duration: metav1.Duration{
 				Duration: s.accessRequestDuration,
 			},
 			Role: api.TargetRole{
