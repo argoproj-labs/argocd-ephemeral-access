@@ -37,8 +37,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	appprojectv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
-	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
 	// +kubebuilder:scaffold:imports
 )
@@ -85,10 +85,10 @@ var _ = BeforeSuite(func() {
 	Expect(restConfig).NotTo(BeNil())
 
 	// +kubebuilder:scaffold:scheme
-	err = ephemeralaccessv1alpha1.AddToScheme(scheme.Scheme)
+	err = api.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = appprojectv1alpha1.AddToScheme(scheme.Scheme)
+	err = argocd.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	ctx, cancel = context.WithCancel(context.Background())

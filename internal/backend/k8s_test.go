@@ -9,11 +9,15 @@ import (
 	"testing"
 	"time"
 
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -76,6 +80,47 @@ func TestK8sPersister(t *testing.T) {
 		err := p.StartCache(ctx)
 		require.NoError(t, err)
 	}()
+
+	t.Run("will create AccessRequest successfully", func(t *testing.T) {
+		// Given
+		nsName := "create-ar-success"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		ar := utils.NewAccessRequestCreated()
+		ar.ObjectMeta.Namespace = nsName
+
+		// When
+		result, err := p.CreateAccessRequest(ctx, ar)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		assert.NotEqual(t, ar, result)
+		assert.Equal(t, ar.GetName(), result.GetName())
+		assert.Equal(t, ar.GetNamespace(), result.GetNamespace())
+	})
+
+	t.Run("will return an error if create fails", func(t *testing.T) {
+		// Given
+		nsName := "create-ar-error"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		ar := utils.NewAccessRequestCreated()
+		ar.ObjectMeta.Namespace = nsName
+		ar.ObjectMeta.Name = "--invalid--"
+
+		// When
+		result, err := p.CreateAccessRequest(ctx, ar)
+
+		// Then
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "metadata.name: Invalid value")
+		assert.Nil(t, result)
+	})
 
 	t.Run("will list AccessRequest successfully", func(t *testing.T) {
 		// Given
@@ -322,6 +367,114 @@ func TestK8sPersister(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Equal(t, 0, len(result.Items))
+	})
+
+	t.Run("will successfully get the Application", func(t *testing.T) {
+		// Given
+		nsName := "get-app"
+		name := "my-app"
+		destName := "dest-name-value"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		app := &argocd.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: nsName,
+				Name:      name,
+			},
+			Spec: argocd.ApplicationSpec{
+				Project: "test",
+			},
+		}
+		app.SetGroupVersionKind(argocd.ApplicationGroupVersionKind)
+		appU, err := utils.ToUnstructured(app)
+		require.NoError(t, err)
+		// spec.destination is required, but not defined in the ephemeral-access-spec
+		require.NoError(t, unstructured.SetNestedField(appU.Object, destName, "spec", "destination", "name"))
+		err = k8sClient.Create(ctx, appU)
+		require.NoError(t, err)
+
+		// When
+		result, err := p.GetApplication(ctx, name, nsName)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, name, result.GetName())
+		assert.Equal(t, nsName, result.GetNamespace())
+		gotDestName, ok, err := unstructured.NestedString(result.Object, "spec", "destination", "name")
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, destName, gotDestName)
+	})
+
+	t.Run("will return an error if Application does not exist", func(t *testing.T) {
+		// Given
+		nsName := "get-app-notfound"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		// When
+		result, err := p.GetApplication(ctx, "not-found", nsName)
+
+		// Then
+		assert.Error(t, err)
+		assert.True(t, apierrors.IsNotFound(err))
+		assert.Nil(t, result)
+	})
+
+	t.Run("will successfully get the AppProject", func(t *testing.T) {
+		// Given
+		nsName := "get-project"
+		name := "my-project"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		project := &argocd.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: nsName,
+				Name:      name,
+			},
+			Spec: argocd.AppProjectSpec{
+				Roles: []argocd.ProjectRole{
+					{Name: "test"},
+				},
+			},
+		}
+		err = k8sClient.Create(ctx, project)
+		require.NoError(t, err)
+
+		// When
+		result, err := p.GetAppProject(ctx, name, nsName)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, name, result.GetName())
+		assert.Equal(t, nsName, result.GetNamespace())
+		roles, ok, err := unstructured.NestedSlice(result.Object, "spec", "roles")
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, len(project.Spec.Roles), len(roles))
+	})
+
+	t.Run("will return an error if AppProject does not exist", func(t *testing.T) {
+		// Given
+		nsName := "get-project-notfound"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		// When
+		result, err := p.GetAppProject(ctx, "not-found", nsName)
+
+		// Then
+		assert.Error(t, err)
+		assert.True(t, apierrors.IsNotFound(err))
+		assert.Nil(t, result)
 	})
 
 }

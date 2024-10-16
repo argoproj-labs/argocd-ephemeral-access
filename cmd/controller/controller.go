@@ -32,8 +32,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	appprojectv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
-	ephemeralaccessv1alpha1 "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller"
 	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
@@ -48,8 +48,8 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(ephemeralaccessv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(appprojectv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(api.AddToScheme(scheme))
+	utilruntime.Must(argocd.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

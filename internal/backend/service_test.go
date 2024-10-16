@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
@@ -15,8 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -407,16 +409,16 @@ func TestServiceGetGrantingAccessBinding(t *testing.T) {
 	t.Run("will return binding when the go template match", func(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
-		app, err := utils.ToUnstructured(&v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{
+		app, err := utils.ToUnstructured(&argocd.Application{
+			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					"hello": "world",
 				},
 			},
 		})
 		require.NoError(t, err)
-		project, err := utils.ToUnstructured(&v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+		project, err := utils.ToUnstructured(&argocd.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					"foo": "bar",
 				},
@@ -463,6 +465,110 @@ func TestServiceGetGrantingAccessBinding(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, errorMsg, "cannot render subjects")
+	})
+}
+
+func TestServiceGetApplication(t *testing.T) {
+	t.Run("will return the application when found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		app := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"hello": "world",
+			},
+		}
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetApplication(mock.Anything, name, namespace).Return(app, nil)
+
+		// When
+		result, err := f.svc.GetApplication(context.Background(), name, namespace)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, app, result)
+	})
+	t.Run("will return nil if not found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetApplication(mock.Anything, name, namespace).Return(nil, errors.NewNotFound(schema.GroupResource{}, "some-err"))
+
+		// When
+		ar, err := f.svc.GetApplication(context.Background(), name, namespace)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Nil(t, ar)
+	})
+	t.Run("will return error if k8s request fails", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetApplication(mock.Anything, name, namespace).Return(nil, fmt.Errorf("some internal error"))
+
+		// When
+		result, err := f.svc.GetApplication(context.Background(), name, namespace)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
+	})
+}
+
+func TestServiceGetAppProject(t *testing.T) {
+	t.Run("will return the project when found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		project := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"hello": "world",
+			},
+		}
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetAppProject(mock.Anything, name, namespace).Return(project, nil)
+
+		// When
+		result, err := f.svc.GetAppProject(context.Background(), name, namespace)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, project, result)
+	})
+	t.Run("will return nil if not found", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetAppProject(mock.Anything, name, namespace).Return(nil, errors.NewNotFound(schema.GroupResource{}, "some-err"))
+
+		// When
+		ar, err := f.svc.GetAppProject(context.Background(), name, namespace)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Nil(t, ar)
+	})
+	t.Run("will return error if k8s request fails", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		name := "my-name"
+		namespace := "my-namespace"
+		f.persister.EXPECT().GetAppProject(mock.Anything, name, namespace).Return(nil, fmt.Errorf("some internal error"))
+
+		// When
+		result, err := f.svc.GetAppProject(context.Background(), name, namespace)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some internal error")
 	})
 }
 
@@ -576,11 +682,11 @@ func Test_defaultAccessRequestSort(t *testing.T) {
 		// Given
 		base := utils.NewAccessRequestCreated(utils.WithRole())
 		first := base.DeepCopy()
-		first.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 1))
+		first.CreationTimestamp = metav1.NewTime(metav1.Now().Add(time.Second * 1))
 		second := base.DeepCopy()
-		second.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 2))
+		second.CreationTimestamp = metav1.NewTime(metav1.Now().Add(time.Second * 2))
 		third := base.DeepCopy()
-		third.CreationTimestamp = v1.NewTime(v1.Now().Add(time.Second * 3))
+		third.CreationTimestamp = metav1.NewTime(metav1.Now().Add(time.Second * 3))
 
 		items := []*api.AccessRequest{
 			third,
