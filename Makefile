@@ -80,7 +80,7 @@ test: manifests generate fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /test | grep -v /cmd | grep -v /api) -coverprofile cover.out
 
 .PHONY: setup-envtest
-setup-envtest: envtest ## configure envtest k8s directory
+setup-envtest: envtest ## configure envtest k8s directory.
 	$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN)
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
@@ -89,26 +89,32 @@ test-e2e:
 	go test ./test/e2e/ -v -ginkgo.v
 
 .PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter
+lint: golangci-lint ## Run golangci-lint linter.
 	$(GOLANGCI_LINT) run
 
 .PHONY: lint-fix
-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
+lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 	$(GOLANGCI_LINT) run --fix
 
-##@ Build
+##@ Run
 
-.PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/ephemeral cmd/main.go
+.PHONY: run
+run: build goreman ## Run all ephemeral-access components defined in the Procfile.
+	$(GOREMAN) start
 
 .PHONY: run-controller
 run-controller: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go controller
 
 .PHONY: run-backend
-run-backend: fmt vet ## Run the api backend server
+run-backend: fmt vet ## Run the api backend server.
 	go run ./cmd/main.go backend
+
+##@ Build
+
+.PHONY: build
+build: manifests generate fmt vet ## Build manager binary.
+	go build -o bin/ephemeral-access cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -133,7 +139,7 @@ goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to valid
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the manager for cross-platform support
+docker-buildx: ## Build and push docker image for the manager for cross-platform support.
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name argocd-ephemeral-access-builder
@@ -190,6 +196,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 MOCKERY ?= $(LOCALBIN)/mockery-$(MOCKERY_VERSION)
 GORELEASER ?= $(LOCALBIN)/goreleaser-$(GORELEASER_VERSION)
+GOREMAN ?= $(LOCALBIN)/goreman-$(GOREMAN_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.4.1
@@ -198,6 +205,7 @@ ENVTEST_VERSION ?= release-0.18
 GOLANGCI_LINT_VERSION ?= v1.57.2
 MOCKERY_VERSION ?= v2.45.0
 GORELEASER_VERSION ?= v2.3.2
+GOREMAN_VERSION ?= v0.3.15
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -229,6 +237,11 @@ $(MOCKERY): $(LOCALBIN)
 goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
 $(GORELEASER): $(LOCALBIN)
 	$(call go-install-tool,$(GORELEASER),github.com/goreleaser/goreleaser/v2,$(GORELEASER_VERSION))
+
+.PHONY: goreman
+goreman: $(GOREMAN) ## Download goreman locally if necessary.
+$(GOREMAN): $(LOCALBIN)
+	$(call go-install-tool,$(GOREMAN),github.com/mattn/goreman,$(GOREMAN_VERSION))
 
 .PHONY: generate-mocks
 generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
