@@ -1,18 +1,24 @@
 {
   "compilerOptions": {
+    "module": "CommonJS",
     "outDir": "./dist",
     "sourceMap": true,
     "noImplicitAny": true,
-    "module": "esnext",
     "target": "es5",
     "jsx": "react",
+    "esModuleInterop": true,
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "noUnusedLocals": true,
     "declaration": false,
     "allowSyntheticDefaultImports": true,
     "lib": ["es2017", "dom"],
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "preserveSymlinks": false,
+    "paths": {
+      "@ui/*": ["./src/*"],
+    }
   },
   "include": ["./**/*"],
   "exclude": ["node_modules"]

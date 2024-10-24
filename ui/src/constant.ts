@@ -4,7 +4,7 @@ export const BUTTON_LABELS = {
   CANCEL: "Cancel",
 };
 
-export const Access_READ_COLOR = '#18BE94';
-export const Access_WRITE_COLOR = '#DE303D';
+export const ACCESS_DEFAULT_COLOR = '#18BE94';
+export const ACCESS_PERMISSION_COLOR = '#f4c030';
 
-export const TIME_FORMAT = 'YYYY-MM-DD HH:MM:SSZ'
+export const TIME_FORMAT = 'YYYY-MM-DDTHH:mm:ssZ'
