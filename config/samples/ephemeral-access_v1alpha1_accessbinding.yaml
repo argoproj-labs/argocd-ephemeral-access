@@ -1,0 +1,15 @@
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: AccessBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-ephemeral-access
+    app.kubernetes.io/managed-by: kustomize
+  name: some-access-binding
+spec:
+  roleTemplateRef:
+    name: devops
+  subjects: 
+    - group1
+  if: "true"
+  ordinal: 1
+  friendlyName: "Devops (AB)"

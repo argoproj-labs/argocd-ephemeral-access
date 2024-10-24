@@ -4,6 +4,13 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
-  name: roletemplate-sample
+  name: devops
 spec:
-  # TODO(user): Add fields here
+  description: write permission in application {{.Application}}
+  name: "DevOps (Write)"
+  policies:
+  - p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow
+  - p, {{.Role}}, applications, get, {{.Project}}/{{.Application}}, deny
+  - p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow
+  - p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow
+  - p, {{.Role}}, logs, get, {{.Project}}/{{.Namespace}}/{{.Application}}, allow
