@@ -217,7 +217,7 @@ func getAccessRequestPrefix(username, roleName string) string {
 }
 
 func (s *DefaultService) GetApplication(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
-	s.logger.Debug("Getting application", "name", name, "namespace", namespace)
+	s.logger.Debug(fmt.Sprintf("Getting application %s/%s", namespace, name))
 	app, err := s.k8s.GetApplication(ctx, name, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
