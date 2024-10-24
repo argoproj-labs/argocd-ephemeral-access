@@ -22,9 +22,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   application: application,
   userInfo
 }) => {
-  const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody>(() => {
-    return JSON.parse(localStorage.getItem(application?.metadata?.name) || 'null');
-  });
+  const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody>(null);
   const [enabled, setEnabled] = useState(accessRequest === null);
   const applicationNamespace = application?.metadata?.namespace || '';
   const applicationName = application?.metadata?.name || '';
@@ -52,7 +50,10 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       setEnabled(true);
       localStorage.setItem(application?.metadata?.name, null);
     }
-  }, [applicationName, applicationNamespace, project, username]);
+    if (accessRequest.status === AccessRequestResponseBodyStatus.GRANTED) {
+      setEnabled(false);
+    }
+  }, []);
 
   const requestAccessHandler = useCallback(async (): Promise<CreateAccessRequestBody | null> => {
     try {
@@ -66,20 +67,32 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         }
       );
 
-      if (data.status === AccessRequestResponseBodyStatus.REQUESTED) {
+      if (data.status === AccessRequestResponseBodyStatus.GRANTED) {
         setEnabled(false);
+      } else {
+        // Start polling if the status is not GRANTED
+        const intervalId = setInterval(async () => {
+          const accessData = await fetchAccess();
+          if (accessData?.status === AccessRequestResponseBodyStatus.GRANTED) {
+            setEnabled(false);
+            clearInterval(intervalId); // Stop polling once status is GRANTED
+          }
+        }, 500);
       }
     } catch (error) {
       console.error('Error requesting access:', error);
       setEnabled(true);
       return null;
     }
-  }, [applicationName, applicationNamespace, project, username]);
+  }, [applicationName, applicationNamespace, project, username, fetchAccess]);
 
   useEffect(() => {
-    const interval = setInterval(fetchAccess, 500);
-    return () => clearInterval(interval);
-  }, []);
+    const fetchData = async () => {
+     await fetchAccess();
+    };
+    fetchData();
+    }, []);
+
 
   const cancel = useCallback(() => {
     setAccessRequest(null);

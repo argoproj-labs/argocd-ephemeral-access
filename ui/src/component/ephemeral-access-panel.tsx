@@ -9,7 +9,7 @@ import { getDisplayTime } from '../utils/utils';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
 
-  const checkPermission = useCallback(() => {
+  const getPermissions = useCallback(() => {
     const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
 
     if (accessPermission) {
@@ -27,10 +27,23 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
     }
   }, [application.metadata?.name]);
 
+  const validatePermissions = () => {
+    const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
+    if (accessPermission === null) {
+      localStorage.removeItem(application.metadata?.name);
+      setAccessRequest(null);
+    }
+  };
+
   useEffect(() => {
-    const intervalId = setInterval(checkPermission, 500);
+    const intervalId = setInterval(() => {
+      getPermissions();
+      validatePermissions();
+    }, 500);
+
     return () => clearInterval(intervalId);
-  }, [checkPermission]);
+  }, [getPermissions]);
+
 
   const handleLinkClick = useCallback(() => {
     window.location.href = `/applications/argocd/${application.metadata.name}?view=tree&resource=&extension=ephemeral_access`;

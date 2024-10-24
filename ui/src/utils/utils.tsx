@@ -58,13 +58,18 @@ export const getDisplayTime = (accessRequest: AccessRequestResponseBody): any =>
 };
 
 export const EnableEphemeralAccess = (application: Application) => {
-  if (window?.EPHEMERAL_ACCESS_VARS) {
-    return (
-      application?.metadata?.labels &&
-      window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY &&
-      application?.metadata?.labels[window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY] ===
-        window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_VALUE
-    );
+  if (
+    !window?.EPHEMERAL_ACCESS_VARS ||
+    !window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY ||
+    !window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_VALUE
+  ) {
+    return true;
   }
-  return true;
+
+  return (
+    application?.metadata?.labels &&
+    window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY &&
+    application?.metadata?.labels[window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY] ===
+      window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_VALUE
+  );
 };

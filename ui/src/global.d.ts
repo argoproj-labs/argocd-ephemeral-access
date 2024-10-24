@@ -1,6 +1,6 @@
 interface Window {
   EPHEMERAL_ACCESS_VARS: {
-    EPHEMERAL_ACCESS_DEFAULT_ENABLED: string;
+    EPHEMERAL_ACCESS_DEFAULT_DISABLED: string;
     EPHEMERAL_ACCESS_LABEL_KEY: string;
     EPHEMERAL_ACCESS_LABEL_VALUE: string;
     EPHEMERAL_ACCESS_MAIN_BANNER: string;
@@ -9,3 +9,4 @@ interface Window {
     EPHEMERAL_ACCESS_DEFAULT_ROLE: string;
   };
 }
+
