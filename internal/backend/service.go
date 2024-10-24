@@ -164,6 +164,10 @@ func (s *DefaultService) matchSubject(subjects, groups []string) bool {
 func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error) {
 	roleName := binding.Spec.RoleTemplateRef.Name
 	ar := &api.AccessRequest{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AccessRequest",
+			APIVersion: "v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    key.Namespace,
 			GenerateName: getAccessRequestPrefix(key.Username, roleName),
@@ -213,6 +217,7 @@ func getAccessRequestPrefix(username, roleName string) string {
 }
 
 func (s *DefaultService) GetApplication(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
+	s.logger.Debug("Getting application", "name", name, "namespace", namespace)
 	app, err := s.k8s.GetApplication(ctx, name, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
