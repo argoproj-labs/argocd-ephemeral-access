@@ -26,6 +26,7 @@ export interface Application {
   metadata: {
     name: string;
     labels: any
+    namespace: string;
   };
 }
 

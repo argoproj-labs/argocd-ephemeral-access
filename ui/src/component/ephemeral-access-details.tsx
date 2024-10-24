@@ -1,65 +1,85 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { BUTTON_LABELS } from '../constant';
-import { getAccess, requestAccess } from '../config/client';
-import { UserInfo, Application, AccessRequest } from '../models/type';
+import { UserInfo, Application } from '../models/type';
 import { Spinner } from '../utils/utils';
 import './ephemeral-access-details.scss';
 import moment from 'moment/moment';
+import {
+  AccessRequestResponseBody,
+  AccessRequestResponseBodyStatus,
+  createAccessrequest,
+  CreateAccessRequestBody,
+  listAccessrequest
+} from '../gen/ephemeralAccessAPI';
+import { getHeaders } from '../config/client';
 
 interface AccessDetailsComponentProps {
   application: Application;
   userInfo: UserInfo;
 }
 
-const requestAccessHandler = async (
-  application: Application,
-  userInfo: UserInfo,
-  setEnabled: React.Dispatch<React.SetStateAction<boolean>>,
-  setAccessRequest: React.Dispatch<React.SetStateAction<AccessRequest>>
-) => {
-  try {
-    const response: AccessRequest = await requestAccess(application, userInfo.username);
-    if (response) {
-      localStorage.setItem(application.metadata.name, JSON.stringify(response));
-    }
-    setAccessRequest(response);
-    setEnabled(false);
-  } catch (error) {
-    console.error('Error requesting access:', error);
-    setEnabled(true);
-  }
-};
-
 const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
-  application,
+  application: application,
   userInfo
 }) => {
-  const [accessRequest, setAccessRequest] = useState<AccessRequest>(() => {
-    return JSON.parse(localStorage.getItem(application?.metadata?.name)) || null;
+  const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody>(() => {
+    return JSON.parse(localStorage.getItem(application?.metadata?.name) || 'null');
   });
   const [enabled, setEnabled] = useState(accessRequest === null);
+  const applicationNamespace = application?.metadata?.namespace || '';
+  const applicationName = application?.metadata?.name || '';
+  const project = application?.spec?.project || '';
+  const username = userInfo?.username;
 
-  const fetchAccess = useCallback(async () => {
-    const response = await getAccess(application, userInfo.username);
-    if (response && response?.items) {
-      setAccessRequest(response?.items[0]);
+  const fetchAccess = useCallback(async (): Promise<AccessRequestResponseBody | null> => {
+    const { data } = await listAccessrequest({
+      baseURL: '/extensions/ephemeral/',
+      headers: getHeaders({ applicationName, applicationNamespace, project, username })
+    });
+
+    if (data && data?.items?.length > 0) {
+      const accessRequestData = data.items[0];
+      setAccessRequest(accessRequestData);
       setEnabled(false);
-    }
-    console.log('Access Request:', response);
-    if (accessRequest === null || accessRequest?.status === undefined) {
+      localStorage.setItem(
+        application?.metadata?.name,
+        JSON.stringify(
+          data.items.find((item) => item.status === AccessRequestResponseBodyStatus.GRANTED) || null
+        )
+      );
+      return accessRequestData;
+    } else {
       setEnabled(true);
+      localStorage.setItem(application?.metadata?.name, null);
     }
-    if (accessRequest?.status === 'EXPIRED') {
-      localStorage.removeItem(application.metadata.name);
-      setAccessRequest(null);
+  }, [applicationName, applicationNamespace, project, username]);
+
+  const requestAccessHandler = useCallback(async (): Promise<CreateAccessRequestBody | null> => {
+    try {
+      const { data } = await createAccessrequest(
+        {
+          roleName: window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_ROLE
+        },
+        {
+          baseURL: '/extensions/ephemeral/',
+          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+        }
+      );
+
+      if (data.status === AccessRequestResponseBodyStatus.REQUESTED) {
+        setEnabled(false);
+      }
+    } catch (error) {
+      console.error('Error requesting access:', error);
       setEnabled(true);
+      return null;
     }
-  }, [application, accessRequest]);
+  }, [applicationName, applicationNamespace, project, username]);
 
   useEffect(() => {
-    const interval = setInterval(fetchAccess, 5000);
+    const interval = setInterval(fetchAccess, 500);
     return () => clearInterval(interval);
-  }, [fetchAccess]);
+  }, []);
 
   const cancel = useCallback(() => {
     setAccessRequest(null);
@@ -72,16 +92,14 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
         className='argo-button argo-button--base'
         disabled={!enabled}
-        onClick={() => {
-          requestAccessHandler(application, userInfo, setEnabled, setAccessRequest);
-          setEnabled(false);
-        }}
+        onClick={requestAccessHandler}
       >
-        {accessRequest?.status !== 'ACTIVE' && accessRequest?.status !== 'DENIED' && (
-          <span>
-            <Spinner show={!enabled} style={{ marginRight: '5px' }} />
-          </span>
-        )}
+        {accessRequest?.status !== AccessRequestResponseBodyStatus.GRANTED &&
+          accessRequest?.status !== AccessRequestResponseBodyStatus.DENIED && (
+            <span>
+              <Spinner show={!enabled} style={{ marginRight: '5px' }} />
+            </span>
+          )}
         {BUTTON_LABELS.REQUEST_ACCESS}
       </button>
       <button
@@ -101,15 +119,17 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           </div>
           <div className='access-form__usrmsg__warning-content'>
             {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER}
-            <a
-              style={{ color: 'blue', textDecoration: 'underline' }}
-              href={
-                window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK
-              }
-              target={'_blank'}
-            >
-              Read more.
-            </a>
+            {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK && (
+              <a
+                style={{ color: 'blue', textDecoration: 'underline' }}
+                href={
+                  window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK
+                }
+                target={'_blank'}
+              >
+                Read more.
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -124,9 +144,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           </div>
           <div className='row white-box__details-row'>
             <div className='columns small-3'>PERMISSION</div>
-            <div className='columns small-9'>
-              {accessRequest?.permission?.toUpperCase() || 'Read Only'}
-            </div>
+            <div className='columns small-9'>{accessRequest?.permission || 'Read Only'}</div>
           </div>
           {accessRequest?.expiresAt && (
             <div>
@@ -138,38 +156,45 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>ROLE</div>
-                <div className='columns small-9'>{accessRequest?.role?.toUpperCase()}</div>
+                <div className='columns small-9'>{accessRequest?.role}</div>
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>STATUS</div>
-                <div className='columns small-9'>{accessRequest?.status?.toUpperCase()}</div>
+                <div className='columns small-9'>{accessRequest?.status}</div>
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>MESSAGE</div>
                 <div className='columns small-9'>
-                  {accessRequest?.status === 'PENDING' ? (
-                    <span style={{ display: 'flex', flexDirection: 'column' }}>
+                  {accessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED ? (
+                    <span style={{ display: 'flex', flexDirection: 'column', margin: '0' }}>
                       {accessRequest?.message}
-                      <a
-                        href={window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL}
-                        style={{}}
-                      >
-                        Click to create change request
-                      </a>
+                      {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL && (
+                        <a
+                          href={window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL}
+                          style={{ color: 'blue', textDecoration: 'underline' }}
+                          target={'_blank'}
+                        >
+                          Click here to create
+                        </a>
+                      )}
                     </span>
                   ) : (
                     accessRequest?.message
                   )}
                 </div>
               </div>
-              {accessRequest?.status === 'ACTIVE' && accessRequest?.expiresAt && (
-                <div className='row white-box__details-row'>
-                  <div className='columns small-3'>Access Expires:</div>
-                  <div className='columns small-9'>
-                    {moment(accessRequest?.expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
+              {accessRequest?.status === AccessRequestResponseBodyStatus.GRANTED &&
+                accessRequest?.expiresAt && (
+                  <div
+                    className='row white-box__details-row'
+                    style={{ display: 'flex', alignItems: 'center' }}
+                  >
+                    <div className='columns small-3'>EXPIRES</div>
+                    <div className='columns small-9'>
+                      {moment(accessRequest?.expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           )}
         </div>

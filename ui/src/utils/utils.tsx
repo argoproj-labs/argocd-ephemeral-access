@@ -1,6 +1,8 @@
 import React from 'react';
-import { AccessRequest, Application } from '../models/type';
-import { Access_READ_COLOR, Access_WRITE_COLOR } from '../constant';
+import Moment from 'react-moment';
+import { Application } from '../models/type';
+import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
+import { AccessRequestResponseBody } from '../gen/ephemeralAccessAPI';
 
 export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSSProperties }) =>
   show ? (
@@ -10,21 +12,16 @@ export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSS
   ) : null;
 
 export enum AccessRole {
-  Read = 'Read',
-  Write = 'Write'
+  DEFAULT_ACCESS = 'Read'
 }
-export const AccessPanel = ({
-                                  accessRequest
-}: {
-  accessRequest: AccessRequest;
-}) => {
-  let color = Access_READ_COLOR;
+export const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
+  let color = ACCESS_DEFAULT_COLOR;
   let icon = 'fa-solid fa-lock';
-  if (accessRequest && accessRequest?.permission === 'Write') {
-    color = Access_WRITE_COLOR;
+  if (accessRequest) {
+    color = ACCESS_PERMISSION_COLOR;
     icon = 'fa-solid fa-unlock';
   } else {
-    color = Access_READ_COLOR;
+    color = ACCESS_DEFAULT_COLOR;
     icon = 'fa-solid fa-lock';
   }
 
@@ -42,21 +39,32 @@ export const AccessPanel = ({
   );
 };
 
-const getRoleTitle = (accessRequest: AccessRequest) => {
-  if (accessRequest && accessRequest.permission === 'Write') {
-    return AccessRole.Write;
+const getRoleTitle = (accessRequest: AccessRequestResponseBody) => {
+  if (accessRequest === null) {
+    return AccessRole.DEFAULT_ACCESS;
   } else {
-    return AccessRole.Read;
+    return accessRequest.permission;
   }
 };
 
-export  const EnableEphemeralAccess = (application: Application) => {
-  if ( window?.EPHEMERAL_ACCESS_VARS || window?.EPHEMERAL_ACCESS_VARS.EPHEMERAL_ACCESS_DEFAULT_ENABLED === 'true') {
-    return true;
-  } else {
-    return application?.metadata?.labels &&
+export const getDisplayTime = (accessRequest: AccessRequestResponseBody): any => {
+  return (
+    <span>
+      <Moment fromNow={true} ago={true}>
+        {new Date(accessRequest.expiresAt)}
+      </Moment>
+    </span>
+  );
+};
+
+export const EnableEphemeralAccess = (application: Application) => {
+  if (window?.EPHEMERAL_ACCESS_VARS) {
+    return (
+      application?.metadata?.labels &&
       window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY &&
       application?.metadata?.labels[window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY] ===
-        window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_VALUE;
+        window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_VALUE
+    );
   }
-}
+  return true;
+};
