@@ -1,5 +1,5 @@
 import React from 'react';
-import { AccessRequest } from '../models/type';
+import { AccessRequest, Application } from '../models/type';
 import { Access_READ_COLOR, Access_WRITE_COLOR } from '../constant';
 
 export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSSProperties }) =>
@@ -49,3 +49,14 @@ const getRoleTitle = (accessRequest: AccessRequest) => {
     return AccessRole.Read;
   }
 };
+
+export  const EnableEphemeralAccess = (application: Application) => {
+  if ( window?.EPHEMERAL_ACCESS_VARS || window?.EPHEMERAL_ACCESS_VARS.EPHEMERAL_ACCESS_DEFAULT_ENABLED === 'true') {
+    return true;
+  } else {
+    return application?.metadata?.labels &&
+      window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY &&
+      application?.metadata?.labels[window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_KEY] ===
+        window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_VALUE;
+  }
+}
