@@ -15,14 +15,16 @@ associated with `AppProjects` different than `default`.
 
 ## How it Works
 
-This project provides a new set of CRDs that are used to configure the
-behaviour of how the access can be elevated. The CRDs provided as part of
-this project are described below:
+This project provides a set of CRDs that are used to configure the
+behaviour of how the Argo CD access can be elevated. The CRDs provided
+as part of this project are described below:
 
 ### RoleTemplate
 
-The `RoleTemplate` defines the Argo CD RBAC policies that will be
-associated with an Argo CD `AppProject`. 
+The `RoleTemplate` defines a templated Argo CD RBAC policies. Once the
+elevated access is requested and approved, the policies will be
+rendered and dynamicaly associated with the AppProject related with
+the access request. 
 
 ```yaml
 apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
@@ -52,7 +54,7 @@ spec:
     - group1
   if: "true"
   ordinal: 1
-  friendlyName: "Devops (AB)"
+  friendlyName: "Devops (Write)"
 ```
 
 ### AccessRequest
@@ -64,17 +66,19 @@ metadata:
   name: some-application-username
   namespace: ephemeral
 spec:
+  application:
+    name: ephemeral
+    namespace: argocd
   duration: '1m'
-  targetRoleName: ephemeral-write-access
-  appProject: 
-    name: some-argocd-appproject
-    namespace: some-namespace
+  role:
+    friendlyName: Devops (Write)
+    ordinal: 1
+    templateName: devops
   subject:
     username: some_user@fakedomain.com
 ```
 
-
-## Installing
+## Installation
 
 The ephemeral-access functionality is provided by the following
 components that needs to be configured properly to achieve the desired
@@ -85,9 +89,13 @@ behaviour:
 - backend: Serves the REST API used by the UI extension.
 - controller: Responsible for reconciling the AccessRequest resource.
 
+### Installing the Backend and the Controller
+
 We provide a consolidated `install.yaml` asset file in every release.
-Check the latest release in the [releases page][1] and replace the
-`DESIRED_VERSION` in the command below.
+The `install.yaml` file contains all the resources required to run the
+backend service and the controller. Check the latest release in the
+[releases page][1] and replace the `DESIRED_VERSION` in the command
+below.
 
 ```bash
 kubectl apply -f https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/<DESIRED_VERSION>/install.yaml
@@ -95,6 +103,49 @@ kubectl apply -f https://github.com/argoproj-labs/argocd-ephemeral-access/releas
 
 This command will create a new namespace `argocd-ephemeral-access` and
 deploy the necessary resources.
+
+### Install UI extension
+
+The UI extension needs to be installed by mounting the React component
+in Argo CD API server. This process can be automated by using the
+[argocd-extension-installer][2]. This installation method will run an
+init container that will download, extract and place the file in the
+correct location.
+
+The yaml file below is an example of how to define a kustomize patch
+to install this UI extension:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: extension-metrics
+          image: quay.io/argoprojlabs/argocd-extension-installer:v0.0.8@sha256:e7cb054207620566286fce2d809b4f298a72474e0d8779ffa8ec92c3b630f054
+          env:
+          - name: EXTENSION_URL
+            value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.0.1/extension.tar.gz
+          - name: EXTENSION_CHECKSUM_URL
+            value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.0.1/extension_checksums.txt
+          volumeMounts:
+            - name: extensions
+              mountPath: /tmp/extensions/
+          securityContext:
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+      containers:
+        - name: argocd-server
+          volumeMounts:
+            - name: extensions
+              mountPath: /tmp/extensions/
+      volumes:
+        - name: extensions
+          emptyDir: {}
+```
 
 ## Usage
 
@@ -153,3 +204,4 @@ IMAGE_NAMESPACE="my.company.com/argoproj-labs" IMAGE_TAG="$(git rev-parse --abbr
 #### Releasing
 
 [1]: https://github.com/argoproj-labs/argocd-ephemeral-access/releases
+[2]: https://github.com/argoproj-labs/argocd-extension-installer
