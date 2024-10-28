@@ -181,6 +181,14 @@ deploy: manifests-release ## Deploy distribution to the K8s cluster specified in
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
+.PHONY: install-ui-extension
+install-ui-extension: build-ui ## build and copy the necessary ui extension files in the Argo CD UI extensions folder.
+	mkdir -p /tmp/extensions
+	rm -rf /tmp/extensions/resources/extension-ephemeral-access.js
+	find ${UI_DIR} -type f -name extension.tar -exec cp {} /tmp/extensions/ephemeral.tar \;
+	tar -xf /tmp/extensions/ephemeral.tar --cd /tmp/extensions
+	cp test/manifests/samples/ui-extension-vars.js /tmp/extensions/resources/extension-ephemeral-access.js/
+
 ##@ Dependencies
 
 ## Location to install dependencies to
