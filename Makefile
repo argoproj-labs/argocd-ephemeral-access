@@ -187,7 +187,7 @@ install-ui-extension: build-ui ## build and copy the necessary ui extension file
 	rm -rf /tmp/extensions/resources/extension-ephemeral-access.js
 	find ${UI_DIR} -type f -name extension.tar -exec cp {} /tmp/extensions/ephemeral.tar \;
 	tar -xf /tmp/extensions/ephemeral.tar --cd /tmp/extensions
-	cp test/manifests/samples/ui-extension-vars.js /tmp/extensions/resources/extension-ephemeral-access.js/
+	cp test/manifests/samples/extension-0-EPHEMERAL_ACCESS_vars.js /tmp/extensions/resources/extension-ephemeral-access.js/
 
 ##@ Dependencies
 
