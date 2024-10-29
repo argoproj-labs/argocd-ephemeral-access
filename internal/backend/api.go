@@ -140,7 +140,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error retrieving existing access request for user %s with role %s", key.Username, input.Body.RoleName), err))
 	}
 	if ar != nil {
-		return nil, huma.Error409Conflict("Access Request already exist")
+		return nil, huma.Error409Conflict("AccessRequest already exists")
 	}
 
 	// Validate information in headers necessary to evaluate permissions

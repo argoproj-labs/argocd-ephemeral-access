@@ -339,5 +339,5 @@ type AllowedResponse struct {
 // 1. verify if user is sudoer
 // 2. verify if CR is approved
 func Allowed(ctx context.Context, ar *api.AccessRequest, app *argocd.Application) (AllowedResponse, error) {
-	return AllowedResponse{Allowed: true}, nil
+	return AllowedResponse{Allowed: true, Message: "Change request http://test.com"}, nil
 }
