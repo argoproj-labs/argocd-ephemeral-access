@@ -79,7 +79,7 @@ spec:
                     description: Ordinal defines an ordering number of this role compared
                       to others
                     type: integer
-                  template:
+                  templateRef:
                     description: TemplateName defines the role template the user will
                       be assigned
                     properties:
@@ -96,7 +96,7 @@ spec:
                     - namespace
                     type: object
                 required:
-                - template
+                - templateRef
                 type: object
                 x-kubernetes-validations:
                 - message: Value is immutable

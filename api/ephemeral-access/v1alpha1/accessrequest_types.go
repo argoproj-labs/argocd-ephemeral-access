@@ -78,7 +78,7 @@ type TargetApplication struct {
 type TargetRole struct {
 	// TemplateName defines the role template the user will be assigned
 	// +kubebuilder:validation:Required
-	Template TargetRoleTemplate `json:"template"`
+	TemplateRef TargetRoleTemplate `json:"templateRef"`
 	// Ordinal defines an ordering number of this role compared to others
 	Ordinal int `json:"ordinal,omitempty"`
 	// FriendlyName defines a name for this role
@@ -86,6 +86,8 @@ type TargetRole struct {
 	FriendlyName *string `json:"friendlyName,omitempty"`
 }
 
+// TargetRoleTemplate defines the reference to the RoleTemplate to be associated
+// with the AccessRequest
 type TargetRoleTemplate struct {
 	// Name refers to the RoleTemplate name
 	// +kubebuilder:validation:MaxLength=512

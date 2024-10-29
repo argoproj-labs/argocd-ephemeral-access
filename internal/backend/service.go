@@ -92,7 +92,7 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 
 	// find the first access request matching the requested role
 	for _, ar := range accessRequests {
-		if ar.Spec.Role.Template.Name == roleName {
+		if ar.Spec.Role.TemplateRef.Name == roleName {
 			return ar, nil
 		}
 	}
@@ -178,7 +178,7 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 				Duration: s.accessRequestDuration,
 			},
 			Role: api.TargetRole{
-				Template: api.TargetRoleTemplate{
+				TemplateRef: api.TargetRoleTemplate{
 					Name:      binding.Spec.RoleTemplateRef.Name,
 					Namespace: binding.Namespace,
 				},
@@ -276,8 +276,8 @@ func defaultAccessRequestSort(a, b *api.AccessRequest) int {
 	}
 
 	// sort by role name ascending
-	if a.Spec.Role.Template.Name != b.Spec.Role.Template.Name {
-		return strings.Compare(a.Spec.Role.Template.Name, b.Spec.Role.Template.Name)
+	if a.Spec.Role.TemplateRef.Name != b.Spec.Role.TemplateRef.Name {
+		return strings.Compare(a.Spec.Role.TemplateRef.Name, b.Spec.Role.TemplateRef.Name)
 	}
 
 	// sort by creation date. Priority to newer request

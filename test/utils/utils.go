@@ -183,7 +183,7 @@ func NewAccessRequest(name, namespace, appName, appNamespace, roleName, roleName
 		Spec: api.AccessRequestSpec{
 			Duration: metav1.Duration{},
 			Role: api.TargetRole{
-				Template: api.TargetRoleTemplate{
+				TemplateRef: api.TargetRoleTemplate{
 					Name:      roleName,
 					Namespace: roleNamespace,
 				},
@@ -306,7 +306,7 @@ func newAccessRequest() *api.AccessRequest {
 		Spec: api.AccessRequestSpec{
 			Duration: metav1.Duration{},
 			Role: api.TargetRole{
-				Template: api.TargetRoleTemplate{
+				TemplateRef: api.TargetRoleTemplate{
 					Name:      "role-template-name",
 					Namespace: "ephemeral",
 				},

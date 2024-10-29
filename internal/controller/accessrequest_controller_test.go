@@ -325,7 +325,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				ar := &api.AccessRequest{}
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 				Expect(err).NotTo(HaveOccurred())
-				ar.Spec.Role.Template.Name = "NOT-ALLOWED"
+				ar.Spec.Role.TemplateRef.Name = "NOT-ALLOWED"
 
 				err = k8sClient.Update(ctx, ar)
 

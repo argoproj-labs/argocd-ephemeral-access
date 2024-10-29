@@ -140,7 +140,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	roleTemplate, err := r.getRoleTemplate(ctx, ar)
 	if err != nil {
 		// TODO send an event to explain why the access request is failing
-		return ctrl.Result{}, fmt.Errorf("error getting RoleTemplate %s/%s: %w", ar.Spec.Role.Template.Namespace, ar.Spec.Role.Template.Name, err)
+		return ctrl.Result{}, fmt.Errorf("error getting RoleTemplate %s/%s: %w", ar.Spec.Role.TemplateRef.Namespace, ar.Spec.Role.TemplateRef.Name, err)
 	}
 
 	renderedRt, err := roleTemplate.Render(application.Spec.Project, application.GetName(), application.GetNamespace())
@@ -202,8 +202,8 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 			continue
 		}
 		// skip if the request is for different role template
-		if arResp.Spec.Role.Template.Name != ar.Spec.Role.Template.Name ||
-			arResp.Spec.Role.Template.Namespace != ar.Spec.Role.Template.Namespace {
+		if arResp.Spec.Role.TemplateRef.Name != ar.Spec.Role.TemplateRef.Name ||
+			arResp.Spec.Role.TemplateRef.Namespace != ar.Spec.Role.TemplateRef.Namespace {
 			continue
 		}
 		// if the existing request is pending or granted, then the new request is
@@ -272,8 +272,8 @@ func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.Ac
 func (r *AccessRequestReconciler) getRoleTemplate(ctx context.Context, ar *api.AccessRequest) (*api.RoleTemplate, error) {
 	roleTemplate := &api.RoleTemplate{}
 	objKey := client.ObjectKey{
-		Name:      ar.Spec.Role.Template.Name,
-		Namespace: ar.Spec.Role.Template.Namespace,
+		Name:      ar.Spec.Role.TemplateRef.Name,
+		Namespace: ar.Spec.Role.TemplateRef.Namespace,
 	}
 	err := r.Get(ctx, objKey, roleTemplate)
 	if err != nil {
@@ -470,10 +470,10 @@ func createRoleTemplateIndex(mgr ctrl.Manager) error {
 	err := mgr.GetFieldIndexer().
 		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateNameField, func(rawObj client.Object) []string {
 			ar := rawObj.(*api.AccessRequest)
-			if ar.Spec.Role.Template.Name == "" {
+			if ar.Spec.Role.TemplateRef.Name == "" {
 				return nil
 			}
-			return []string{ar.Spec.Role.Template.Name}
+			return []string{ar.Spec.Role.TemplateRef.Name}
 		})
 	if err != nil {
 		return fmt.Errorf("error creating Role.Template.Name field index: %w", err)
@@ -482,10 +482,10 @@ func createRoleTemplateIndex(mgr ctrl.Manager) error {
 	err = mgr.GetFieldIndexer().
 		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateNamespaceField, func(rawObj client.Object) []string {
 			ar := rawObj.(*api.AccessRequest)
-			if ar.Spec.Role.Template.Namespace == "" {
+			if ar.Spec.Role.TemplateRef.Namespace == "" {
 				return nil
 			}
-			return []string{ar.Spec.Role.Template.Namespace}
+			return []string{ar.Spec.Role.TemplateRef.Namespace}
 		})
 	if err != nil {
 		return fmt.Errorf("error creating Role.Template.Namespace field index: %w", err)
