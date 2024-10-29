@@ -92,7 +92,7 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 
 	// find the first access request matching the requested role
 	for _, ar := range accessRequests {
-		if ar.Spec.Role.TemplateName == roleName {
+		if ar.Spec.Role.Template.Name == roleName {
 			return ar, nil
 		}
 	}
@@ -177,7 +177,10 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 				Duration: s.accessRequestDuration,
 			},
 			Role: api.TargetRole{
-				TemplateName: binding.Spec.RoleTemplateRef.Name,
+				Template: api.TargetRoleTemplate{
+					Name:      binding.Spec.RoleTemplateRef.Name,
+					Namespace: binding.Namespace,
+				},
 				Ordinal:      binding.Spec.Ordinal,
 				FriendlyName: binding.Spec.FriendlyName,
 			},
@@ -239,6 +242,9 @@ func (s *DefaultService) GetAppProject(ctx context.Context, name string, namespa
 	return project, nil
 }
 
+// listAccessBindings will retrieve all AccessBindings for the given roleName searching in the
+// given Argo CD namespace and in the ephemeral access controller namespace. Will return a list
+// appending both results.
 func (s *DefaultService) listAccessBindings(ctx context.Context, roleName string, namespace string) ([]api.AccessBinding, error) {
 	// get all the binding in argo namespace
 	namespacedBindings, err := s.k8s.ListAccessBindings(ctx, roleName, namespace)
@@ -267,8 +273,8 @@ func defaultAccessRequestSort(a, b *api.AccessRequest) int {
 	}
 
 	// sort by role name ascending
-	if a.Spec.Role.TemplateName != b.Spec.Role.TemplateName {
-		return strings.Compare(a.Spec.Role.TemplateName, b.Spec.Role.TemplateName)
+	if a.Spec.Role.Template.Name != b.Spec.Role.Template.Name {
+		return strings.Compare(a.Spec.Role.Template.Name, b.Spec.Role.Template.Name)
 	}
 
 	// sort by creation date. Priority to newer request

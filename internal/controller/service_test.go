@@ -28,7 +28,7 @@ func TestHandlePermission(t *testing.T) {
 				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.AppProject")).
 				Return(expectedError)
 			svc := controller.NewService(clientMock, nil)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
 			}
@@ -61,7 +61,7 @@ func TestHandlePermission(t *testing.T) {
 				Return(expectedError).
 				Once()
 			svc := controller.NewService(clientMock, nil)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
 			}

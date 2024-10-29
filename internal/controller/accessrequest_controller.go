@@ -54,7 +54,8 @@ const (
 	// AccessRequestFinalizerName defines the name of the AccessRequest finalizer
 	// managed by this controller
 	AccessRequestFinalizerName = "accessrequest.ephemeral-access.argoproj-labs.io/finalizer"
-	roleTemplateField          = ".spec.role.templateName"
+	roleTemplateNameField      = ".spec.role.template.name"
+	roleTemplateNamespaceField = ".spec.role.template.namespace"
 	projectField               = ".status.targetProject"
 	userField                  = ".spec.subject.username"
 	appField                   = ".spec.application.name"
@@ -139,7 +140,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	roleTemplate, err := r.getRoleTemplate(ctx, ar)
 	if err != nil {
 		// TODO send an event to explain why the access request is failing
-		return ctrl.Result{}, fmt.Errorf("error getting RoleTemplate %s: %w", ar.Spec.Role.TemplateName, err)
+		return ctrl.Result{}, fmt.Errorf("error getting RoleTemplate %s/%s: %w", ar.Spec.Role.Template.Namespace, ar.Spec.Role.Template.Name, err)
 	}
 
 	renderedRt, err := roleTemplate.Render(application.Spec.Project, application.GetName(), application.GetNamespace())
@@ -201,7 +202,8 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 			continue
 		}
 		// skip if the request is for different role template
-		if arResp.Spec.Role.TemplateName != ar.Spec.Role.TemplateName {
+		if arResp.Spec.Role.Template.Name != ar.Spec.Role.Template.Name ||
+			arResp.Spec.Role.Template.Namespace != ar.Spec.Role.Template.Namespace {
 			continue
 		}
 		// if the existing request is pending or granted, then the new request is
@@ -270,8 +272,8 @@ func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.Ac
 func (r *AccessRequestReconciler) getRoleTemplate(ctx context.Context, ar *api.AccessRequest) (*api.RoleTemplate, error) {
 	roleTemplate := &api.RoleTemplate{}
 	objKey := client.ObjectKey{
-		Name:      ar.Spec.Role.TemplateName,
-		Namespace: ar.GetNamespace(),
+		Name:      ar.Spec.Role.Template.Name,
+		Namespace: ar.Spec.Role.Template.Namespace,
 	}
 	err := r.Get(ctx, objKey, roleTemplate)
 	if err != nil {
@@ -349,8 +351,13 @@ func (r *AccessRequestReconciler) callReconcileForRoleTemplate(ctx context.Conte
 	logger := log.FromContext(ctx)
 	logger.Debug(fmt.Sprintf("RoleTemplate %s updated: searching for associated AccessRequests...", roleTemplate.GetName()))
 	attachedAccessRequests := &api.AccessRequestList{}
+	selector := fields.SelectorFromSet(
+		fields.Set{
+			roleTemplateNameField:      roleTemplate.GetName(),
+			roleTemplateNamespaceField: roleTemplate.GetNamespace(),
+		})
 	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(roleTemplateField, roleTemplate.GetName()),
+		FieldSelector: selector,
 	}
 	err := r.List(ctx, attachedAccessRequests, listOps)
 	if err != nil {
@@ -461,15 +468,27 @@ func createProjectIndex(mgr ctrl.Manager) error {
 // to allow fetching all objects referencing a given RoleTemplate.
 func createRoleTemplateIndex(mgr ctrl.Manager) error {
 	err := mgr.GetFieldIndexer().
-		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateField, func(rawObj client.Object) []string {
+		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateNameField, func(rawObj client.Object) []string {
 			ar := rawObj.(*api.AccessRequest)
-			if ar.Spec.Role.TemplateName == "" {
+			if ar.Spec.Role.Template.Name == "" {
 				return nil
 			}
-			return []string{ar.Spec.Role.TemplateName}
+			return []string{ar.Spec.Role.Template.Name}
 		})
 	if err != nil {
-		return fmt.Errorf("error creating roleTemplateName field index: %w", err)
+		return fmt.Errorf("error creating Role.Template.Name field index: %w", err)
+	}
+
+	err = mgr.GetFieldIndexer().
+		IndexField(context.Background(), &api.AccessRequest{}, roleTemplateNamespaceField, func(rawObj client.Object) []string {
+			ar := rawObj.(*api.AccessRequest)
+			if ar.Spec.Role.Template.Namespace == "" {
+				return nil
+			}
+			return []string{ar.Spec.Role.Template.Namespace}
+		})
+	if err != nil {
+		return fmt.Errorf("error creating Role.Template.Namespace field index: %w", err)
 	}
 	return nil
 }
