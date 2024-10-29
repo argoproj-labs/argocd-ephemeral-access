@@ -55,14 +55,18 @@ type DefaultService struct {
 	accessRequestDuration time.Duration
 }
 
-var requestStateOrder = map[api.Status]int{
-	// empty is the default and assumed to be the same as requested
-	"":                  0,
-	api.RequestedStatus: 0,
-	api.GrantedStatus:   1,
-	api.DeniedStatus:    2,
-	api.InvalidStatus:   3,
-	api.ExpiredStatus:   4,
+// requestStateOrder returns a map with AccessRequest.Status as the key
+// and the order as value.
+func requestStateOrder() map[api.Status]int {
+	return map[api.Status]int{
+		// empty is the default and assumed to be the same as requested
+		"":                  0,
+		api.RequestedStatus: 0,
+		api.GrantedStatus:   1,
+		api.DeniedStatus:    2,
+		api.InvalidStatus:   3,
+		api.ExpiredStatus:   4,
+	}
 }
 
 const (
@@ -82,6 +86,8 @@ func NewDefaultService(c Persister, l log.Logger, namespace string, arDuration t
 	}
 }
 
+// GetAccessRequestByRole will find the AccessRequest based on the given key and roleName.
+// Result will discard Expired and Denied AccessRequests.
 func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error) {
 
 	// get all access requests
@@ -92,7 +98,8 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 
 	// find the first access request matching the requested role
 	for _, ar := range accessRequests {
-		if ar.Spec.Role.TemplateRef.Name == roleName {
+		if ar.Spec.Role.TemplateRef.Name == roleName &&
+			ar.Status.RequestState != api.DeniedStatus {
 			return ar, nil
 		}
 	}
@@ -100,6 +107,9 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 	return nil, nil
 }
 
+// ListAccessRequests will return all AccessRequests based on the given key. Expired
+// AccessRequests will be removed from the result. If shouldSort is true, the result
+// list will be sorted using defaultAccessRequestSort algorithim.
 func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequestKey, shouldSort bool) ([]*api.AccessRequest, error) {
 	accessRequests, err := s.k8s.ListAccessRequests(ctx, key)
 	if err != nil {
@@ -262,7 +272,14 @@ func (s *DefaultService) listAccessBindings(ctx context.Context, roleName string
 	return append(namespacedBindings.Items, globalBindings.Items...), nil
 }
 
+// defaultAccessRequestSort will sort the given AccessRequests by comparing
+// in the following order:
+// 1. requestStateOrder defined by the requestStateOrder() function
+// 2. AccessRequest.Spec.Role.Ordinal field
+// 3. AccessRequest.Spec.Role.TemplateRef.Name field
+// 4. AccessRequest.CreationTimestamp field
 func defaultAccessRequestSort(a, b *api.AccessRequest) int {
+	requestStateOrder := requestStateOrder()
 	// sort by status
 	if a.Status.RequestState != b.Status.RequestState {
 		aOrder := requestStateOrder[a.Status.RequestState]
