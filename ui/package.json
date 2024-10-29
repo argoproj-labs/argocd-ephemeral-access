@@ -10,7 +10,6 @@
     "@react-buddy/ide-toolbox": "^2.4.0",
     "@react-buddy/palette-antd": "^5.3.0",
     "antd": "^5.20.0",
-    "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
     "classnames": "^2.5.1",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.33",
@@ -72,7 +71,8 @@
   },
   "resolutions": {
     "@types/react": "^18.0.26",
-    "@types/react-dom": "^18.0.26"
+    "@types/react-dom": "^18.0.26",
+    "react-toastify": "9.0.8"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

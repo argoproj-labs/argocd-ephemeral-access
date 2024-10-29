@@ -1,9 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 import { BUTTON_LABELS } from '../constant';
 import { UserInfo, Application } from '../models/type';
 import { Spinner } from '../utils/utils';
 import './ephemeral-access-details.scss';
 import moment from 'moment/moment';
+
 import {
   AccessRequestResponseBody,
   AccessRequestResponseBodyStatus,
@@ -28,34 +32,43 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const applicationName = application?.metadata?.name || '';
   const project = application?.spec?.project || '';
   const username = userInfo?.username;
+  const notify = (msg: string) => toast.warning('error occurred: ' + msg);
 
   const fetchAccess = useCallback(async (): Promise<AccessRequestResponseBody | null> => {
-    const { data } = await listAccessrequest({
-      baseURL: '/extensions/ephemeral/',
-      headers: getHeaders({ applicationName, applicationNamespace, project, username })
-    });
+    try {
+      const { data } = await listAccessrequest({
+        baseURL: '/extensions/ephemeral/',
+        headers: getHeaders({ applicationName, applicationNamespace, project, username })
+      });
 
-    if (data && data?.items?.length > 0) {
-      const accessRequestData = data.items[0];
-      setAccessRequest(accessRequestData);
-      setEnabled(false);
-      localStorage.setItem(
-        application?.metadata?.name,
-        JSON.stringify(
-          data.items.find((item) => item.status === AccessRequestResponseBodyStatus.GRANTED) || null
-        )
-      );
-      return accessRequestData;
-    } else {
+      if (data && data.items.length > 0) {
+        const accessRequestData = data.items[0];
+        setAccessRequest(accessRequestData);
+        setEnabled(false);
+        localStorage.setItem(
+          application?.metadata?.name,
+          JSON.stringify(
+            data.items.find((item) => item.status === AccessRequestResponseBodyStatus.GRANTED) ||
+              null
+          )
+        );
+        return accessRequestData;
+      } else {
+        setEnabled(true);
+        localStorage.setItem(application?.metadata?.name, 'null');
+      }
+
+      if (accessRequest && accessRequest.status === AccessRequestResponseBodyStatus.GRANTED) {
+        setEnabled(false);
+      }
+    } catch (error) {
       setEnabled(true);
-      localStorage.setItem(application?.metadata?.name, null);
+      notify('Failed to connect to  backend: ' + error.message);
     }
-    if (accessRequest.status === AccessRequestResponseBodyStatus.GRANTED) {
-      setEnabled(false);
-    }
+    return null;
   }, []);
 
-  const requestAccessHandler = useCallback(async (): Promise<CreateAccessRequestBody | null> => {
+  const requestAccessHandler = useCallback(async (): Promise<CreateAccessRequestBody> => {
     try {
       const { data } = await createAccessrequest(
         {
@@ -70,29 +83,43 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       if (data.status === AccessRequestResponseBodyStatus.GRANTED) {
         setEnabled(false);
       } else {
-        // Start polling if the status is not GRANTED
         const intervalId = setInterval(async () => {
           const accessData = await fetchAccess();
           if (accessData?.status === AccessRequestResponseBodyStatus.GRANTED) {
             setEnabled(false);
-            clearInterval(intervalId); // Stop polling once status is GRANTED
+            clearInterval(intervalId);
           }
         }, 500);
       }
     } catch (error) {
-      console.error('Error requesting access:', error);
       setEnabled(true);
+      if (error.response.status === 409) {
+        notify('Permission request already exists');
+        const accessData = await fetchAccess();
+        if (accessData?.status === AccessRequestResponseBodyStatus.GRANTED) {
+          setAccessRequest(accessData);
+          setEnabled(false);
+        }
+      }
+      if (error.response.status === 401) {
+        notify('Extension is not enabled');
+        setEnabled(false);
+      }
+
+      if (error.response.status === 502) {
+        notify('Error occurred while requesting permission');
+        setEnabled(false);
+      }
       return null;
     }
   }, [applicationName, applicationNamespace, project, username, fetchAccess]);
 
   useEffect(() => {
     const fetchData = async () => {
-     await fetchAccess();
+      await fetchAccess();
     };
     fetchData();
-    }, []);
-
+  }, []);
 
   const cancel = useCallback(() => {
     setAccessRequest(null);
@@ -140,13 +167,12 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                 }
                 target={'_blank'}
               >
-                Read more.
+                Read More
               </a>
             )}
           </div>
         </div>
       </div>
-
       <div className='white-box' style={{ marginTop: '15px' }}>
         <div className='white-box__details'>
           <p>USER'S CURRENT PERMISSION</p>
@@ -212,6 +238,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           )}
         </div>
       </div>
+      <ToastContainer />
     </div>
   );
 };
