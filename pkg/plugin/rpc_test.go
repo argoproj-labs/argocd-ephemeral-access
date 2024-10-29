@@ -66,7 +66,10 @@ func TestAccessRequesterRPC(t *testing.T) {
 		return &api.AccessRequest{
 			Spec: api.AccessRequestSpec{
 				Role: api.TargetRole{
-					TemplateName: roletemplate,
+					TemplateRef: api.TargetRoleTemplate{
+						Name:      roletemplate,
+						Namespace: "ephemeral",
+					},
 				},
 				Application: api.TargetApplication{
 					Name:      name,

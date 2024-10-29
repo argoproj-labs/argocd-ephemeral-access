@@ -92,7 +92,7 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 
 	// find the first access request matching the requested role
 	for _, ar := range accessRequests {
-		if ar.Spec.Role.TemplateName == roleName {
+		if ar.Spec.Role.TemplateRef.Name == roleName {
 			return ar, nil
 		}
 	}
@@ -129,16 +129,17 @@ func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName 
 	}
 
 	if len(bindings) == 0 {
+		s.logger.Debug(fmt.Sprintf("No AccessBinding found for role: %s", roleName))
 		return nil, nil
 	}
 
-	s.logger.Debug(fmt.Sprintf("found %d bindings referencing role %s", len(bindings), roleName))
+	s.logger.Debug(fmt.Sprintf("Found %d bindings referencing role %s", len(bindings), roleName))
 	var grantingBinding *api.AccessBinding
 	for i, binding := range bindings {
 
 		subjects, err := binding.RenderSubjects(app, project)
 		if err != nil {
-			s.logger.Error(err, fmt.Sprintf("cannot render subjects %s:", binding.Name))
+			s.logger.Error(err, fmt.Sprintf("Cannot render subjects %s:", binding.Name))
 			continue
 		}
 
@@ -177,7 +178,10 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 				Duration: s.accessRequestDuration,
 			},
 			Role: api.TargetRole{
-				TemplateName: binding.Spec.RoleTemplateRef.Name,
+				TemplateRef: api.TargetRoleTemplate{
+					Name:      binding.Spec.RoleTemplateRef.Name,
+					Namespace: binding.Namespace,
+				},
 				Ordinal:      binding.Spec.Ordinal,
 				FriendlyName: binding.Spec.FriendlyName,
 			},
@@ -239,13 +243,18 @@ func (s *DefaultService) GetAppProject(ctx context.Context, name string, namespa
 	return project, nil
 }
 
+// listAccessBindings will retrieve all AccessBindings for the given roleName searching in the
+// given Argo CD namespace and in the ephemeral access controller namespace. Will return a list
+// appending both results.
 func (s *DefaultService) listAccessBindings(ctx context.Context, roleName string, namespace string) ([]api.AccessBinding, error) {
 	// get all the binding in argo namespace
+	s.logger.Debug(fmt.Sprintf("Getting AccessBindings for role %s in namespace: %s", roleName, namespace))
 	namespacedBindings, err := s.k8s.ListAccessBindings(ctx, roleName, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
 	}
 	// get all the binding in controller namespace
+	s.logger.Debug(fmt.Sprintf("Getting AccessBindings for role %s in namespace: %s", roleName, s.namespace))
 	globalBindings, err := s.k8s.ListAccessBindings(ctx, roleName, s.namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
@@ -267,8 +276,8 @@ func defaultAccessRequestSort(a, b *api.AccessRequest) int {
 	}
 
 	// sort by role name ascending
-	if a.Spec.Role.TemplateName != b.Spec.Role.TemplateName {
-		return strings.Compare(a.Spec.Role.TemplateName, b.Spec.Role.TemplateName)
+	if a.Spec.Role.TemplateRef.Name != b.Spec.Role.TemplateRef.Name {
+		return strings.Compare(a.Spec.Role.TemplateRef.Name, b.Spec.Role.TemplateRef.Name)
 	}
 
 	// sort by creation date. Priority to newer request

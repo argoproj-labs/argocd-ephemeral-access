@@ -76,7 +76,7 @@ func TestServiceCreateAccessRequest(t *testing.T) {
 		assert.Equal(t, key.Username, result.Spec.Subject.Username)
 		assert.Equal(t, ab.Spec.FriendlyName, result.Spec.Role.FriendlyName)
 		assert.Equal(t, ab.Spec.Ordinal, result.Spec.Role.Ordinal)
-		assert.Equal(t, ab.Spec.RoleTemplateRef.Name, result.Spec.Role.TemplateName)
+		assert.Equal(t, ab.Spec.RoleTemplateRef.Name, result.Spec.Role.TemplateRef.Name)
 		assert.Equal(t, AccessRequestDuration, result.Spec.Duration.Duration)
 	})
 	t.Run("will return error if k8s request fails", func(t *testing.T) {
@@ -466,7 +466,7 @@ func TestServiceGetGrantingAccessBinding(t *testing.T) {
 		// Then
 		assert.NoError(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, errorMsg, "cannot render subjects")
+		assert.Contains(t, errorMsg, "Cannot render subjects")
 	})
 }
 
@@ -658,11 +658,11 @@ func Test_defaultAccessRequestSort(t *testing.T) {
 		// Given
 		base := utils.NewAccessRequestCreated(utils.WithRole())
 		first := base.DeepCopy()
-		first.Spec.Role.TemplateName = "a"
+		first.Spec.Role.TemplateRef.Name = "a"
 		second := base.DeepCopy()
-		second.Spec.Role.TemplateName = "b"
+		second.Spec.Role.TemplateRef.Name = "b"
 		third := base.DeepCopy()
-		third.Spec.Role.TemplateName = "c"
+		third.Spec.Role.TemplateRef.Name = "c"
 
 		items := []*api.AccessRequest{
 			third,

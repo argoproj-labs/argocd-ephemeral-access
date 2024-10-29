@@ -152,7 +152,7 @@ func run(cmd *cobra.Command, args []string) error {
 			serverErr := make(chan error)
 			defer close(serverErr)
 			go func() {
-				logger.Info("Starting Ephemeral Access API Server...", "port", opts.Backend.Port)
+				logger.Info("Starting Ephemeral Access API Server...", "configs", opts)
 				server.ListenAndServe()
 			}()
 			select {

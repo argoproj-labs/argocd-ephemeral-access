@@ -204,7 +204,7 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 		message = *ar.Status.History[len(ar.Status.History)-1].Details
 	}
 
-	permission := ar.Spec.Role.TemplateName
+	permission := ar.Spec.Role.TemplateRef.Name
 	if ar.Spec.Role.FriendlyName != nil {
 		permission = *ar.Spec.Role.FriendlyName
 	}
@@ -215,7 +215,7 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 		Username:    ar.Spec.Subject.Username,
 		Permission:  permission,
 		RequestedAt: requestedAt,
-		Role:        ar.Spec.Role.TemplateName,
+		Role:        ar.Spec.Role.TemplateRef.Name,
 		Status:      strings.ToUpper(string(ar.Status.RequestState)),
 		ExpiresAt:   expiresAt,
 		Message:     message,

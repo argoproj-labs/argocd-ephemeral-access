@@ -170,7 +170,7 @@ func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
 }
 
 // NewAccessRequest creates an AccessRequest
-func NewAccessRequest(name, namespace, appName, appNamespace, roleName, subject string) *api.AccessRequest {
+func NewAccessRequest(name, namespace, appName, appNamespace, roleName, roleNamespace, subject string) *api.AccessRequest {
 	return &api.AccessRequest{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "AccessRequest",
@@ -183,7 +183,10 @@ func NewAccessRequest(name, namespace, appName, appNamespace, roleName, subject 
 		Spec: api.AccessRequestSpec{
 			Duration: metav1.Duration{},
 			Role: api.TargetRole{
-				TemplateName: roleName,
+				TemplateRef: api.TargetRoleTemplate{
+					Name:      roleName,
+					Namespace: roleNamespace,
+				},
 			},
 			Application: api.TargetApplication{
 				Name:      appName,
@@ -303,7 +306,10 @@ func newAccessRequest() *api.AccessRequest {
 		Spec: api.AccessRequestSpec{
 			Duration: metav1.Duration{},
 			Role: api.TargetRole{
-				TemplateName: "role-template-name",
+				TemplateRef: api.TargetRoleTemplate{
+					Name:      "role-template-name",
+					Namespace: "ephemeral",
+				},
 			},
 			Application: api.TargetApplication{
 				Name:      "my-app",

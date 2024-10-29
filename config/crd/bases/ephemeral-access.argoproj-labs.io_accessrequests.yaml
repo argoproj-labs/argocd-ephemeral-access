@@ -79,13 +79,24 @@ spec:
                     description: Ordinal defines an ordering number of this role compared
                       to others
                     type: integer
-                  templateName:
+                  templateRef:
                     description: TemplateName defines the role template the user will
                       be assigned
-                    maxLength: 512
-                    type: string
+                    properties:
+                      name:
+                        description: Name refers to the RoleTemplate name
+                        maxLength: 512
+                        type: string
+                      namespace:
+                        description: Namespace refers to the namespace where the RoleTemplate
+                          lives
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
                 required:
-                - templateName
+                - templateRef
                 type: object
                 x-kubernetes-validations:
                 - message: Value is immutable

@@ -57,6 +57,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	type fixture struct {
 		namespace      *corev1.Namespace
+		rtNamespace    *corev1.Namespace
 		accessrequests []*api.AccessRequest
 		roletemplate   *api.RoleTemplate
 		appproj        *unstructured.Unstructured
@@ -64,7 +65,8 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	type resources struct {
 		arName, appName, namespace, appProjName,
-		roleTemplateName, subject, roleName string
+		roleTemplateName, roleTemplateNamespace,
+		subject, roleName string
 		policies []string
 	}
 
@@ -72,6 +74,15 @@ var _ = Describe("AccessRequest Controller", func() {
 		By("Creating the namespace")
 		ns := utils.NewNamespace(r.namespace)
 		err := k8sClient.Create(ctx, ns)
+		if err != nil {
+			statusErr, ok := err.(*errors.StatusError)
+			Expect(ok).To(BeTrue())
+			Expect(statusErr.ErrStatus.Code).NotTo(Equal(409))
+		}
+
+		By("Creating the roleTemplate namespace")
+		rtNs := utils.NewNamespace(r.roleTemplateNamespace)
+		err = k8sClient.Create(ctx, rtNs)
 		if err != nil {
 			statusErr, ok := err.(*errors.StatusError)
 			Expect(ok).To(BeTrue())
@@ -108,12 +119,13 @@ var _ = Describe("AccessRequest Controller", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Instantiate the RoleTemplate initial state")
-		rt := utils.NewRoleTemplate(r.roleTemplateName, r.namespace, r.roleName, r.policies)
+		rt := utils.NewRoleTemplate(r.roleTemplateName, r.roleTemplateNamespace, r.roleName, r.policies)
 		By("Instantiate the AccessRequest initial state")
-		ar := utils.NewAccessRequest(r.arName, r.namespace, r.appName, r.namespace, r.roleTemplateName, r.subject)
+		ar := utils.NewAccessRequest(r.arName, r.namespace, r.appName, r.namespace, r.roleTemplateName, r.roleTemplateNamespace, r.subject)
 
 		return &fixture{
 			namespace:      ns,
+			rtNamespace:    rtNs,
 			accessrequests: []*api.AccessRequest{ar},
 			roletemplate:   rt,
 			appproj:        appproj,
@@ -123,17 +135,21 @@ var _ = Describe("AccessRequest Controller", func() {
 	deleteNamespace := func(f *fixture) {
 		By("Delete the test namespace")
 		Expect(k8sClient.Delete(ctx, f.namespace)).To(Succeed())
+
+		By("Delete the roletemplate namespace")
+		Expect(k8sClient.Delete(ctx, f.rtNamespace)).To(Succeed())
 	}
 
 	Context("Reconciling an AccessRequest", Ordered, func() {
 		const (
-			namespace        = "test-01"
-			arName           = "test-ar-01"
-			appprojectName   = "sample-test-project"
-			appName          = "some-application"
-			roleTemplateName = "some-role-template"
-			roleName         = "super-user"
-			subject          = "some-user"
+			namespace             = "test-01"
+			arName                = "test-ar-01"
+			appprojectName        = "sample-test-project"
+			appName               = "some-application"
+			roleTemplateName      = "some-role-template"
+			roleTemplateNamespace = "test-01-rt"
+			roleName              = "super-user"
+			subject               = "some-user"
 		)
 
 		var f *fixture
@@ -151,14 +167,15 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			BeforeAll(func() {
 				r = resources{
-					arName:           arName,
-					appName:          appName,
-					namespace:        namespace,
-					appProjName:      appprojectName,
-					roleTemplateName: roleTemplateName,
-					roleName:         roleName,
-					subject:          subject,
-					policies:         policies,
+					arName:                arName,
+					appName:               appName,
+					namespace:             namespace,
+					appProjName:           appprojectName,
+					roleTemplateName:      roleTemplateName,
+					roleTemplateNamespace: roleTemplateNamespace,
+					roleName:              roleName,
+					subject:               subject,
+					policies:              policies,
 				}
 				f = setup(r)
 			})
@@ -248,13 +265,14 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	Context("Reconciling an AccessRequest", Ordered, func() {
 		const (
-			namespace        = "test-02"
-			arName           = "test-ar-02"
-			appprojectName   = "sample-test-project-02"
-			appName          = "some-application"
-			roleTemplateName = "some-role-template"
-			roleName         = "super-user"
-			subject          = "some-user"
+			namespace             = "test-02"
+			arName                = "test-ar-02"
+			appprojectName        = "sample-test-project-02"
+			appName               = "some-application"
+			roleTemplateName      = "some-role-template"
+			roleTemplateNamespace = "test-02-rt"
+			roleName              = "super-user"
+			subject               = "some-user"
 		)
 
 		var f *fixture
@@ -272,14 +290,15 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			BeforeAll(func() {
 				r = resources{
-					arName:           arName,
-					appName:          appName,
-					namespace:        namespace,
-					appProjName:      appprojectName,
-					roleTemplateName: roleTemplateName,
-					roleName:         roleName,
-					subject:          subject,
-					policies:         policies,
+					arName:                arName,
+					appName:               appName,
+					namespace:             namespace,
+					appProjName:           appprojectName,
+					roleTemplateName:      roleTemplateName,
+					roleTemplateNamespace: roleTemplateNamespace,
+					roleName:              roleName,
+					subject:               subject,
+					policies:              policies,
 				}
 				f = setup(r)
 			})
@@ -306,7 +325,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				ar := &api.AccessRequest{}
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 				Expect(err).NotTo(HaveOccurred())
-				ar.Spec.Role.TemplateName = "NOT-ALLOWED"
+				ar.Spec.Role.TemplateRef.Name = "NOT-ALLOWED"
 
 				err = k8sClient.Update(ctx, ar)
 
@@ -349,15 +368,16 @@ var _ = Describe("AccessRequest Controller", func() {
 	})
 	Context("Changing a RoleTemplate", Ordered, func() {
 		const (
-			namespace        = "test-03-rt-watch"
-			arName01         = "test-ar-01"
-			arName02         = "test-ar-02"
-			appprojectName   = "sample-test-project"
-			appName          = "some-application"
-			roleTemplateName = "role-template-watch-test"
-			roleName         = "super-user"
-			subject01        = "some-user"
-			subject02        = "another-user"
+			namespace             = "test-03-rt-watch"
+			arName01              = "test-ar-01"
+			arName02              = "test-ar-02"
+			appprojectName        = "sample-test-project"
+			appName               = "some-application"
+			roleTemplateName      = "role-template-watch-test"
+			roleTemplateNamespace = "test-03-rt-watch-rt"
+			roleName              = "super-user"
+			subject01             = "some-user"
+			subject02             = "another-user"
 		)
 
 		var f *fixture
@@ -375,14 +395,15 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			BeforeAll(func() {
 				r = resources{
-					arName:           arName01,
-					appName:          appName,
-					namespace:        namespace,
-					appProjName:      appprojectName,
-					roleTemplateName: roleTemplateName,
-					roleName:         roleName,
-					subject:          subject01,
-					policies:         policies,
+					arName:                arName01,
+					appName:               appName,
+					namespace:             namespace,
+					appProjName:           appprojectName,
+					roleTemplateName:      roleTemplateName,
+					roleTemplateNamespace: roleTemplateNamespace,
+					roleName:              roleName,
+					subject:               subject01,
+					policies:              policies,
 				}
 				f = setup(r)
 				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 5}
@@ -455,14 +476,15 @@ var _ = Describe("AccessRequest Controller", func() {
 	})
 	Context("Changing a Project", Ordered, func() {
 		const (
-			namespace        = "test-04-project-watch"
-			arName01         = "test-ar-01"
-			appprojectName   = "sample-test-project"
-			appName          = "some-application"
-			roleTemplateName = "role-template-watch-test"
-			roleName         = "super-user"
-			subject01        = "some-user"
-			expectedPolicy   = "original-policy"
+			namespace             = "test-04-project-watch"
+			arName01              = "test-ar-01"
+			appprojectName        = "sample-test-project"
+			appName               = "some-application"
+			roleTemplateName      = "role-template-watch-test"
+			roleTemplateNamespace = "test-04-project-watch-rt"
+			roleName              = "super-user"
+			subject01             = "some-user"
+			expectedPolicy        = "original-policy"
 		)
 
 		var f *fixture
@@ -475,14 +497,15 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 			BeforeAll(func() {
 				r = resources{
-					arName:           arName01,
-					appName:          appName,
-					namespace:        namespace,
-					appProjName:      appprojectName,
-					roleTemplateName: roleTemplateName,
-					roleName:         roleName,
-					subject:          subject01,
-					policies:         policies,
+					arName:                arName01,
+					appName:               appName,
+					namespace:             namespace,
+					appProjName:           appprojectName,
+					roleTemplateName:      roleTemplateName,
+					roleTemplateNamespace: roleTemplateNamespace,
+					roleName:              roleName,
+					subject:               subject01,
+					policies:              policies,
 				}
 				f = setup(r)
 			})
@@ -545,14 +568,15 @@ var _ = Describe("AccessRequest Controller", func() {
 
 	Context("Validating AccessRequests", Ordered, func() {
 		const (
-			namespace        = "test-ar-validation"
-			arName01         = "test-ar-01"
-			appprojectName   = "sample-test-project"
-			appName          = "some-application"
-			roleTemplateName = "role-template-watch-test"
-			roleName         = "super-user"
-			subject01        = "some-user"
-			expectedPolicy   = "original-policy"
+			namespace             = "test-ar-validation"
+			arName01              = "test-ar-01"
+			appprojectName        = "sample-test-project"
+			appName               = "some-application"
+			roleTemplateName      = "role-template-watch-test"
+			roleTemplateNamespace = "test-ar-validation-rt"
+			roleName              = "super-user"
+			subject01             = "some-user"
+			expectedPolicy        = "original-policy"
 		)
 
 		var f *fixture
@@ -564,14 +588,15 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		BeforeAll(func() {
 			r = resources{
-				arName:           arName01,
-				appName:          appName,
-				namespace:        namespace,
-				appProjName:      appprojectName,
-				roleTemplateName: roleTemplateName,
-				roleName:         roleName,
-				subject:          subject01,
-				policies:         policies,
+				arName:                arName01,
+				appName:               appName,
+				namespace:             namespace,
+				appProjName:           appprojectName,
+				roleTemplateName:      roleTemplateName,
+				roleTemplateNamespace: roleTemplateNamespace,
+				roleName:              roleName,
+				subject:               subject01,
+				policies:              policies,
 			}
 			f = setup(r)
 		})
@@ -579,9 +604,9 @@ var _ = Describe("AccessRequest Controller", func() {
 			It("will apply the roletemplate resource in k8s", func() {
 				err := k8sClient.Create(ctx, f.roletemplate)
 				Expect(err).NotTo(HaveOccurred())
-				rtValidate := utils.NewRoleTemplate("anotherrole", namespace, roleName, policies)
+				rtValidate := utils.NewRoleTemplate("anotherrole", roleTemplateNamespace, roleName, policies)
 				err = k8sClient.Create(ctx, rtValidate)
-				rtRace := utils.NewRoleTemplate("racerole", namespace, roleName, policies)
+				rtRace := utils.NewRoleTemplate("racerole", roleTemplateNamespace, roleName, policies)
 				err = k8sClient.Create(ctx, rtRace)
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -605,7 +630,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating conflicting AccessRequest", func() {
 			It("will create conflicting AccessRequest", func() {
-				conflictAR := utils.NewAccessRequest("conflict", namespace, appName, namespace, roleTemplateName, subject01)
+				conflictAR := utils.NewAccessRequest("conflict", namespace, appName, namespace, roleTemplateName, roleTemplateNamespace, subject01)
 				err := k8sClient.Create(ctx, conflictAR)
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -627,7 +652,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating an AccessRequest for the same user/app but different role", func() {
 			It("will create the AccessRequest successfully", func() {
-				anotherroleAR := utils.NewAccessRequest("anotherrole", namespace, appName, namespace, "anotherrole", subject01)
+				anotherroleAR := utils.NewAccessRequest("anotherrole", namespace, appName, namespace, "anotherrole", roleTemplateNamespace, subject01)
 				anotherroleAR.Spec.Duration = metav1.Duration{Duration: time.Minute}
 				err := k8sClient.Create(ctx, anotherroleAR)
 				Expect(err).NotTo(HaveOccurred())
@@ -651,9 +676,9 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating two AccessRequests at the same time", func() {
 			It("will create them successfully", func() {
-				race1AR := utils.NewAccessRequest("race1", namespace, appName, namespace, "racerole", subject01)
+				race1AR := utils.NewAccessRequest("race1", namespace, appName, namespace, "racerole", roleTemplateNamespace, subject01)
 				race1AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
-				race2AR := utils.NewAccessRequest("race2", namespace, appName, namespace, "racerole", subject01)
+				race2AR := utils.NewAccessRequest("race2", namespace, appName, namespace, "racerole", roleTemplateNamespace, subject01)
 				race2AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
 				go func() {
 					err := k8sClient.Create(ctx, race1AR)
