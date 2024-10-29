@@ -32,7 +32,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const applicationName = application?.metadata?.name || '';
   const project = application?.spec?.project || '';
   const username = userInfo?.username;
-  const notify = (msg: string) => toast.warning('error occurred: ' + msg);
+  const notify = (msg: string) => toast.warning('system message: ' + msg);
 
   const fetchAccess = useCallback(async (): Promise<AccessRequestResponseBody | null> => {
     try {
@@ -40,9 +40,8 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         baseURL: '/extensions/ephemeral/',
         headers: getHeaders({ applicationName, applicationNamespace, project, username })
       });
-
+      const accessRequestData = data.items[0];
       if (data && data.items.length > 0) {
-        const accessRequestData = data.items[0];
         setAccessRequest(accessRequestData);
         setEnabled(false);
         localStorage.setItem(
@@ -52,7 +51,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
               null
           )
         );
-        return accessRequestData;
       } else {
         setEnabled(true);
         localStorage.setItem(application?.metadata?.name, 'null');
@@ -61,6 +59,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       if (accessRequest && accessRequest.status === AccessRequestResponseBodyStatus.GRANTED) {
         setEnabled(false);
       }
+      return accessRequestData;
     } catch (error) {
       setEnabled(true);
       notify('Failed to connect to  backend: ' + error.message);
@@ -80,12 +79,18 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         }
       );
 
-      if (data.status === AccessRequestResponseBodyStatus.GRANTED) {
+      if (
+        data.status === AccessRequestResponseBodyStatus.GRANTED ||
+        data.status === AccessRequestResponseBodyStatus.DENIED
+      ) {
         setEnabled(false);
       } else {
         const intervalId = setInterval(async () => {
           const accessData = await fetchAccess();
-          if (accessData?.status === AccessRequestResponseBodyStatus.GRANTED) {
+          if (
+            accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
+            accessData?.status === AccessRequestResponseBodyStatus.DENIED
+          ) {
             setEnabled(false);
             clearInterval(intervalId);
           }
@@ -96,7 +101,10 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       if (error.response.status === 409) {
         notify('Permission request already exists');
         const accessData = await fetchAccess();
-        if (accessData?.status === AccessRequestResponseBodyStatus.GRANTED) {
+        if (
+          accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
+          accessData?.status === AccessRequestResponseBodyStatus.DENIED
+        ) {
           setAccessRequest(accessData);
           setEnabled(false);
         }
@@ -116,7 +124,23 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   useEffect(() => {
     const fetchData = async () => {
-      await fetchAccess();
+      const currentAccess = await fetchAccess();
+      switch (currentAccess?.status) {
+        case AccessRequestResponseBodyStatus.GRANTED:
+          setEnabled(false);
+          break;
+        case AccessRequestResponseBodyStatus.DENIED:
+          notify('last request was denied: ' + accessRequest?.message + '. Please try again!');
+          setEnabled(true);
+          setAccessRequest(null);
+          break;
+        case AccessRequestResponseBodyStatus.REQUESTED:
+          setEnabled(false);
+          break;
+        default:
+          setEnabled(true);
+          break;
+      }
     };
     fetchData();
   }, []);
@@ -145,7 +169,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       <button
         style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
         className='argo-button argo-button--base'
-        disabled={enabled}
+        disabled={enabled || accessRequest?.status === AccessRequestResponseBodyStatus.GRANTED}
         onClick={cancel}
       >
         {BUTTON_LABELS.CANCEL}
@@ -185,7 +209,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
             <div className='columns small-3'>PERMISSION</div>
             <div className='columns small-9'>{accessRequest?.permission || 'Read Only'}</div>
           </div>
-          {accessRequest?.expiresAt && (
+          {accessRequest && (
             <div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>REQUEST DATA</div>
@@ -222,18 +246,17 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                   )}
                 </div>
               </div>
-              {accessRequest?.status === AccessRequestResponseBodyStatus.GRANTED &&
-                accessRequest?.expiresAt && (
-                  <div
-                    className='row white-box__details-row'
-                    style={{ display: 'flex', alignItems: 'center' }}
-                  >
-                    <div className='columns small-3'>EXPIRES</div>
-                    <div className='columns small-9'>
-                      {moment(accessRequest?.expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
-                    </div>
+              {accessRequest?.expiresAt && (
+                <div
+                  className='row white-box__details-row'
+                  style={{ display: 'flex', alignItems: 'center' }}
+                >
+                  <div className='columns small-3'>EXPIRES</div>
+                  <div className='columns small-9'>
+                    {moment(accessRequest?.expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
                   </div>
-                )}
+                </div>
+              )}
             </div>
           )}
         </div>
