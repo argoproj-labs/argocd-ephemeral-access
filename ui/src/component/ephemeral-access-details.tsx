@@ -225,6 +225,18 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                 <div className='columns small-3'>STATUS</div>
                 <div className='columns small-9'>{accessRequest?.status}</div>
               </div>
+
+              {accessRequest?.expiresAt && (
+                <div
+                  className='row white-box__details-row'
+                  style={{ display: 'flex', alignItems: 'center' }}
+                >
+                  <div className='columns small-3'>EXPIRES</div>
+                  <div className='columns small-9'>
+                    {moment(accessRequest?.expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
+                  </div>
+                </div>
+              )}
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>MESSAGE</div>
                 <div className='columns small-9'>
@@ -246,17 +258,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                   )}
                 </div>
               </div>
-              {accessRequest?.expiresAt && (
-                <div
-                  className='row white-box__details-row'
-                  style={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <div className='columns small-3'>EXPIRES</div>
-                  <div className='columns small-9'>
-                    {moment(accessRequest?.expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
