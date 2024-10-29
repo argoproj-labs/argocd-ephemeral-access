@@ -81,7 +81,7 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 		return api.DeniedStatus, nil
 	}
 
-	details := ""
+	details := resp.Message
 	status, err := s.grantArgoCDAccess(ctx, ar, rt)
 	if err != nil {
 		details = fmt.Sprintf("Error granting Argo CD Access: %s", err)
@@ -339,5 +339,5 @@ type AllowedResponse struct {
 // 1. verify if user is sudoer
 // 2. verify if CR is approved
 func Allowed(ctx context.Context, ar *api.AccessRequest, app *argocd.Application) (AllowedResponse, error) {
-	return AllowedResponse{Allowed: true, Message: "Change request http://test.com"}, nil
+	return AllowedResponse{Allowed: true, Message: "Associated ChangeRequest (we34f45)"}, nil
 }
