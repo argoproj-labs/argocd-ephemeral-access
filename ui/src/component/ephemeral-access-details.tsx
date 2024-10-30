@@ -56,81 +56,15 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         localStorage.setItem(application?.metadata?.name, 'null');
       }
 
-      if (accessRequest && accessRequest.status === AccessRequestResponseBodyStatus.GRANTED) {
-        setEnabled(false);
-      }
-      return accessRequestData;
-    } catch (error) {
-      setEnabled(true);
-      notify('Failed to connect to  backend: ' + error.message);
-    }
-    return null;
-  }, []);
-
-  const requestAccessHandler = useCallback(async (): Promise<CreateAccessRequestBody> => {
-    try {
-      const { data } = await createAccessrequest(
-        {
-          roleName: window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_ROLE
-        },
-        {
-          baseURL: '/extensions/ephemeral/',
-          headers: getHeaders({ applicationName, applicationNamespace, project, username })
-        }
-      );
-
-      if (
-        data.status === AccessRequestResponseBodyStatus.GRANTED ||
-        data.status === AccessRequestResponseBodyStatus.DENIED
-      ) {
-        setEnabled(false);
-      } else {
-        const intervalId = setInterval(async () => {
-          const accessData = await fetchAccess();
-          if (
-            accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
-            accessData?.status === AccessRequestResponseBodyStatus.DENIED
-          ) {
-            setEnabled(false);
-            clearInterval(intervalId);
-          }
-        }, 500);
-      }
-    } catch (error) {
-      setEnabled(true);
-      if (error.response.status === 409) {
-        notify('Permission request already exists');
-        const accessData = await fetchAccess();
-        if (
-          accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
-          accessData?.status === AccessRequestResponseBodyStatus.DENIED
-        ) {
-          setAccessRequest(accessData);
-          setEnabled(false);
-        }
-      }
-      if (error.response.status === 401) {
-        notify('Extension is not enabled');
-        setEnabled(false);
-      }
-
-      if (error.response.status === 502) {
-        notify('Error occurred while requesting permission');
-        setEnabled(false);
-      }
-      return null;
-    }
-  }, [applicationName, applicationNamespace, project, username, fetchAccess]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const currentAccess = await fetchAccess();
-      switch (currentAccess?.status) {
+      switch (accessRequestData?.status) {
         case AccessRequestResponseBodyStatus.GRANTED:
           setEnabled(false);
           break;
         case AccessRequestResponseBodyStatus.DENIED:
-          notify('last request was denied: ' + accessRequest?.message + '. Please try again!');
+          notify(
+            'last request was denied: ' + accessRequestData?.message &&
+              accessRequestData?.message + '. Please try again!'
+          );
           setEnabled(true);
           setAccessRequest(null);
           break;
@@ -141,7 +75,94 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           setEnabled(true);
           break;
       }
+      return accessRequestData;
+    } catch (error) {
+      setEnabled(true);
+      notify('Failed to connect to  backend: ' + error.message);
+    }
+
+    return null;
+  }, []);
+
+  const requestAccessHandler = useCallback(async (): Promise<CreateAccessRequestBody | null> => {
+    try {
+      await createAccessrequest(
+        {
+          roleName: window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_ROLE
+        },
+        {
+          baseURL: '/extensions/ephemeral/',
+          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+        }
+      );
+
+      const intervalId = setInterval(async () => {
+        const updatedAccessData = await fetchAccess();
+        if (
+          updatedAccessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
+          updatedAccessData?.status === AccessRequestResponseBodyStatus.DENIED
+        ) {
+          if (updatedAccessData?.expiresAt) {
+            const timeoutDuration =
+              moment.parseZone(updatedAccessData.expiresAt).valueOf() - moment().valueOf();
+            if (timeoutDuration > 0) {
+              setTimeout(() => {
+                setAccessRequest(null);
+                setEnabled(true);
+              }, timeoutDuration);
+            }
+          }
+          clearInterval(intervalId);
+        }
+      }, 500);
+    } catch (error) {
+      setEnabled(true);
+      if (error.response) {
+        switch (error.response.status) {
+          case 409:
+            notify('permission request already exists');
+            const accessData = await fetchAccess();
+            if (
+              accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
+              accessData?.status === AccessRequestResponseBodyStatus.DENIED
+            ) {
+              setAccessRequest(accessData);
+              setEnabled(false);
+            }
+            break;
+          case 401:
+          case 403:
+            notify('extension is not authorized: ' + error.message);
+            break;
+          case 502:
+            notify('error occurred while requesting permission: ' + error.message);
+            break;
+          default:
+            notify('failed to connect to backend: ' + error.message);
+            break;
+        }
+      } else {
+        notify('An unexpected error occurred: ' + error.message);
+      }
+      setEnabled(false);
+      return null;
+    }
+  }, [fetchAccess]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const updatedAccessData = await fetchAccess();
+      if (updatedAccessData?.expiresAt) {
+        const timeoutDuration =
+          moment.parseZone(updatedAccessData.expiresAt).valueOf() - moment().valueOf();
+        if (timeoutDuration > 0) {
+          setTimeout(() => {
+            setAccessRequest(null);
+            setEnabled(true);
+          }, timeoutDuration);
+        }
+      }
     };
+
     fetchData();
   }, []);
 

@@ -27,27 +27,14 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
     }
   }, [application.metadata?.name]);
 
-  const validatePermissions = () => {
-    const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
-    if (accessPermission === null) {
-      localStorage.removeItem(application.metadata?.name);
-      setAccessRequest(null);
-    }
-  };
 
   useEffect(() => {
     const intervalId = setInterval(() => {
       getPermissions();
-      validatePermissions();
     }, 500);
 
     return () => clearInterval(intervalId);
   }, [getPermissions]);
-
-
-  const handleLinkClick = useCallback(() => {
-    window.location.href = `/applications/argocd/${application.metadata.name}?view=tree&resource=&extension=ephemeral_access`;
-  }, []);
 
   return EnableEphemeralAccess(application) ? (
     <div
@@ -70,7 +57,6 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
       </label>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
         <div
-          onClick={handleLinkClick}
           style={{
             marginRight: '5px',
             position: 'relative',
