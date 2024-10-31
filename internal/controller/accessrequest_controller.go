@@ -365,15 +365,15 @@ func (r *AccessRequestReconciler) callReconcileForRoleTemplate(ctx context.Conte
 		return []reconcile.Request{}
 	}
 
-	requests := make([]reconcile.Request, len(attachedAccessRequests.Items))
-	for i, item := range attachedAccessRequests.Items {
+	requests := []reconcile.Request{}
+	for _, item := range attachedAccessRequests.Items {
 		if !isConcluded(&item) {
-			requests[i] = reconcile.Request{
+			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      item.GetName(),
 					Namespace: item.GetNamespace(),
 				},
-			}
+			})
 		}
 	}
 	totalRequests := len(requests)
@@ -427,15 +427,15 @@ func (r *AccessRequestReconciler) callReconcileForProject(ctx context.Context, p
 		return []reconcile.Request{}
 	}
 
-	requests := make([]reconcile.Request, len(associatedAccessRequests.Items))
-	for i, item := range associatedAccessRequests.Items {
+	requests := []reconcile.Request{}
+	for _, item := range associatedAccessRequests.Items {
 		if !isConcluded(&item) {
-			requests[i] = reconcile.Request{
+			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      item.GetName(),
 					Namespace: item.GetNamespace(),
 				},
-			}
+			})
 		}
 	}
 	totalRequests := len(requests)
