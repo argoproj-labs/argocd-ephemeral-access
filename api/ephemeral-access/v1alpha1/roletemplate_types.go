@@ -88,17 +88,17 @@ func (rt *RoleTemplate) Render(projName, appName, appNs string) (*RoleTemplate, 
 
 func (rt *RoleTemplate) execTemplate(tmpl *template.Template, projName, appName, appNs string) (string, error) {
 	type vars struct {
-		Role        string
-		Project     string
-		Application string
-		Namespace   string
+		role        string
+		project     string
+		application string
+		namespace   string
 	}
 	roleName := rt.AppProjectRoleName(appName, appNs)
 	v := vars{
-		Role:        fmt.Sprintf("proj:%s:%s", projName, roleName),
-		Project:     projName,
-		Application: appName,
-		Namespace:   appNs,
+		role:        fmt.Sprintf("proj:%s:%s", projName, roleName),
+		project:     projName,
+		application: appName,
+		namespace:   appNs,
 	}
 	var s strings.Builder
 	err := tmpl.Execute(&s, v)
