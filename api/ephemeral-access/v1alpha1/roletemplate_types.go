@@ -87,21 +87,15 @@ func (rt *RoleTemplate) Render(projName, appName, appNs string) (*RoleTemplate, 
 }
 
 func (rt *RoleTemplate) execTemplate(tmpl *template.Template, projName, appName, appNs string) (string, error) {
-	type vars struct {
-		Role        string
-		Project     string
-		Application string
-		Namespace   string
-	}
 	roleName := rt.AppProjectRoleName(appName, appNs)
-	v := vars{
-		Role:        fmt.Sprintf("proj:%s:%s", projName, roleName),
-		Project:     projName,
-		Application: appName,
-		Namespace:   appNs,
+	vars := map[string]string{
+		"role":        fmt.Sprintf("proj:%s:%s", projName, roleName),
+		"project":     projName,
+		"application": appName,
+		"namespace":   appNs,
 	}
 	var s strings.Builder
-	err := tmpl.Execute(&s, v)
+	err := tmpl.Execute(&s, vars)
 	if err != nil {
 		return "", err
 	}

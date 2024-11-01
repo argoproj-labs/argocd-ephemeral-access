@@ -155,10 +155,10 @@ var _ = Describe("AccessRequest Controller", func() {
 		var f *fixture
 		var r resources
 		policies := []string{
-			"p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, logs, get, {{.Project}}/{{.Namespace}}/{{.Application}}, allow",
+			"p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow",
 		}
 
 		When("The subject has the necessary access", func() {
@@ -278,10 +278,10 @@ var _ = Describe("AccessRequest Controller", func() {
 		var f *fixture
 		var r resources
 		policies := []string{
-			"p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, logs, get, {{.Project}}/{{.Namespace}}/{{.Application}}, allow",
+			"p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow",
 		}
 
 		When("protected fields values change after applied", func() {
@@ -383,10 +383,10 @@ var _ = Describe("AccessRequest Controller", func() {
 		var f *fixture
 		var r resources
 		policies := []string{
-			"p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow",
-			"p, {{.Role}}, logs, get, {{.Project}}/{{.Namespace}}/{{.Application}}, allow",
+			"p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow",
+			"p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow",
 		}
 
 		When("used by multiple AccessRequests", func() {
