@@ -6,11 +6,11 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: devops
 spec:
-  description: write permission in application {{.Application}}
-  name: "DevOps (Write)"
+  description: write permission in application {{.application}}
+  name: devops
   policies:
-  - p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow
-  - p, {{.Role}}, applications, get, {{.Project}}/{{.Application}}, deny
-  - p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow
-  - p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow
-  - p, {{.Role}}, logs, get, {{.Project}}/{{.Namespace}}/{{.Application}}, allow
+  - p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow
+  - p, {{.role}}, applications, get, {{.project}}/{{.application}}, deny
+  - p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow
+  - p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow
+  - p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow
