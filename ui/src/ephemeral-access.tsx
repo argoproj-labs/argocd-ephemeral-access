@@ -31,7 +31,7 @@ export const RequestAccessBtnFlyout = ({ application }: RequestAccessBtnFlyoutPr
     if (!application) return;
 
     const fetchUserInfo = async () => {
-      const info = await getUserInfo(application);
+      const info = await  getUserInfo(application);
       setUserInfo(info);
     };
 

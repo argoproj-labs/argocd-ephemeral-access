@@ -259,6 +259,15 @@ generate-mocks: mockery ## Generate the mocks for the project as configured in .
 clean-ui:
 	find ${UI_DIR} -type f -name extension.tar -delete
 
+PHONY: codegen-download-openapi
+codegen-download-openapi: run-backend
+	@echo "Downloading OpenAPI spec from dev server"
+	yarn --cwd ${UI_DIR}  api:download
+
+.PHONY: codegen-ui
+codegen-ui: ## Generate the UI API files.
+	yarn --cwd ${UI_DIR}  api:generate
+
 .PHONY: build-ui
 build-ui: clean-ui
 	yarn --cwd ${UI_DIR} install
