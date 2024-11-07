@@ -103,12 +103,12 @@ run: build goreman ## Run all ephemeral-access components defined in the Procfil
 	$(GOREMAN) start
 
 .PHONY: run-controller
-run-controller: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go controller
+run-controller: build goreman ## Run a controller from your host.
+	$(GOREMAN) start controller
 
 .PHONY: run-backend
-run-backend: fmt vet ## Run the api backend server.
-	go run ./cmd/main.go backend
+run-backend: build goreman ## Run the api backend server.
+	$(GOREMAN) start backend
 
 ##@ Build
 
