@@ -11,7 +11,7 @@ configurable. The elevated access are automatically managed by
 creating and updating Argo CD AppProject roles. 
 
 Note: This project requires that the Argo CD `Applications` are
-associated with `AppProjects` different than `default`.
+associated with an `AppProjects` different than `default`.
 
 ## How it Works
 
@@ -32,12 +32,12 @@ kind: RoleTemplate
 metadata:
   name: devops
 spec:
-  description: write permission in application {{.Application}}
-  name: "DevOps (Write)"
+  description: write permission in application {{.application}}
+  name: "devops"
   policies:
-  - p, {{.Role}}, applications, sync, {{.Project}}/{{.Application}}, allow
-  - p, {{.Role}}, applications, action/*, {{.Project}}/{{.Application}}, allow
-  - p, {{.Role}}, applications, delete/*/Pod/*, {{.Project}}/{{.Application}}, allow
+  - p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow
+  - p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow
+  - p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow
 ```
 
 ### AccessBinding
