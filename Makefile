@@ -264,8 +264,7 @@ clean-ui:
 	find ${UI_DIR} -type f -name extension.tar -delete
 
 .PHONY: codegen-download-openapi
-codegen-download-openapi:  build goreman
-	## Download the OpenAPI spec from the local server
+codegen-download-openapi:  build goreman  ## Download the OpenAPI spec from the local server.
 	@echo "Starting the backend server"
 	goreman start backend &
 	sleep 5
