@@ -265,7 +265,7 @@ clean-ui:
 
 .PHONY: codegen-download-openapi run-backend
 
-codegen-download-openapi:
+codegen-download-openapi:  build goreman
 	@echo "Starting the backend server"
 	goreman start backend &
 	sleep 5
