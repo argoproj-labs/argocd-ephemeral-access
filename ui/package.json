@@ -28,7 +28,7 @@
   "scripts": {
     "start": "webpack --config ./webpack.config.js --watch",
     "build": "webpack --config ./webpack.config.js && tar -C dist -cvf extension.tar resources",
-    "api:download": "curl http://localhost:8888/api/openapi.yaml -o ./src/gen/schema.yaml",
+    "api:download": "curl http://localhost:8888/openapi.yaml -o ./src/gen/schema.yaml",
     "api:generate": "orval"
   },
   "eslintConfig": {
