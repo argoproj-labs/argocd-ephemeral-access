@@ -4,43 +4,35 @@
  * Ephemeral Access API
  * OpenAPI spec version: 0.0.1
  */
-import axios from 'axios'
-import type {
-  AxiosRequestConfig,
-  AxiosResponse
-} from 'axios'
+import axios from 'axios';
+import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 
 // https://stackoverflow.com/questions/49579094/typescript-conditional-types-filter-out-readonly-properties-pick-only-requir/49579497#49579497
-type IfEquals<X, Y, A = X, B = never> = (<T>() => T extends X ? 1 : 2) extends <
-T,
->() => T extends Y ? 1 : 2
-? A
-: B;
+type IfEquals<X, Y, A = X, B = never> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? A : B;
 
 type WritableKeys<T> = {
-[P in keyof T]-?: IfEquals<
-  { [Q in P]: T[P] },
-  { -readonly [Q in P]: T[P] },
-  P
->;
+  [P in keyof T]-?: IfEquals<{ [Q in P]: T[P] }, { -readonly [Q in P]: T[P] }, P>;
 }[keyof T];
 
-type UnionToIntersection<U> =
-  (U extends any ? (k: U)=>void : never) extends ((k: infer I)=>void) ? I : never;
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void
+  ? I
+  : never;
 type DistributeReadOnlyOverUnions<T> = T extends any ? NonReadonly<T> : never;
 
 type Writable<T> = Pick<T, WritableKeys<T>>;
-type NonReadonly<T> = [T] extends [UnionToIntersection<T>] ? {
-  [P in keyof Writable<T>]: T[P] extends object
-    ? NonReadonly<NonNullable<T[P]>>
-    : T[P];
-} : DistributeReadOnlyOverUnions<T>;
+type NonReadonly<T> = [T] extends [UnionToIntersection<T>]
+  ? {
+      [P in keyof Writable<T>]: T[P] extends object ? NonReadonly<NonNullable<T[P]>> : T[P];
+    }
+  : DistributeReadOnlyOverUnions<T>;
+
+export type ListAccessRequestResponseBodyItems = AccessRequestResponseBody[] | null;
 
 export interface ListAccessRequestResponseBody {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
-  /** @nullable */
-  items: AccessRequestResponseBody[] | null;
+  items: ListAccessRequestResponseBodyItems;
 }
 
 export interface ErrorDetail {
@@ -52,16 +44,18 @@ export interface ErrorDetail {
   value?: unknown;
 }
 
+/**
+ * Optional list of individual error details
+ */
+export type ErrorModelErrors = ErrorDetail[] | null;
+
 export interface ErrorModel {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
   /** A human-readable explanation specific to this occurrence of the problem. */
   detail?: string;
-  /**
-   * Optional list of individual error details
-   * @nullable
-   */
-  errors?: ErrorDetail[] | null;
+  /** Optional list of individual error details */
+  errors?: ErrorModelErrors;
   /** A URI reference that identifies the specific occurrence of the problem. */
   instance?: string;
   /** HTTP status code */
@@ -82,8 +76,8 @@ export interface CreateAccessRequestBody {
 /**
  * The current access request status.
  */
-export type AccessRequestResponseBodyStatus = typeof AccessRequestResponseBodyStatus[keyof typeof AccessRequestResponseBodyStatus];
-
+export type AccessRequestResponseBodyStatus =
+  (typeof AccessRequestResponseBodyStatus)[keyof typeof AccessRequestResponseBodyStatus];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const AccessRequestResponseBodyStatus = {
@@ -91,7 +85,7 @@ export const AccessRequestResponseBodyStatus = {
   GRANTED: 'GRANTED',
   EXPIRED: 'EXPIRED',
   DENIED: 'DENIED',
-  INVALID: 'INVALID',
+  INVALID: 'INVALID'
 } as const;
 
 export interface AccessRequestResponseBody {
@@ -117,34 +111,26 @@ export interface AccessRequestResponseBody {
   username: string;
 }
 
-
-
-
-
-  /**
+/**
  * Will retrieve an ordered list of access requests for the given context
  * @summary List AccessRequests
  */
 export const listAccessrequest = <TData = AxiosResponse<ListAccessRequestResponseBody>>(
-     options?: AxiosRequestConfig
- ): Promise<TData> => {
-    return axios.get(
-      `/accessrequests`,options
-    );
-  }
+  options?: AxiosRequestConfig
+): Promise<TData> => {
+  return axios.get(`/accessrequests`, options);
+};
 
 /**
  * Will create an access request for the given role and context
  * @summary Create AccessRequest
  */
 export const createAccessrequest = <TData = AxiosResponse<AccessRequestResponseBody>>(
-    createAccessRequestBody: NonReadonly<CreateAccessRequestBody>, options?: AxiosRequestConfig
- ): Promise<TData> => {
-    return axios.post(
-      `/accessrequests`,
-      createAccessRequestBody,options
-    );
-  }
+  createAccessRequestBody: NonReadonly<CreateAccessRequestBody>,
+  options?: AxiosRequestConfig
+): Promise<TData> => {
+  return axios.post(`/accessrequests`, createAccessRequestBody, options);
+};
 
-export type ListAccessrequestResult = AxiosResponse<ListAccessRequestResponseBody>
-export type CreateAccessrequestResult = AxiosResponse<AccessRequestResponseBody>
+export type ListAccessrequestResult = AxiosResponse<ListAccessRequestResponseBody>;
+export type CreateAccessrequestResult = AxiosResponse<AccessRequestResponseBody>;

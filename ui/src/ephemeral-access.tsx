@@ -4,8 +4,6 @@ import { getUserInfo } from './config/client';
 import { Application, UserInfo } from './models/type';
 import { EnableEphemeralAccess } from './utils/utils';
 
-
-
 export const RequestAccessBtn = () => {
   return (
     <div qe-id='ext-access'>
@@ -38,5 +36,7 @@ export const RequestAccessBtnFlyout = ({ application }: RequestAccessBtnFlyoutPr
     fetchUserInfo();
   }, [application]);
 
-  return <>{userInfo && <EphemeralAccessDetails application={application} userInfo={userInfo} />}</>;
+  return (
+    <>{userInfo && <EphemeralAccessDetails application={application} userInfo={userInfo} />}</>
+  );
 };

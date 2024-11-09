@@ -2,7 +2,7 @@ import React from 'react';
 import Moment from 'react-moment';
 import { Application } from '../models/type';
 import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
-import { AccessRequestResponseBody } from '../gen/ephemeralAccessAPI';
+import { AccessRequestResponseBody } from '../gen/ephemeral-access-api';
 
 export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSSProperties }) =>
   show ? (

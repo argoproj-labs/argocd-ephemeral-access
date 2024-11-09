@@ -11,10 +11,9 @@ endif
 
 GIT_TAG:=$(if $(GIT_TAG),$(GIT_TAG),$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi))
 
-
 # docker image publishing options
 IMAGE_NAMESPACE?=argoproj-labs
-IMAGE_NAME=${IMAGE_NAMESPACE}/argocd-ephemeral-access
+IMAGE_NAME?=${IMAGE_NAMESPACE}/argocd-ephemeral-access
 
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
@@ -259,8 +258,21 @@ generate-mocks: mockery ## Generate the mocks for the project as configured in .
 clean-ui:
 	find ${UI_DIR} -type f -name extension.tar -delete
 
+.PHONY: update-openapi-ui
+update-openapi-ui:  build goreman  ## Update the OpenAPI spec from the local server.
+	@echo "Starting the backend server"
+	goreman start backend &
+	sleep 5
+	@echo "Downloading OpenAPI spec from dev server"
+	yarn --cwd ${UI_DIR} api:download
+	killall goreman || true
+
+.PHONY: codegen-ui
+codegen-ui: ## Generate the UI API files based on the OpenAPI spec.
+	yarn --cwd ${UI_DIR}  api:generate
+
 .PHONY: build-ui
-build-ui: clean-ui
+build-ui: clean-ui ## Build the UI extension.
 	yarn --cwd ${UI_DIR} install
 	yarn --cwd ${UI_DIR} build
 

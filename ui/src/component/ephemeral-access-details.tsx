@@ -14,7 +14,7 @@ import {
   createAccessrequest,
   CreateAccessRequestBody,
   listAccessrequest
-} from '../gen/ephemeralAccessAPI';
+} from '../gen/ephemeral-access-api';
 import { getHeaders } from '../config/client';
 
 interface AccessDetailsComponentProps {

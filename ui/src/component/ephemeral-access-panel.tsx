@@ -4,7 +4,7 @@ import { Application } from '../models/type';
 import { ARGO_GRAY6_COLOR } from '../shared/colors';
 import { HelpIcon } from 'argo-ui/src/components/help-icon/help-icon';
 import { AccessPanel, EnableEphemeralAccess } from '../utils/utils';
-import { AccessRequestResponseBody } from '../gen/ephemeralAccessAPI';
+import { AccessRequestResponseBody } from '../gen/ephemeral-access-api';
 import { getDisplayTime } from '../utils/utils';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
