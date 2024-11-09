@@ -277,7 +277,7 @@ codegen-ui: ## Generate the UI API files.
 	yarn --cwd ${UI_DIR}  api:generate
 
 .PHONY: build-ui
-build-ui: clean-ui codegen-ui
+build-ui: clean-ui ## Build the UI extension.
 	yarn --cwd ${UI_DIR} install
 	yarn --cwd ${UI_DIR} build
 
