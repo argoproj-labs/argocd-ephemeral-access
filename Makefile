@@ -138,6 +138,20 @@ build-ui: clean-ui ## build the Argo CD UI extension creating the ui/extension.t
 	yarn --cwd ${UI_DIR} install
 	yarn --cwd ${UI_DIR} build
 
+.PHONY: update-openapi-ui
+update-openapi-ui:  build goreman  ## Update the OpenAPI spec from the local server.
+	@echo "Starting the backend server"
+	goreman start backend &
+	sleep 5
+	@echo "Downloading OpenAPI spec from dev server"
+	yarn --cwd ${UI_DIR} api:download
+	killall goreman || true
+
+.PHONY: codegen-ui
+codegen-ui: ## Generate the UI API files based on the OpenAPI spec.
+	yarn --cwd ${UI_DIR}  api:generate
+
+
 .PHONY: goreleaser-build-local
 goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to validate the goreleaser configuration.
 	$(GORELEASER) build --snapshot --clean --single-target --verbose
@@ -258,28 +272,6 @@ $(GOREMAN): $(LOCALBIN)
 .PHONY: generate-mocks
 generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
 	$(MOCKERY)
-
-.PHONY: clean-ui
-clean-ui:
-	find ${UI_DIR} -type f -name extension.tar -delete
-
-.PHONY: update-openapi-ui
-update-openapi-ui:  build goreman  ## Update the OpenAPI spec from the local server.
-	@echo "Starting the backend server"
-	goreman start backend &
-	sleep 5
-	@echo "Downloading OpenAPI spec from dev server"
-	yarn --cwd ${UI_DIR} api:download
-	killall goreman || true
-
-.PHONY: codegen-ui
-codegen-ui: ## Generate the UI API files based on the OpenAPI spec.
-	yarn --cwd ${UI_DIR}  api:generate
-
-.PHONY: build-ui
-build-ui: clean-ui ## Build the UI extension.
-	yarn --cwd ${UI_DIR} install
-	yarn --cwd ${UI_DIR} build
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
