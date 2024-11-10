@@ -112,7 +112,10 @@ run-backend: build goreman ## Run the api backend server.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: build-ui build-go ## Build the UI extension and the ephemeral-access binary.
+
+.PHONY: build-go
+build-go: manifests generate fmt vet ## Build the ephemeral-access binary.
 	go build -o bin/ephemeral-access cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
@@ -125,6 +128,29 @@ docker-build: ## Build docker image.
 .PHONY: docker-push
 docker-push: ## Push docker image.
 	$(CONTAINER_TOOL) push ${IMG}
+
+.PHONY: clean-ui
+clean-ui: ## delete the extension.tar file.
+	find ${UI_DIR} -type f -name extension.tar -delete
+
+.PHONY: build-ui
+build-ui: clean-ui ## build the Argo CD UI extension creating the ui/extension.tar file.
+	yarn --cwd ${UI_DIR} install
+	yarn --cwd ${UI_DIR} build
+
+.PHONY: update-openapi-ui
+update-openapi-ui:  build goreman  ## Update the OpenAPI spec from the local server.
+	@echo "Starting the backend server"
+	goreman start backend &
+	sleep 5
+	@echo "Downloading OpenAPI spec from dev server"
+	yarn --cwd ${UI_DIR} api:download
+	killall goreman || true
+
+.PHONY: codegen-ui
+codegen-ui: ## Generate the UI API files based on the OpenAPI spec.
+	yarn --cwd ${UI_DIR}  api:generate
+
 
 .PHONY: goreleaser-build-local
 goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to validate the goreleaser configuration.
@@ -147,15 +173,8 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	- $(CONTAINER_TOOL) buildx rm argocd-ephemeral-access-builder
 	rm Dockerfile.cross
 
-.PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
-	mkdir -p dist
-	cd config/default && $(KUSTOMIZE) edit set image argoproj-labs/argocd-ephemeral-access=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
-
 .PHONY: manifests-release
 manifests-release: generate manifests kustomize ## Generate the consolidated install.yaml with the release tag.
-	mkdir -p dist
 	./scripts/manifests-release.sh $(KUSTOMIZE) $(IMAGE_TAG)
 
 ##@ Deployment
@@ -174,7 +193,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests-release ## Deploy distribution to the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) apply -f dist/install.yaml
+	$(KUBECTL) apply -f install.yaml
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
@@ -253,28 +272,6 @@ $(GOREMAN): $(LOCALBIN)
 .PHONY: generate-mocks
 generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
 	$(MOCKERY)
-
-.PHONY: clean-ui
-clean-ui:
-	find ${UI_DIR} -type f -name extension.tar -delete
-
-.PHONY: update-openapi-ui
-update-openapi-ui:  build goreman  ## Update the OpenAPI spec from the local server.
-	@echo "Starting the backend server"
-	goreman start backend &
-	sleep 5
-	@echo "Downloading OpenAPI spec from dev server"
-	yarn --cwd ${UI_DIR} api:download
-	killall goreman || true
-
-.PHONY: codegen-ui
-codegen-ui: ## Generate the UI API files based on the OpenAPI spec.
-	yarn --cwd ${UI_DIR}  api:generate
-
-.PHONY: build-ui
-build-ui: clean-ui ## Build the UI extension.
-	yarn --cwd ${UI_DIR} install
-	yarn --cwd ${UI_DIR} build
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
