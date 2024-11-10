@@ -31,3 +31,4 @@ dist/
 dist-goreleaser/
 bin/
 install.yaml
+*.DS_Store
