@@ -98,7 +98,7 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 ##@ Run
 
 .PHONY: run
-run: build goreman ## Run all ephemeral-access components defined in the Procfile.
+run: build-go goreman ## Run all ephemeral-access components defined in the Procfile.
 	$(GOREMAN) start
 
 .PHONY: run-controller

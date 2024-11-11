@@ -153,6 +153,7 @@ func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName 
 			continue
 		}
 
+		s.logger.Debug("matching subjects with user groups", "subjects", subjects, "groups", groups)
 		if s.matchSubject(subjects, groups) {
 			grantingBinding = &bindings[i]
 			break
