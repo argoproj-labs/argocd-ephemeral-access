@@ -38,6 +38,7 @@ func serviceSetup(t *testing.T) *serviceFixture {
 	persister := mocks.NewMockPersister(t)
 	logger := mocks.NewMockLogger(t)
 	logger.EXPECT().Debug(mock.Anything, mock.Anything).Maybe()
+	logger.EXPECT().Debug(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	logger.EXPECT().Info(mock.Anything, mock.Anything).Maybe()
 	svc := backend.NewDefaultService(persister, logger, ControllerNamespace, AccessRequestDuration)
 	return &serviceFixture{
