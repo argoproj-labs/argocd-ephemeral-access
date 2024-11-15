@@ -13,6 +13,15 @@ managed by creating and updating Argo CD AppProject roles.
 Note: This project requires that the Argo CD `Applications` are
 associated with an `AppProjects` different than `default`.
 
+## Demo
+
+[![demo](https://img.youtube.com/vi/4v4595CKe2U/0.jpg)](https://youtu.be/4v4595CKe2U)
+
+## Prereqs
+
+The Ephemeral Access extension requires Argo CD v2.13.0+ to be
+installed.
+
 ## Installation
 
 The ephemeral-access functionality is provided by the following
@@ -69,13 +78,13 @@ spec:
   template:
     spec:
       initContainers:
-        - name: extension-metrics
+        - name: extension-ephemeral-access
           image: quay.io/argoprojlabs/argocd-extension-installer:v0.0.8@sha256:e7cb054207620566286fce2d809b4f298a72474e0d8779ffa8ec92c3b630f054
           env:
           - name: EXTENSION_URL
-            value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.0.1/extension.tar.gz
+            value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.1.0/extension.tar.gz
           - name: EXTENSION_CHECKSUM_URL
-            value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.0.1/extension_checksums.txt
+            value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.1.0/extension_checksums.txt
           volumeMounts:
             - name: extensions
               mountPath: /tmp/extensions/
@@ -91,6 +100,41 @@ spec:
         - name: extensions
           emptyDir: {}
 ```
+
+### Enabling the EphemeralAccess extension in Argo CD
+
+Argo CD needs to have the proxy extension feature enabled for the
+EphemeralAccess extension to work. In order to do so add the following
+entry in the `argocd-cmd-params-cm`:
+
+```
+server.enable.proxy.extension: "true"
+```
+
+The EphemeralAccess extension needs to be authorized in Argo CD API server. To
+enable it for all users add the following entry in `argocd-rbac-cm`:
+
+```
+policy.csv: |-
+  p, role:readonly, extensions, invoke, ephemeral, allow
+```
+
+**Note**: make sure to assign a proper role to the extension policy if you
+want to restrict the access.
+
+Finally Argo CD needs to be configured so it knows how to reach the
+EphemeralAccess backend service. In order to do so, add the following
+section in the `argocd-cm`.
+
+```yaml
+  extension.config.ephemeral: |-
+    services:
+    - url: <EPHEMERAL_ACCESS_BACKEND_URL>
+```
+
+**Attention**: Make sure to change the `EPHEMERAL_ACCESS_BACKEND_URL`
+to the URL where backend service is configured. The backend service 
+URL needs to be reacheable by the Argo CD API server.
 
 ## How it Works
 
