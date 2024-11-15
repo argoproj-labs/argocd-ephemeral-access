@@ -15,7 +15,7 @@ associated with an `AppProjects` different than `default`.
 
 ## Demo
 
-![demo][https://youtu.be/4v4595CKe2U]
+[!demo](https://youtu.be/5v4595CKe2U)
 
 ## Prereqs
 
