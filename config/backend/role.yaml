@@ -14,12 +14,14 @@ rules:
       - applications
     verbs:
       - get
+      - list
   - apiGroups:
       - argoproj.io
     resources:
       - appprojects
     verbs:
       - get
+      - list
   - apiGroups:
       - ephemeral-access.argoproj-labs.io
     resources:
