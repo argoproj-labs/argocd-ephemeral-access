@@ -10,6 +10,7 @@ rules:
   - applications
   verbs:
   - get
+  - list
 - apiGroups:
   - argoproj.io
   resources:
