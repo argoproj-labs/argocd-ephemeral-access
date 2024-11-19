@@ -85,6 +85,15 @@ spec:
             value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.1.0/extension.tar.gz
           - name: EXTENSION_CHECKSUM_URL
             value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.1.0/extension_checksums.txt
+          - name: EXTENSION_JS_VARS
+            value: |
+              {
+                "EPHEMERAL_ACCESS_LABEL_KEY": "some-label/is-production",
+                "EPHEMERAL_ACCESS_LABEL_VALUE": "true",
+                "EPHEMERAL_ACCESS_MAIN_BANNER": "All production changes require an associated change request. Click the REQUEST ACCESS button above to automatically create a change request associated with your user",
+                "EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK": "https://link-to-some-documentation.com",
+                "EPHEMERAL_ACCESS_DEFAULT_ROLE": "devops"
+              }
           volumeMounts:
             - name: extensions
               mountPath: /tmp/extensions/
@@ -100,6 +109,22 @@ spec:
         - name: extensions
           emptyDir: {}
 ```
+
+> [!NOTE]
+> The `EXTENSION_JS_VARS` is an special variable. It contains the UI
+> extension configurations. If provided, the
+> `argocd-extension-installer` will automatically create the js file
+> to expose the provided values to the UI extension. The following
+> table describes the js variables accepted by the EphemeralAccess UI
+> extension:
+
+| Name  | Description  | Required  | Default |
+|---|---|---|---|
+|`EPHEMERAL_ACCESS_DEFAULT_ROLE`   | Defines the RoleName to be associated with users once the AccessRequest is created | Yes  | - |
+|`EPHEMERAL_ACCESS_LABEL_KEY`   | If provided, it will only enable the UI extension if the Argo CD Application has this label key | No  | - |
+|`EPHEMERAL_ACCESS_LABEL_VALUE`   | If provided, it will only enable the UI extension if the Argo CD Application has this label value | No  | - |
+|`EPHEMERAL_ACCESS_MAIN_BANNER`  | A text with the brief description to instruct users about how the extension works | No  | - |
+|`EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK`   | An additional link to provide users with more detailed documentation | No  | - |
 
 ### Enabling the EphemeralAccess extension in Argo CD
 
