@@ -81,6 +81,8 @@ spec:
         - name: extension-ephemeral-access
           image: quay.io/argoprojlabs/argocd-extension-installer:v0.0.8@sha256:e7cb054207620566286fce2d809b4f298a72474e0d8779ffa8ec92c3b630f054
           env:
+          - name: EXTENSION_NAME
+            value: ephemeral-access
           - name: EXTENSION_URL
             value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.1.0/extension.tar.gz
           - name: EXTENSION_CHECKSUM_URL
