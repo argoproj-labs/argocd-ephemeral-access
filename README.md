@@ -118,13 +118,13 @@ spec:
 > table describes the js variables accepted by the EphemeralAccess UI
 > extension:
 
-| Name  | Description  | Required  | Default |
-|---|---|---|---|
-|`EPHEMERAL_ACCESS_DEFAULT_ROLE`   | Defines the RoleName to be associated with users once the AccessRequest is created | Yes  | - |
-|`EPHEMERAL_ACCESS_LABEL_KEY`   | If provided, it will only enable the UI extension if the Argo CD Application has this label key | No  | - |
-|`EPHEMERAL_ACCESS_LABEL_VALUE`   | If provided, it will only enable the UI extension if the Argo CD Application has this label value | No  | - |
-|`EPHEMERAL_ACCESS_MAIN_BANNER`  | A text with the brief description to instruct users about how the extension works | No  | - |
-|`EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK`   | An additional link to provide users with more detailed documentation | No  | - |
+| Name                                                | Description                                                                                       | Required | Default |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------- | ------- |
+| `EPHEMERAL_ACCESS_DEFAULT_ROLE`                     | Defines the RoleName to be associated with users once the AccessRequest is created                | Yes      | -       |
+| `EPHEMERAL_ACCESS_LABEL_KEY`                        | If provided, it will only enable the UI extension if the Argo CD Application has this label key   | No       | -       |
+| `EPHEMERAL_ACCESS_LABEL_VALUE`                      | If provided, it will only enable the UI extension if the Argo CD Application has this label value | No       | -       |
+| `EPHEMERAL_ACCESS_MAIN_BANNER`                      | A text with the brief description to instruct users about how the extension works                 | No       | -       |
+| `EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK` | An additional link to provide users with more detailed documentation                              | No       | -       |
 
 ### Enabling the EphemeralAccess extension in Argo CD
 
