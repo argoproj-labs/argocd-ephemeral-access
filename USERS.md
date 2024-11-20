@@ -8,3 +8,4 @@ Currently, the following organizations are **officially** using the
 Argo CD Ephemeral Access Extension:
 
 1. [Intuit](https://www.intuit.com/)
+1. [Mozilla](https://www.mozilla.org)
