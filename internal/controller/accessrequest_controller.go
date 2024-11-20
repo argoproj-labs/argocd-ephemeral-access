@@ -69,7 +69,7 @@ const (
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=roletemplates/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ephemeral-access.argoproj-labs.io,resources=roletemplates/finalizers,verbs=update
 // +kubebuilder:rbac:groups=argoproj.io,resources=appprojects,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=argoproj.io,resources=applications,verbs=get
+// +kubebuilder:rbac:groups=argoproj.io,resources=applications,verbs=get;list;watch
 
 // Reconcile is the main function that will be invoked on every change in
 // AccessRequests desired state. It will:
