@@ -8,7 +8,7 @@ functionality that `sudo` command provides as users can execute
 actions that require higher permissions. The exact access the user is
 allowed to be elevated to and for how long the access should be
 granted are configurable. The elevated access are automatically
-managed by creating and updating Argo CD AppProject roles. 
+managed by creating and updating Argo CD AppProject roles.
 
 Note: This project requires that the Argo CD `Applications` are
 associated with an `AppProjects` different than `default`.
@@ -94,7 +94,8 @@ spec:
                 "EPHEMERAL_ACCESS_LABEL_VALUE": "true",
                 "EPHEMERAL_ACCESS_MAIN_BANNER": "All production changes require an associated change request. Click the REQUEST ACCESS button above to automatically create a change request associated with your user",
                 "EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK": "https://link-to-some-documentation.com",
-                "EPHEMERAL_ACCESS_DEFAULT_ROLE": "devops"
+                "EPHEMERAL_ACCESS_DEFAULT_BASE_ROLE": "Read",
+                "EPHEMERAL_ACCESS_DEFAULT_TARGET_ROLE": "devops"
               }
           volumeMounts:
             - name: extensions
@@ -122,7 +123,8 @@ spec:
 
 | Name                                                | Description                                                                                       | Required | Default |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------- | ------- |
-| `EPHEMERAL_ACCESS_DEFAULT_ROLE`                     | Defines the RoleName to be associated with users once the AccessRequest is created                | Yes      | -       |
+| `EPHEMERAL_ACCESS_DEFAULT_BASE_ROLE`                | Defines the default name shown as the current permission                                          | No       | -       |
+| `EPHEMERAL_ACCESS_DEFAULT_TARGET_ROLE`              | Defines the RoleName to be associated with users once the AccessRequest is created                | Yes      | -       |
 | `EPHEMERAL_ACCESS_LABEL_KEY`                        | If provided, it will only enable the UI extension if the Argo CD Application has this label key   | No       | -       |
 | `EPHEMERAL_ACCESS_LABEL_VALUE`                      | If provided, it will only enable the UI extension if the Argo CD Application has this label value | No       | -       |
 | `EPHEMERAL_ACCESS_MAIN_BANNER`                      | A text with the brief description to instruct users about how the extension works                 | No       | -       |
@@ -160,7 +162,7 @@ section in the `argocd-cm`.
 ```
 
 **Attention**: Make sure to change the `EPHEMERAL_ACCESS_BACKEND_URL`
-to the URL where backend service is configured. The backend service 
+to the URL where backend service is configured. The backend service
 URL needs to be reacheable by the Argo CD API server.
 
 ## How it Works
@@ -210,7 +212,7 @@ metadata:
 spec:
   ordinal: 1
   friendlyName: "Devops (Write)"
-  subjects: 
+  subjects:
     - group1
     - role-{{.application.metadata.labels.some-label}}
   if: "application.metadata.labels.some-label != nil"
@@ -252,7 +254,7 @@ spec:
 The `RoleTemplate` defines a templated Argo CD RBAC policies. Once the
 elevated access is requested and approved, the policies will be
 rendered and dynamicaly associated with the AppProject related with
-the access request. 
+the access request.
 
 The following variable are available to be used in the templated
 fields (.spec.description and .spec.policies):
