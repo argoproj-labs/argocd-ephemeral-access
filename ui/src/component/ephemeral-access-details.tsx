@@ -88,7 +88,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     try {
       await createAccessrequest(
         {
-          roleName: window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_ROLE
+          roleName: window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_TARGET_ROLE
         },
         {
           baseURL: '/extensions/ephemeral/',
