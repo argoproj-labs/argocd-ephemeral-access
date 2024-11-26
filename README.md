@@ -76,7 +76,7 @@ metadata:
   name: argocd-server
 spec:
   template:
-    spec
+    spec:
       initContainers:
         - name: extension-ephemeral-access
           image: quay.io/argoprojlabs/argocd-extension-installer:v0.0.8@sha256:e7cb054207620566286fce2d809b4f298a72474e0d8779ffa8ec92c3b630f054
