@@ -12,8 +12,13 @@ export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSS
   ) : null;
 
 export enum AccessRole {
-  DEFAULT_ACCESS = 'Read'
+  DEFAULT_DISPLAY_ACCESS = 'Read'
 }
+
+const getDefaultDisplayAccessRole = (): string => {
+  return window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS || AccessRole.DEFAULT_DISPLAY_ACCESS;
+};
+
 export const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
   let color = ACCESS_DEFAULT_COLOR;
   let icon = 'fa-solid fa-lock';
@@ -41,7 +46,7 @@ export const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestRes
 
 const getRoleTitle = (accessRequest: AccessRequestResponseBody) => {
   if (accessRequest === null) {
-    return AccessRole.DEFAULT_ACCESS;
+    return getDefaultDisplayAccessRole();
   } else {
     return accessRequest.permission;
   }
