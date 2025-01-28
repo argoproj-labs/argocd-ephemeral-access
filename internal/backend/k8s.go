@@ -39,6 +39,9 @@ type Persister interface {
 	// ListAccessRequests returns all the AccessBindings matching the specified role and namespace
 	ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error)
 
+	// ListAccessRequests returns all the AccessBindings in the given namespace
+	ListAllAccessBindings(ctx context.Context, namespace string) (*api.AccessBindingList, error)
+
 	// GetApplication returns an Unstructured object that represents the Application.
 	// An Unstructured object is returned to avoid importing the full object type or losing properties
 	// during unmarshalling from the partial typed object.
@@ -213,11 +216,25 @@ func (c *K8sPersister) ListAccessBindings(ctx context.Context, roleName, namespa
 			accessBindingRoleField: roleName,
 		},
 	)
+	return c.listAccessBindings(ctx, namespace, selector)
+}
 
+func (c *K8sPersister) ListAllAccessBindings(ctx context.Context, namespace string) (*api.AccessBindingList, error) {
+	return c.listAccessBindings(ctx, namespace, nil)
+}
+
+func (c *K8sPersister) listAccessBindings(ctx context.Context, namespace string, selector fields.Selector) (*api.AccessBindingList, error) {
 	list := &api.AccessBindingList{}
 	err := c.client.List(ctx, list, &client.ListOptions{Namespace: namespace, FieldSelector: selector})
 	if err != nil {
-		return nil, fmt.Errorf("error listing access bindings for role %s in namespace %s from k8s: %w", roleName, namespace, err)
+		var selectorStr string
+		if selector == nil {
+			selectorStr = "nil"
+		} else {
+			selectorStr = selector.String()
+		}
+		return nil, fmt.Errorf("error listing access bindings from k8s in namespace %s (selector: %s)  : %w", namespace, selectorStr, err)
+
 	}
 	return list, nil
 }

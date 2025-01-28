@@ -87,6 +87,68 @@ func (_c *MockService_CreateAccessRequest_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// GetAccessBindingsForGroups provides a mock function with given fields: ctx, namespace, groups, app, project
+func (_m *MockService) GetAccessBindingsForGroups(ctx context.Context, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) ([]*v1alpha1.AccessBinding, error) {
+	ret := _m.Called(ctx, namespace, groups, app, project)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAccessBindingsForGroups")
+	}
+
+	var r0 []*v1alpha1.AccessBinding
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) ([]*v1alpha1.AccessBinding, error)); ok {
+		return rf(ctx, namespace, groups, app, project)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) []*v1alpha1.AccessBinding); ok {
+		r0 = rf(ctx, namespace, groups, app, project)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.AccessBinding)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) error); ok {
+		r1 = rf(ctx, namespace, groups, app, project)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockService_GetAccessBindingsForGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAccessBindingsForGroups'
+type MockService_GetAccessBindingsForGroups_Call struct {
+	*mock.Call
+}
+
+// GetAccessBindingsForGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - namespace string
+//   - groups []string
+//   - app *unstructured.Unstructured
+//   - project *unstructured.Unstructured
+func (_e *MockService_Expecter) GetAccessBindingsForGroups(ctx interface{}, namespace interface{}, groups interface{}, app interface{}, project interface{}) *MockService_GetAccessBindingsForGroups_Call {
+	return &MockService_GetAccessBindingsForGroups_Call{Call: _e.mock.On("GetAccessBindingsForGroups", ctx, namespace, groups, app, project)}
+}
+
+func (_c *MockService_GetAccessBindingsForGroups_Call) Run(run func(ctx context.Context, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured)) *MockService_GetAccessBindingsForGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([]string), args[3].(*unstructured.Unstructured), args[4].(*unstructured.Unstructured))
+	})
+	return _c
+}
+
+func (_c *MockService_GetAccessBindingsForGroups_Call) Return(_a0 []*v1alpha1.AccessBinding, _a1 error) *MockService_GetAccessBindingsForGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockService_GetAccessBindingsForGroups_Call) RunAndReturn(run func(context.Context, string, []string, *unstructured.Unstructured, *unstructured.Unstructured) ([]*v1alpha1.AccessBinding, error)) *MockService_GetAccessBindingsForGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAccessRequestByRole provides a mock function with given fields: ctx, key, roleName
 func (_m *MockService) GetAccessRequestByRole(ctx context.Context, key *backend.AccessRequestKey, roleName string) (*v1alpha1.AccessRequest, error) {
 	ret := _m.Called(ctx, key, roleName)

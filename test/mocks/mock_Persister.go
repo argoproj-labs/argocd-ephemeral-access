@@ -325,6 +325,65 @@ func (_c *MockPersister_ListAccessRequests_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// ListAllAccessBindings provides a mock function with given fields: ctx, namespace
+func (_m *MockPersister) ListAllAccessBindings(ctx context.Context, namespace string) (*v1alpha1.AccessBindingList, error) {
+	ret := _m.Called(ctx, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAllAccessBindings")
+	}
+
+	var r0 *v1alpha1.AccessBindingList
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*v1alpha1.AccessBindingList, error)); ok {
+		return rf(ctx, namespace)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *v1alpha1.AccessBindingList); ok {
+		r0 = rf(ctx, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.AccessBindingList)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockPersister_ListAllAccessBindings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAllAccessBindings'
+type MockPersister_ListAllAccessBindings_Call struct {
+	*mock.Call
+}
+
+// ListAllAccessBindings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - namespace string
+func (_e *MockPersister_Expecter) ListAllAccessBindings(ctx interface{}, namespace interface{}) *MockPersister_ListAllAccessBindings_Call {
+	return &MockPersister_ListAllAccessBindings_Call{Call: _e.mock.On("ListAllAccessBindings", ctx, namespace)}
+}
+
+func (_c *MockPersister_ListAllAccessBindings_Call) Run(run func(ctx context.Context, namespace string)) *MockPersister_ListAllAccessBindings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockPersister_ListAllAccessBindings_Call) Return(_a0 *v1alpha1.AccessBindingList, _a1 error) *MockPersister_ListAllAccessBindings_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockPersister_ListAllAccessBindings_Call) RunAndReturn(run func(context.Context, string) (*v1alpha1.AccessBindingList, error)) *MockPersister_ListAllAccessBindings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockPersister creates a new instance of MockPersister. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockPersister(t interface {

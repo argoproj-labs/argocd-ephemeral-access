@@ -16,9 +16,9 @@ import (
 )
 
 // Service defines the operations provided by the backend. Backend business
-// logic should be added in implementations of this interface
+// logic should be added in implementations of this interface.
 type Service interface {
-	// CreateAccessRequest will create an AccessRequest for the given key requesting the role specified by the AccessBinding
+	// CreateAccessRequest will create an AccessRequest for the given key requesting the role specified by the AccessBinding.
 	CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error)
 	// GetAccessRequestByRole will retrieve the access request for the specified role.
 	// Will return a nil value without any error if an access request isn't found for this role.
@@ -29,8 +29,13 @@ type Service interface {
 
 	// GetGrantingAccessBinding will return the first AccessBinding allowing at least one of the group to request the specified role
 	// AccessBinding can be located in the specified namespace or in the controller namespace.
-	// If no bindings are granting access, nil is returned
+	// If no bindings are granting access, nil is returned.
 	GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error)
+
+	// GetAccessBindingsForGroups will retrieve the list of AccessBindings allowed by at least one of the given groups.
+	// The list will be ordered by the AccessBinding.Ordinal field in descending order. This means that AccessBindings
+	// associated with roles with lesser privileges will come first.
+	GetAccessBindingsForGroups(ctx context.Context, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) ([]*api.AccessBinding, error)
 
 	// GetApplication returns the Unstructured object representing the application. The Unstructured object
 	// can be used to evaluate granting AccessBinding.
@@ -47,7 +52,7 @@ type AccessRequestKey struct {
 	Username             string
 }
 
-// DefaultService is the real Service implementation
+// DefaultService is the real Service implementation.
 type DefaultService struct {
 	k8s                   Persister
 	logger                log.Logger
@@ -109,7 +114,7 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 
 // ListAccessRequests will return all AccessRequests based on the given key. Expired
 // AccessRequests will be removed from the result. If shouldSort is true, the result
-// list will be sorted using defaultAccessRequestSort algorithim.
+// list will be sorted using defaultAccessRequestSort algorithm.
 func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequestKey, shouldSort bool) ([]*api.AccessRequest, error) {
 	accessRequests, err := s.k8s.ListAccessRequests(ctx, key)
 	if err != nil {
@@ -161,6 +166,40 @@ func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName 
 	}
 
 	return grantingBinding, nil
+}
+
+// GetAccessBindingsForGroups will retrieve the list of AccessBindings allowed by at least one of the given groups.
+// The list will be ordered by the AccessBinding.Ordinal field in descending order. This means that AccessBindings
+// associated with roles with lesser privileges will come first.
+func (s *DefaultService) GetAccessBindingsForGroups(ctx context.Context, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) ([]*api.AccessBinding, error) {
+	bindings, err := s.listAllAccessBindings(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error listing all AccessBindings: %w", err)
+	}
+
+	if len(bindings) == 0 {
+		s.logger.Debug(fmt.Sprintf("No AccessBindings found"))
+		return nil, nil
+	}
+
+	s.logger.Debug(fmt.Sprintf("Found %d AccessBindings", len(bindings)))
+	allowedBindings := []*api.AccessBinding{}
+	for _, binding := range bindings {
+
+		subjects, err := binding.RenderSubjects(app, project)
+		if err != nil {
+			s.logger.Error(err, fmt.Sprintf("Cannot render subjects %s:", binding.Name))
+			continue
+		}
+
+		s.logger.Debug("matching subjects with user groups", "subjects", subjects, "groups", groups)
+		if s.matchSubject(subjects, groups) {
+			allowedBindings = append(allowedBindings, &binding)
+		}
+	}
+	slices.SortStableFunc(allowedBindings, accessBindingOrdinalSortDesc)
+
+	return allowedBindings, nil
 }
 
 // matchSubject returns true if groups contains at least one of subjects
@@ -262,15 +301,57 @@ func (s *DefaultService) listAccessBindings(ctx context.Context, roleName string
 	s.logger.Debug(fmt.Sprintf("Getting AccessBindings for role %s in namespace: %s", roleName, namespace))
 	namespacedBindings, err := s.k8s.ListAccessBindings(ctx, roleName, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
+		return nil, fmt.Errorf("error listing AccessBindings from k8s: %w", err)
 	}
 	// get all the binding in controller namespace
 	s.logger.Debug(fmt.Sprintf("Getting AccessBindings for role %s in namespace: %s", roleName, s.namespace))
 	globalBindings, err := s.k8s.ListAccessBindings(ctx, roleName, s.namespace)
 	if err != nil {
-		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
+		return nil, fmt.Errorf("error listing AccessBindings from k8s: %w", err)
 	}
 	return append(namespacedBindings.Items, globalBindings.Items...), nil
+}
+
+// listAllAccessBindings will retrieve all AccessBindings searching in the given Argo CD namespace
+// and in the ephemeral access controller namespace. Will return an unordered list appending both results.
+func (s *DefaultService) listAllAccessBindings(ctx context.Context, namespace string) ([]api.AccessBinding, error) {
+	result := []api.AccessBinding{}
+	// get all the binding in argo namespace
+	s.logger.Debug(fmt.Sprintf("Getting AccessBindings in namespace: %s", namespace))
+	namespacedBindings, err := s.k8s.ListAllAccessBindings(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error listing all AccessBindings from k8s: %w", err)
+	}
+	if namespacedBindings != nil {
+		result = append(result, namespacedBindings.Items...)
+	}
+
+	// get all the binding in the controller's namespace
+	s.logger.Debug(fmt.Sprintf("Getting AccessBindings in namespace: %s", s.namespace))
+	globalBindings, err := s.k8s.ListAllAccessBindings(ctx, s.namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error listing all AccessBindings from k8s: %w", err)
+	}
+	if globalBindings != nil {
+		result = append(result, globalBindings.Items...)
+	}
+	return result, nil
+}
+
+// accessBindingOrdinalSortDesc can be used to sort AccessBindings by
+// their configured Ordinal in descending order.
+// It will:
+//
+//	return a negative number when b.Ordinal < a.Ordinal
+//	return a positive number when b.Ordinal > a.Ordinal
+//	When a.Ordinal == b.Ordinal will sort by FriendlyName
+func accessBindingOrdinalSortDesc(a, b *api.AccessBinding) int {
+	if a.Spec.Ordinal == b.Spec.Ordinal &&
+		a.Spec.FriendlyName != nil &&
+		b.Spec.FriendlyName != nil {
+		return strings.Compare(*a.Spec.FriendlyName, *b.Spec.FriendlyName)
+	}
+	return b.Spec.Ordinal - a.Spec.Ordinal
 }
 
 // defaultAccessRequestSort will sort the given AccessRequests by comparing

@@ -12,6 +12,7 @@ import (
 	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/test/mocks"
+	"github.com/argoproj-labs/ephemeral-access/test/testdata"
 	"github.com/argoproj-labs/ephemeral-access/test/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -21,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -46,6 +48,24 @@ func serviceSetup(t *testing.T) *serviceFixture {
 		logger:    logger,
 		svc:       svc,
 	}
+}
+
+func newUnstructured(t *testing.T, fromYaml string) *unstructured.Unstructured {
+	t.Helper()
+	un := &unstructured.Unstructured{}
+	err := yaml.Unmarshal([]byte(fromYaml), un)
+	require.NoError(t, err)
+	return un
+}
+func newApp(t *testing.T, name, namespace, labels string) *unstructured.Unstructured {
+	t.Helper()
+	appYaml := fmt.Sprintf(testdata.AppYAMLTmpl, name, namespace, labels)
+	return newUnstructured(t, appYaml)
+}
+func newAppProject(t *testing.T, name, namespace, labels string) *unstructured.Unstructured {
+	t.Helper()
+	appProjectYaml := fmt.Sprintf(testdata.AppYAMLTmpl, name, namespace, labels)
+	return newUnstructured(t, appProjectYaml)
 }
 
 func TestServiceCreateAccessRequest(t *testing.T) {
@@ -259,6 +279,136 @@ func TestServiceGetAccessRequestByRole(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "some internal error")
+	})
+}
+
+func strPtr(str string) *string {
+	return &str
+}
+
+func TestServiceGetAccessBindingsForGroups(t *testing.T) {
+	ifCondition := "project.metadata.labels != nil && project.metadata.labels['some-company.com/project-id'] != nil && project.metadata.labels['some-company.com/project-id'] != ''"
+	accessBindingsInNamespace := &api.AccessBindingList{
+		Items: []api.AccessBinding{
+			{
+				Spec: api.AccessBindingSpec{
+					RoleTemplateRef: api.RoleTemplateReference{
+						Name: "developer",
+					},
+					Subjects: []string{
+						"{{ index .project.metadata.labels \"some-company.com/project-id\" }}-developer",
+					},
+					If:           strPtr(ifCondition),
+					Ordinal:      10,
+					FriendlyName: strPtr("Write (Developer)"),
+				},
+			},
+			{
+				Spec: api.AccessBindingSpec{
+					RoleTemplateRef: api.RoleTemplateReference{
+						Name: "devops",
+					},
+					Subjects: []string{
+						"{{ index .project.metadata.labels \"some-company.com/project-id\" }}-devops",
+					},
+					If:           strPtr(ifCondition),
+					Ordinal:      5,
+					FriendlyName: strPtr("Write (DevOps)"),
+				},
+			},
+			{
+				Spec: api.AccessBindingSpec{
+					RoleTemplateRef: api.RoleTemplateReference{
+						Name: "admin",
+					},
+					Subjects: []string{
+						"{{ index .project.metadata.labels \"some-company.com/project-id\" }}-admin",
+					},
+					If:           strPtr(ifCondition),
+					Ordinal:      0,
+					FriendlyName: strPtr("Write (Admin)"),
+				},
+			},
+		},
+	}
+	accessBindingsInControllerNs := &api.AccessBindingList{
+		Items: []api.AccessBinding{
+			{
+				Spec: api.AccessBindingSpec{
+					RoleTemplateRef: api.RoleTemplateReference{
+						Name: "admin-controller",
+					},
+					Subjects: []string{
+						"{{ index .project.metadata.labels \"some-company.com/project-id\" }}-admin",
+					},
+					If:           strPtr(ifCondition),
+					Ordinal:      0,
+					FriendlyName: strPtr("Write (Admin) from controller namespace"),
+				},
+			},
+		},
+	}
+	t.Run("will return allowed AccessBindings in descending order with multiple matching groups", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		ns := "some-namespace"
+		groups := []string{"my-project-developer", "my-project-devops", "my-project-admin"}
+		f.persister.EXPECT().ListAllAccessBindings(mock.Anything, ns).
+			Return(accessBindingsInNamespace, nil)
+		f.persister.EXPECT().ListAllAccessBindings(mock.Anything, ControllerNamespace).
+			Return(accessBindingsInControllerNs, nil)
+		app := newApp(t, "some-app", "some-ns", "\"some-company.com/project-id\": my-project")
+		appproject := newAppProject(t, "some-project", "some-ns", "\"some-company.com/project-id\": my-project")
+
+		// When
+		abs, err := f.svc.GetAccessBindingsForGroups(context.Background(), ns, groups, app, appproject)
+
+		require.NoError(t, err)
+		require.NotNil(t, abs)
+		require.Len(t, abs, 4)
+		assert.Equal(t, "Write (Developer)", *abs[0].Spec.FriendlyName)
+		assert.Equal(t, "Write (DevOps)", *abs[1].Spec.FriendlyName)
+		assert.Equal(t, "Write (Admin)", *abs[2].Spec.FriendlyName)
+		assert.Equal(t, "Write (Admin) from controller namespace", *abs[3].Spec.FriendlyName)
+	})
+	t.Run("will return allowed AccessBindings with one matching group", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		ns := "some-namespace"
+		groups := []string{"NOT-MATCHING-developer", "my-project-devops", "NOT-MATCHING-admin"}
+		f.persister.EXPECT().ListAllAccessBindings(mock.Anything, ns).
+			Return(accessBindingsInNamespace, nil)
+		f.persister.EXPECT().ListAllAccessBindings(mock.Anything, ControllerNamespace).
+			Return(accessBindingsInControllerNs, nil)
+		app := newApp(t, "some-app", "some-ns", "\"some-company.com/project-id\": my-project")
+		appproject := newAppProject(t, "some-project", "some-ns", "\"some-company.com/project-id\": my-project")
+
+		// When
+		abs, err := f.svc.GetAccessBindingsForGroups(context.Background(), ns, groups, app, appproject)
+
+		require.NoError(t, err)
+		require.NotNil(t, abs)
+		require.Len(t, abs, 1)
+		assert.Equal(t, "Write (DevOps)", *abs[0].Spec.FriendlyName)
+	})
+	t.Run("will return empty AccessBindings when no matching group", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		ns := "some-namespace"
+		groups := []string{"NOT-MATCHING-developer", "NOT-MATCHING-admin"}
+		f.persister.EXPECT().ListAllAccessBindings(mock.Anything, ns).
+			Return(accessBindingsInNamespace, nil)
+		f.persister.EXPECT().ListAllAccessBindings(mock.Anything, ControllerNamespace).
+			Return(accessBindingsInControllerNs, nil)
+		app := newApp(t, "some-app", "some-ns", "\"some-company.com/project-id\": my-project")
+		appproject := newAppProject(t, "some-project", "some-ns", "\"some-company.com/project-id\": my-project")
+
+		// When
+		abs, err := f.svc.GetAccessBindingsForGroups(context.Background(), ns, groups, app, appproject)
+
+		require.NoError(t, err)
+		require.NotNil(t, abs)
+		require.Len(t, abs, 0)
 	})
 }
 
