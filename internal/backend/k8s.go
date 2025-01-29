@@ -36,10 +36,10 @@ type Persister interface {
 	// ListAccessRequests returns all the AccessRequest matching the key criterias
 	ListAccessRequests(ctx context.Context, key *AccessRequestKey) (*api.AccessRequestList, error)
 
-	// ListAccessRequests returns all the AccessBindings matching the specified role and namespace
+	// ListAccessBindings returns all the AccessBindings matching the specified role and namespace
 	ListAccessBindings(ctx context.Context, roleName, namespace string) (*api.AccessBindingList, error)
 
-	// ListAccessRequests returns all the AccessBindings in the given namespace
+	// ListAllAccessBindings returns all the AccessBindings in the given namespace
 	ListAllAccessBindings(ctx context.Context, namespace string) (*api.AccessBindingList, error)
 
 	// GetApplication returns an Unstructured object that represents the Application.
