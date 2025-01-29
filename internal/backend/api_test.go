@@ -26,6 +26,7 @@ type apiFixture struct {
 }
 
 func apiSetup(t *testing.T) *apiFixture {
+	t.Helper()
 	_, api := humatest.New(t)
 	service := mocks.NewMockService(t)
 	logger := mocks.NewMockLogger(t)

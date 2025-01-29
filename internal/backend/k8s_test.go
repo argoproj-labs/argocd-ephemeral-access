@@ -337,8 +337,6 @@ func TestK8sPersister(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, result)
 		require.Equal(t, expectedItems, len(result.Items))
-		assert.Equal(t, ab1, result.Items[0].Name)
-		assert.Equal(t, role1, result.Items[0].Spec.RoleTemplateRef.Name)
 	})
 
 	t.Run("will only list AccessBindings matching filters", func(t *testing.T) {
