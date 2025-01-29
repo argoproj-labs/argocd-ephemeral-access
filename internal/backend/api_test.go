@@ -2,6 +2,7 @@ package backend_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -724,4 +725,214 @@ func Test_toAccessRequestResponseBody(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApiListAllowedRoles(t *testing.T) {
+	newAccessBinding := func(roleName, friendlyName string) *api.AccessBinding {
+		return &api.AccessBinding{
+			Spec: api.AccessBindingSpec{
+				RoleTemplateRef: api.RoleTemplateReference{
+					Name: roleName,
+				},
+				FriendlyName: strPtr(friendlyName),
+			},
+		}
+	}
+	t.Run("will return access requests successfully", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := "group1,group2,group3"
+		groupsList := strings.Split(groups, ",")
+		appNamespace := "some-namespace"
+		appName := "some-app"
+		projectName := "some-project"
+		role1 := "role-1"
+		role2 := "role-2"
+		abList := []*api.AccessBinding{
+			newAccessBinding(role1, role1),
+			newAccessBinding(role2, role2),
+		}
+		app := &unstructured.Unstructured{}
+		appproj := &unstructured.Unstructured{}
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(app, nil)
+		f.service.EXPECT().GetAppProject(mock.Anything, projectName, argocdNamespace).Return(appproj, nil)
+		f.service.EXPECT().GetAccessBindingsForGroups(mock.Anything, argocdNamespace, groupsList, app, appproj).Return(abList, nil)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 200, resp.Result().StatusCode)
+		var respBody backend.ListAllowedRolesResponseBody
+		err := json.Unmarshal(resp.Body.Bytes(), &respBody)
+		assert.NoError(t, err)
+		require.Equal(t, 2, len(respBody.Items))
+		assert.Equal(t, role1, respBody.Items[0].RoleName)
+		assert.Equal(t, role2, respBody.Items[1].RoleName)
+	})
+	t.Run("will return 422 if the groups header is empty", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := ""
+		appNamespace := "some-namespace"
+		appName := "some-app"
+		projectName := "some-project"
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 422, resp.Result().StatusCode)
+	})
+	t.Run("will return 400 if the application header do not have namespace", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := "group1,group2"
+		appNamespace := ""
+		appName := "some-app"
+		projectName := "some-project"
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 400, resp.Result().StatusCode)
+	})
+	t.Run("will return 400 if the application header do not have name", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := "group1,group2"
+		appNamespace := "some-namespace"
+		appName := ""
+		projectName := "some-project"
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 400, resp.Result().StatusCode)
+	})
+	t.Run("will return 500 if it fails to retrieve the application", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := "group1,group2,group3"
+		appNamespace := "some-namespace"
+		appName := "some-app"
+		projectName := "some-project"
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(nil, errors.New("some error"))
+		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 500, resp.Result().StatusCode)
+	})
+	t.Run("will return 404 if application not found", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := "group1,group2,group3"
+		appNamespace := "some-namespace"
+		appName := "some-app"
+		projectName := "some-project"
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(nil, nil)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 404, resp.Result().StatusCode)
+	})
+	t.Run("will return 500 if it fails to retrieve the project", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := "group1,group2,group3"
+		appNamespace := "some-namespace"
+		appName := "some-app"
+		projectName := "some-project"
+		app := &unstructured.Unstructured{}
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(app, nil)
+		f.service.EXPECT().GetAppProject(mock.Anything, projectName, argocdNamespace).Return(nil, errors.New("some error"))
+		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 500, resp.Result().StatusCode)
+	})
+	t.Run("will return 404 if project not found", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := "group1,group2,group3"
+		appNamespace := "some-namespace"
+		appName := "some-app"
+		projectName := "some-project"
+		app := &unstructured.Unstructured{}
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(app, nil)
+		f.service.EXPECT().GetAppProject(mock.Anything, projectName, argocdNamespace).Return(nil, nil)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 404, resp.Result().StatusCode)
+	})
+	t.Run("will return 500 if it fails to retrieve the accessbindings list", func(t *testing.T) {
+		// Given
+		f := apiSetup(t)
+		argocdNamespace := "argocd-namespace"
+		username := "some-user"
+		groups := "group1,group2,group3"
+		groupsList := strings.Split(groups, ",")
+		appNamespace := "some-namespace"
+		appName := "some-app"
+		projectName := "some-project"
+		app := &unstructured.Unstructured{}
+		appproj := &unstructured.Unstructured{}
+		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(app, nil)
+		f.service.EXPECT().GetAppProject(mock.Anything, projectName, argocdNamespace).Return(appproj, nil)
+		f.service.EXPECT().GetAccessBindingsForGroups(mock.Anything, argocdNamespace, groupsList, app, appproj).Return(nil, errors.New("some error"))
+		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
+
+		// When
+		resp := f.api.Get("/roles", headers...)
+
+		// Then
+		assert.NotNil(t, resp)
+		assert.Equal(t, 500, resp.Result().StatusCode)
+	})
 }

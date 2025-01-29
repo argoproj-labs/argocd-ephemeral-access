@@ -34,6 +34,12 @@ func (h *ArgoCDHeaders) Application() (namespace string, name string, err error)
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", "Argocd-Application-Name")
 	}
+	if parts[0] == "" {
+		return "", "", fmt.Errorf("invalid value for %q header: application namespace must be informed", "Argocd-Application-Name")
+	}
+	if parts[1] == "" {
+		return "", "", fmt.Errorf("invalid value for %q header: application name must be informed", "Argocd-Application-Name")
+	}
 	return parts[0], parts[1], nil
 }
 
@@ -137,7 +143,7 @@ func (h *APIHandler) listAllowedRolesHandler(ctx context.Context, input *ListAll
 		return nil, h.loggedError(huma.Error500InternalServerError("error getting application", err))
 	}
 	if app == nil {
-		return nil, huma.Error400BadRequest("invalid application", err)
+		return nil, huma.Error404NotFound("Argo CD Application not found")
 	}
 
 	project, err := h.service.GetAppProject(ctx, input.ArgoCDProjectName, input.ArgoCDNamespace)
@@ -145,7 +151,7 @@ func (h *APIHandler) listAllowedRolesHandler(ctx context.Context, input *ListAll
 		return nil, h.loggedError(huma.Error500InternalServerError("error getting project", err))
 	}
 	if project == nil {
-		return nil, huma.Error400BadRequest("invalid project", err)
+		return nil, huma.Error404NotFound("Argo CD AppProject not found")
 	}
 
 	abList, err := h.service.GetAccessBindingsForGroups(ctx, input.ArgoCDNamespace, groups, app, project)
