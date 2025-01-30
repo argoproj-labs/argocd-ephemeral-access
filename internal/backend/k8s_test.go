@@ -10,6 +10,7 @@ import (
 	"time"
 
 	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
+	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/ephemeral-access/pkg/log"
 	"github.com/argoproj-labs/ephemeral-access/test/utils"
@@ -300,6 +301,42 @@ func TestK8sPersister(t *testing.T) {
 		require.Equal(t, expectedItems, len(result.Items))
 		assert.Equal(t, ab.GetName(), result.Items[0].Name)
 		assert.Equal(t, ab.GetNamespace(), result.Items[0].Namespace)
+	})
+	createAccessBinding := func(name, namespace, roleName string) error {
+		ab := newDefaultAccessBinding()
+		ab.ObjectMeta.Name = name
+		ab.ObjectMeta.Namespace = namespace
+		ab.Spec.RoleTemplateRef.Name = roleName
+		return k8sClient.Create(ctx, ab)
+	}
+	t.Run("will list all AccessBindings successfully", func(t *testing.T) {
+		// Given
+		nsName := "list-all-ab-success"
+		ns := utils.NewNamespace(nsName)
+		err = k8sClient.Create(ctx, ns)
+		require.NoError(t, err)
+
+		ab1, ab2, ab3 := "ab1", "ab2", "ab3"
+		role1, role2, role3 := "role1", "role2", "role3"
+		err = createAccessBinding(ab1, nsName, role1)
+		require.NoError(t, err)
+		err = createAccessBinding(ab2, nsName, role2)
+		require.NoError(t, err)
+		err = createAccessBinding(ab3, nsName, role3)
+		require.NoError(t, err)
+
+		// When
+		expectedItems := 3
+		var result *api.AccessBindingList
+		eventually(func() (bool, error) {
+			result, err = p.ListAllAccessBindings(ctx, nsName)
+			return result != nil && len(result.Items) == expectedItems, err
+		}, 5*time.Second, time.Second)
+
+		// Then
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, expectedItems, len(result.Items))
 	})
 
 	t.Run("will only list AccessBindings matching filters", func(t *testing.T) {

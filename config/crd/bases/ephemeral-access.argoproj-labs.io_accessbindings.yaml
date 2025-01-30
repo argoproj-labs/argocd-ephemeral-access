@@ -47,12 +47,16 @@ spec:
                 description: If is a condition that must be true to evaluate the subjects
                 type: string
               ordinal:
-                description: Ordinal defines an ordering number of this role compared
-                  to others
+                description: |-
+                  Ordinal defines an ordering number of this role compared to others.
+                  AccessBindings associated with roles with higher privilege should
+                  be set with lower ordinal value than AccessBindings associated with
+                  roles with lesser privilege.
                 type: integer
               roleTemplateRef:
-                description: RoleTemplateRef is the reference to the RoleTemplate
-                  this bindings grants access to
+                description: |-
+                  RoleTemplateRef is the reference to the RoleTemplate this bindings grants
+                  access to
                 properties:
                   name:
                     description: Name of the role template object
@@ -61,8 +65,9 @@ spec:
                 - name
                 type: object
               subjects:
-                description: Subjects is list of strings, supporting go template,
-                  that a user's group claims must match at least one of to be allowed
+                description: |-
+                  Subjects is list of strings, supporting go template, that a user's group
+                  claims must match at least one of to be allowed
                 items:
                   type: string
                 type: array

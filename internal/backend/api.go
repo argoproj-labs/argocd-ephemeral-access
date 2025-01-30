@@ -34,6 +34,12 @@ func (h *ArgoCDHeaders) Application() (namespace string, name string, err error)
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("invalid value for %q header: expected format: <namespace>:<app-name>", "Argocd-Application-Name")
 	}
+	if parts[0] == "" {
+		return "", "", fmt.Errorf("invalid value for %q header: application namespace must be informed", "Argocd-Application-Name")
+	}
+	if parts[1] == "" {
+		return "", "", fmt.Errorf("invalid value for %q header: application name must be informed", "Argocd-Application-Name")
+	}
 	return parts[0], parts[1], nil
 }
 
@@ -44,6 +50,27 @@ func (h *ArgoCDHeaders) Groups() []string {
 // ListAccessRequestInput defines the list access input parameters.
 type ListAccessRequestInput struct {
 	ArgoCDHeaders
+}
+
+// ListAllowedRolesInput defines the input parameters list of allowed roles.
+type ListAllowedRolesInput struct {
+	ArgoCDHeaders
+}
+
+// ListAllowedRolesResponse defines the response of allowed roles requests.
+type ListAllowedRolesResponse struct {
+	Body ListAllowedRolesResponseBody
+}
+
+// ListAllowedRolesResponseBody defines the response body of allowed roles requests.
+type ListAllowedRolesResponseBody struct {
+	Items []AllowedRoleResponseBody `json:"items"`
+}
+
+// AllowedRoleResponseBody defines the allowed role response.
+type AllowedRoleResponseBody struct {
+	RoleName        string `json:"roleName" example:"custom-role-template" doc:"The role template name to request."`
+	RoleDisplayName string `json:"roleDisplayName" example:"Write (DevOps)" doc:"The human friendly name of the role that can be used to display to users."`
 }
 
 // ListAccessRequestResponse defines the list access response parameters.
@@ -99,6 +126,58 @@ func NewAPIHandler(s Service, logger log.Logger) *APIHandler {
 		service: s,
 		logger:  logger,
 	}
+}
+
+func (h *APIHandler) listAllowedRolesHandler(ctx context.Context, input *ListAllowedRolesInput) (*ListAllowedRolesResponse, error) {
+	if input.ArgoCDUserGroups == "" {
+		return nil, huma.Error400BadRequest(fmt.Sprintf("user (%s) has no groups", input.ArgoCDUsername))
+	}
+	groups := strings.Split(input.ArgoCDUserGroups, ",")
+	appNamespace, appName, err := input.Application()
+	if err != nil {
+		return nil, huma.Error400BadRequest("error getting application name", err)
+	}
+	// Validate information in headers necessary to evaluate permissions
+	app, err := h.service.GetApplication(ctx, appName, appNamespace)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError("error getting application", err))
+	}
+	if app == nil {
+		return nil, huma.Error404NotFound("Argo CD Application not found")
+	}
+
+	project, err := h.service.GetAppProject(ctx, input.ArgoCDProjectName, input.ArgoCDNamespace)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError("error getting project", err))
+	}
+	if project == nil {
+		return nil, huma.Error404NotFound("Argo CD AppProject not found")
+	}
+
+	abList, err := h.service.GetAccessBindingsForGroups(ctx, input.ArgoCDNamespace, groups, app, project)
+	if err != nil {
+		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error listing allowed roles for user %s", input.ArgoCDUsername), err))
+	}
+
+	return &ListAllowedRolesResponse{Body: toListAllowedRolesResponseBody(abList)}, nil
+}
+
+func toListAllowedRolesResponseBody(abList []*api.AccessBinding) ListAllowedRolesResponseBody {
+	result := ListAllowedRolesResponseBody{}
+	for _, ab := range abList {
+		// if the friendly name is nil it will fall back to display
+		// the roletemplate name
+		displayName := ab.Spec.RoleTemplateRef.Name
+		if ab.Spec.FriendlyName != nil {
+			displayName = *ab.Spec.FriendlyName
+		}
+		item := AllowedRoleResponseBody{
+			RoleName:        ab.Spec.RoleTemplateRef.Name,
+			RoleDisplayName: displayName,
+		}
+		result.Items = append(result.Items, item)
+	}
+	return result
 }
 
 func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAccessRequestInput) (*ListAccessRequestResponse, error) {
@@ -241,6 +320,18 @@ func listAccessRequestOperation() huma.Operation {
 	}
 }
 
+// listAllowedRolesOperation defines the operation to list the user's available
+// roles.
+func listAllowedRolesOperation() huma.Operation {
+	return huma.Operation{
+		OperationID: "list-allowedroles",
+		Method:      http.MethodGet,
+		Path:        "/roles",
+		Summary:     "List allowed roles for the user",
+		Description: "Will retrieve an ordered list of allowed roles that the user can be elevated to",
+	}
+}
+
 // createAccessRequestOperation defines the create access request operation.
 func createAccessRequestOperation() huma.Operation {
 	return huma.Operation{
@@ -256,5 +347,6 @@ func createAccessRequestOperation() huma.Operation {
 // in the given api.
 func RegisterRoutes(api huma.API, h *APIHandler) {
 	huma.Register(api, listAccessRequestOperation(), h.listAccessRequestHandler)
+	huma.Register(api, listAllowedRolesOperation(), h.listAllowedRolesHandler)
 	huma.Register(api, createAccessRequestOperation(), h.createAccessRequestHandler)
 }
