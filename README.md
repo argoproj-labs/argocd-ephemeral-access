@@ -214,7 +214,7 @@ higher privileges. For example, if you have defined 3 role templates: `admin`,
 `devops`, `developer` the `AccessBindings` should be configured as:
 
 | spec.RoleTemplateRef.name  | spec.ordinal |
----------------------------------------------
+|----------------------------|--------------|
 | admin                      | 0            |
 | devops                     | 1            |
 | developer                  | 2            |
