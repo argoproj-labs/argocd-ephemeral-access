@@ -201,6 +201,33 @@ decide if a given subject should have their access elevated. The field
 will be evaluated using the [expr][5] syntax and the same variables
 above will be also available.
 
+The `.spec.ordinal` field is used to order the list result in 2
+different scenarios:
+
+- returning the list of active `AccessRequest` for a user
+- returning the list of available roles for a user
+
+When returning the list of active `AccessRequest`s for a user, the
+result will be sorted in ascending order. This means that the
+`.spec.ordinal` must be configured with lower numbers for roles with
+higher privileges. For example, if you have defined 3 role templates: `admin`,
+`devops`, `developer` the `AccessBindings` should be configured as:
+
+| spec.RoleTemplateRef.name  | spec.ordinal |
+---------------------------------------------
+| admin                      | 0            |
+| devops                     | 1            |
+| developer                  | 2            |
+
+This way, if a given user has 2 `AccessRequest`s active at the same
+time, we will display the one with higher privileges as the current
+permission in Argo CD UI.
+
+The `.spec.ordinal` also impacts the Roles dropdown list that users
+can select while requesting elevated access. In this case we sort in
+descending order so the users will be presented with a list with less
+privileges roles first.
+
 The example below demonstrates how the `AccessBinding` can be
 configured:
 
