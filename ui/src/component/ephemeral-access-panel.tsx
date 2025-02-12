@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import moment from 'moment';
 import { Application } from '../models/type';
+
 import { ARGO_GRAY6_COLOR } from '../shared/colors';
 import { HelpIcon } from 'argo-ui/src/components/help-icon/help-icon';
-import { AccessPanel, EnableEphemeralAccess } from '../utils/utils';
+import { EnableEphemeralAccess, getDefaultDisplayAccessRole } from '../utils/utils';
 import { AccessRequestResponseBody } from '../gen/ephemeral-access-api';
 import { getDisplayTime } from '../utils/utils';
+import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
 
@@ -27,7 +29,6 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
     }
   }, [application.metadata?.name]);
 
-
   useEffect(() => {
     const intervalId = setInterval(() => {
       getPermissions();
@@ -35,6 +36,39 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
 
     return () => clearInterval(intervalId);
   }, [getPermissions]);
+
+  const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
+    let color = ACCESS_DEFAULT_COLOR;
+    let icon = 'fa-solid fa-lock';
+    if (accessRequest) {
+      color = ACCESS_PERMISSION_COLOR;
+      icon = 'fa-solid fa-unlock';
+    } else {
+      color = ACCESS_DEFAULT_COLOR;
+      icon = 'fa-solid fa-lock';
+    }
+
+    return (
+      <React.Fragment>
+        <i
+          qe-id='Access-role-title'
+          title={getRoleTitle(accessRequest)}
+          className={'fa ' + icon}
+          style={{ color, minWidth: '15px', textAlign: 'center' }}
+        />{' '}
+        &nbsp;
+        {getRoleTitle(accessRequest)}
+      </React.Fragment>
+    );
+  };
+
+  const getRoleTitle = (accessRequest: AccessRequestResponseBody) => {
+    if (accessRequest === null) {
+      return getDefaultDisplayAccessRole();
+    } else {
+      return accessRequest.permission;
+    }
+  };
 
   return EnableEphemeralAccess(application) ? (
     <div
@@ -67,12 +101,7 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
             fontFamily: 'inherit'
           }}
         >
-          <div
-            className={
-              'application-status-panel__item-value'
-            }
-            style={{ alignItems: 'baseline' }}
-          >
+          <div className={'application-status-panel__item-value'} style={{ marginBottom: '0.5em' }}>
             <AccessPanel accessRequest={accessRequest} />
           </div>
         </div>

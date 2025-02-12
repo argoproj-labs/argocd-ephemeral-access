@@ -3,6 +3,12 @@
 .access-form {
   padding: 20px;
 
+  &__role-select{
+    display: flex;
+    width: 150px;
+    margin-top: 20px;
+  }
+
   &__usrmsg {
     display: flex;
     flex-direction: row;
