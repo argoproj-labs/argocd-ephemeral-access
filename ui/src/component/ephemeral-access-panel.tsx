@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import moment from 'moment';
+import Moment from 'react-moment';
 import { Application } from '../models/type';
 import { ARGO_GRAY6_COLOR } from '../shared/colors';
 import { HelpIcon } from 'argo-ui/src/components/help-icon/help-icon';
 import { EnableEphemeralAccess, getDefaultDisplayAccessRole } from '../utils/utils';
 import { AccessRequestResponseBody } from '../gen/ephemeral-access-api';
-import { getDisplayTime } from '../utils/utils';
 import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
@@ -102,21 +102,25 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
         >
           <div className={'application-status-panel__item-value'} style={{ marginBottom: '0.5em' }}>
             <a
-            href='/applications/argocd/argo-rollouts?view=tree&resource=&extension=ephemeral_access'
-            target='_blank'
-            rel='noopener noreferrer'
-            data-testid='argo-link'
-            style={{ marginLeft: '10px' }} // Optional: Add margin for spacing
-          >
-            <AccessPanel accessRequest={accessRequest} />
-          </a>
+              href='/applications/argocd/argo-rollouts?view=tree&resource=&extension=ephemeral_access'
+              target='_blank'
+              rel='noopener noreferrer'
+              data-testid='argo-link'
+              style={{ marginLeft: '10px' }} // Optional: Add margin for spacing
+            >
+              <AccessPanel accessRequest={accessRequest} />
+            </a>
           </div>
         </div>
 
         {accessRequest?.expiresAt && (
           <div className={'application-status-panel__item-name'}>
             Expires In: &nbsp;
-            {getDisplayTime(accessRequest)}
+            <>
+              <Moment fromNow ago>
+                {new Date(accessRequest.expiresAt)}
+              </Moment>
+            </>
           </div>
         )}
       </div>

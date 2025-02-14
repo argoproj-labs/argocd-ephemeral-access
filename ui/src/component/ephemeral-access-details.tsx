@@ -4,7 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { BUTTON_LABELS } from '../constant';
 import { Application, UserInfo } from '../models/type';
 import { getAccessRoles, Spinner } from '../utils/utils';
-import RoleSelection from './role-selection';
+import  RoleSelection  from './role-selection';
 import './ephemeral-access-details.scss';
 import moment from 'moment';
 import {
@@ -203,7 +203,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   useEffect(() => {
     getUserRoles();
-  }, [currentAccessRequest]);
+  }, []);
 
   useEffect(() => {
     getUserAccess();

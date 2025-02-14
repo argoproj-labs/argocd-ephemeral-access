@@ -1,8 +1,6 @@
 import React from 'react';
-import Moment from 'react-moment';
 import { Application } from '../models/type';
 import {
-    AccessRequestResponseBody,
     AllowedRoleResponseBody,
     listAllowedroles,
 } from '../gen/ephemeral-access-api';
@@ -22,18 +20,6 @@ export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSS
 
 export const getDefaultDisplayAccessRole = (): string => {
   return window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS || AccessRole.DEFAULT_DISPLAY_ACCESS;
-};
-
-
-
-export const getDisplayTime = (accessRequest: AccessRequestResponseBody): any => {
-  return (
-    <>
-      <Moment fromNow={true} ago={true}>
-        {new Date(accessRequest.expiresAt)}
-      </Moment>
-    </>
-  );
 };
 
 export const EnableEphemeralAccess = (application: Application) => {
