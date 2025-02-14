@@ -10,31 +10,33 @@ import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
 
-  const getPermissions = useCallback(() => {
-    const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
-
+  const getPermissions = (accessPermission: AccessRequestResponseBody) => {
     if (accessPermission) {
       const expiryTime = moment.parseZone(accessPermission.expiresAt);
       setAccessRequest(accessPermission);
       const diffInSeconds = expiryTime.diff(moment(), 'seconds');
-
       if (diffInSeconds <= 0) {
-        // Access expired, remove from local storage and set to null
-        localStorage.removeItem(application.metadata?.name);
         setAccessRequest(null);
       } else {
         setAccessRequest(accessPermission);
       }
     }
-  }, [application.metadata?.name]);
+  };
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      getPermissions();
-    }, 500);
+      const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
+      if (accessPermission === null) {
+        clearInterval(intervalId);
+        localStorage.removeItem(application.metadata?.name);
+        setAccessRequest(null);
+      } else {
+        getPermissions(accessPermission);
+      }
+    }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [getPermissions]);
+  }, [localStorage.getItem(application.metadata?.name), accessRequest]);
 
   const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
     let color = ACCESS_DEFAULT_COLOR;
