@@ -143,24 +143,13 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		return nil, fmt.Errorf("error adding AccessBinding index for field %s: %w", accessBindingRoleField, err)
 	}
 
-	// err = cache.IndexField(context.Background(), &api.AccessBinding{}, accessBindingRoleField, func(obj client.Object) []string {
-	// 	b := obj.(*api.AccessBinding)
-	// 	if b.Spec.RoleTemplateRef.Name == "" {
-	// 		return nil
-	// 	}
-	// 	return []string{b.Spec.RoleTemplateRef.Name}
-	// })
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error adding AccessBinding index for field %s: %w", accessBindingRoleField, err)
-	// }
-	//
 	clientOpts := client.Options{
 		HTTPClient: httpClient,
 		Scheme:     scheme.Scheme,
 		Mapper:     mapper,
 		Cache: &client.CacheOptions{
 			Reader:       cache,
-			Unstructured: true,
+			Unstructured: false,
 		},
 	}
 	k8sClient, err := client.New(config, clientOpts)
