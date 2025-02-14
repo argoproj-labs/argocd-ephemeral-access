@@ -6,7 +6,7 @@ export function getHeaders({
   applicationName,
   applicationNamespace,
   project,
-  username
+  username,
 }: {
   applicationName: string;
   applicationNamespace: string;
