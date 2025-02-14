@@ -94,7 +94,10 @@ func NewDefaultService(c Persister, l log.Logger, namespace string, arDuration t
 // GetAccessRequestByRole will find the AccessRequest based on the given key and roleName.
 // Result will discard Expired and Denied AccessRequests.
 func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error) {
-
+	logKeys := []interface{}{
+		"namespace", key.Namespace, "app", key.ApplicationName, "username", key.Username, "appNamespace", key.ApplicationNamespace,
+	}
+	s.logger.Debug(fmt.Sprintf("Getting AccessRequest by role"), logKeys...)
 	// get all access requests
 	accessRequests, err := s.ListAccessRequests(ctx, key, true)
 	if err != nil {
@@ -116,6 +119,10 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 // AccessRequests will be removed from the result. If shouldSort is true, the result
 // list will be sorted using defaultAccessRequestSort algorithm.
 func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequestKey, shouldSort bool) ([]*api.AccessRequest, error) {
+	logKeys := []interface{}{
+		"namespace", key.Namespace, "app", key.ApplicationName, "username", key.Username, "appNamespace", key.ApplicationNamespace,
+	}
+	s.logger.Debug(fmt.Sprintf("Listing AccessRequests"), logKeys...)
 	accessRequests, err := s.k8s.ListAccessRequests(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
@@ -138,6 +145,10 @@ func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequ
 }
 
 func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error) {
+	logKeys := []interface{}{
+		"namespace", namespace, "app", app.GetName(), "groups", strings.Join(groups, ","), "roleName", roleName, "project", project.GetName(),
+	}
+	s.logger.Debug(fmt.Sprintf("Getting granting AccessBinding"), logKeys...)
 	bindings, err := s.listAccessBindings(ctx, roleName, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving access bindings for role %s: %w", roleName, err)
@@ -172,6 +183,10 @@ func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName 
 // The list will be ordered by the AccessBinding.Ordinal field in descending order. This means that AccessBindings
 // associated with roles with lesser privileges will come first.
 func (s *DefaultService) GetAccessBindingsForGroups(ctx context.Context, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) ([]*api.AccessBinding, error) {
+	logKeys := []interface{}{
+		"namespace", namespace, "groups", strings.Join(groups, ","), "app", app.GetNamespace(),
+	}
+	s.logger.Debug(fmt.Sprintf("Getting AccessBinding for groups"), logKeys...)
 	bindings, err := s.listAllAccessBindings(ctx, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error listing all AccessBindings: %w", err)
@@ -213,6 +228,11 @@ func (s *DefaultService) matchSubject(subjects, groups []string) bool {
 }
 
 func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessRequestKey, binding *api.AccessBinding) (*api.AccessRequest, error) {
+	logKeys := []interface{}{
+		"namespace", key.Namespace, "app", key.ApplicationName, "username", key.Username, "appNamespace", key.ApplicationNamespace,
+		"accessBinding", binding.GetName(),
+	}
+	s.logger.Debug(fmt.Sprintf("Creating AccessRequest"), logKeys...)
 	roleName := binding.Spec.RoleTemplateRef.Name
 	ar := &api.AccessRequest{
 		TypeMeta: metav1.TypeMeta{
@@ -283,6 +303,7 @@ func (s *DefaultService) GetApplication(ctx context.Context, name string, namesp
 }
 
 func (s *DefaultService) GetAppProject(ctx context.Context, name string, namespace string) (*unstructured.Unstructured, error) {
+	s.logger.Debug(fmt.Sprintf("Getting AppProject %s in namespace %s", name, namespace))
 	project, err := s.k8s.GetAppProject(ctx, name, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
