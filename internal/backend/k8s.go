@@ -165,10 +165,6 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 }
 
 func isExpiredError(err error) bool {
-	// In Kubernetes 1.17 and earlier, the api server returns both apierrors.StatusReasonExpired and
-	// apierrors.StatusReasonGone for HTTP 410 (Gone) status code responses. In 1.18 the kube server is more consistent
-	// and always returns apierrors.StatusReasonExpired. For backward compatibility we can only remove the apierrors.IsGone
-	// check when we fully drop support for Kubernetes 1.17 servers from reflectors.
 	return apierrors.IsResourceExpired(err) || apierrors.IsGone(err)
 }
 
