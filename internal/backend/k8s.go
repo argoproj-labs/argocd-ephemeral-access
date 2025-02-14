@@ -3,11 +3,14 @@ package backend
 import (
 	"context"
 	"fmt"
+	"io"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	toolscache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -82,10 +85,14 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		return nil, fmt.Errorf("error creating rest mapper: %w", err)
 	}
 
+	watchErrorHandler := newWatchErrorHander(logger)
+
 	cacheOpts := cache.Options{
-		HTTPClient: httpClient,
-		Scheme:     scheme.Scheme,
-		Mapper:     mapper,
+		HTTPClient:                  httpClient,
+		Scheme:                      scheme.Scheme,
+		Mapper:                      mapper,
+		ReaderFailOnMissingInformer: true,
+		DefaultWatchErrorHandler:    watchErrorHandler,
 	}
 	cache, err := cache.New(config, cacheOpts)
 	if err != nil {
@@ -136,6 +143,17 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		return nil, fmt.Errorf("error adding AccessBinding index for field %s: %w", accessBindingRoleField, err)
 	}
 
+	// err = cache.IndexField(context.Background(), &api.AccessBinding{}, accessBindingRoleField, func(obj client.Object) []string {
+	// 	b := obj.(*api.AccessBinding)
+	// 	if b.Spec.RoleTemplateRef.Name == "" {
+	// 		return nil
+	// 	}
+	// 	return []string{b.Spec.RoleTemplateRef.Name}
+	// })
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error adding AccessBinding index for field %s: %w", accessBindingRoleField, err)
+	// }
+	//
 	clientOpts := client.Options{
 		HTTPClient: httpClient,
 		Scheme:     scheme.Scheme,
@@ -155,6 +173,29 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		cache:  cache,
 		logger: logger,
 	}, nil
+}
+
+func isExpiredError(err error) bool {
+	// In Kubernetes 1.17 and earlier, the api server returns both apierrors.StatusReasonExpired and
+	// apierrors.StatusReasonGone for HTTP 410 (Gone) status code responses. In 1.18 the kube server is more consistent
+	// and always returns apierrors.StatusReasonExpired. For backward compatibility we can only remove the apierrors.IsGone
+	// check when we fully drop support for Kubernetes 1.17 servers from reflectors.
+	return apierrors.IsResourceExpired(err) || apierrors.IsGone(err)
+}
+
+func newWatchErrorHander(logger log.Logger) toolscache.WatchErrorHandler {
+	return func(r *toolscache.Reflector, err error) {
+		switch {
+		case isExpiredError(err):
+			logger.Error(err, "Cache watch closed: expired")
+		case err == io.EOF:
+			logger.Debug("Cache watch closed")
+		case err == io.ErrUnexpectedEOF:
+			logger.Error(err, "Cache watch closed with unexpected EOF")
+		default:
+			logger.Error(err, "Cache failed to watch")
+		}
+	}
 }
 
 // StartCache will initialize the Kubernetes persister cache and block the call.
