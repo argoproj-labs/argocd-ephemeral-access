@@ -177,7 +177,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           break;
         case 401:
         case 403:
-          notify('Extension is not authorized: ' + error.message);
+          notify('Unauthorized request: ' + error.message);
           break;
         case 502:
           notify('Error occurred while requesting permission: ' + error.message);
