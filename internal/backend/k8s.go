@@ -91,7 +91,7 @@ func NewK8sPersister(config *rest.Config, logger log.Logger) (*K8sPersister, err
 		HTTPClient:                  httpClient,
 		Scheme:                      scheme.Scheme,
 		Mapper:                      mapper,
-		ReaderFailOnMissingInformer: true,
+		ReaderFailOnMissingInformer: false,
 		DefaultWatchErrorHandler:    watchErrorHandler,
 	}
 	cache, err := cache.New(config, cacheOpts)
