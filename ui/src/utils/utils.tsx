@@ -8,6 +8,10 @@ import {
 } from '../gen/ephemeral-access-api';
 import {getHeaders} from "../config/client";
 
+export enum AccessRole {
+  DEFAULT_DISPLAY_ACCESS = 'Read'
+}
+
 export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSSProperties }) =>
   show ? (
     <span style={style}>
@@ -17,18 +21,18 @@ export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSS
 
 
 export const getDefaultDisplayAccessRole = (): string => {
-  return window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS;
+  return window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS || AccessRole.DEFAULT_DISPLAY_ACCESS;
 };
 
 
 
 export const getDisplayTime = (accessRequest: AccessRequestResponseBody): any => {
   return (
-    <span>
+    <>
       <Moment fromNow={true} ago={true}>
         {new Date(accessRequest.expiresAt)}
       </Moment>
-    </span>
+    </>
   );
 };
 

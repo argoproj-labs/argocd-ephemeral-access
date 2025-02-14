@@ -4,9 +4,10 @@
   padding: 20px;
 
   &__role-select{
-    display: flex;
-    width: 150px;
-    margin-top: 20px;
+    width: 200px;
+    padding: 10px;
+    min-width: 200px;
+    flex-direction: row-reverse;
   }
 
   &__usrmsg {

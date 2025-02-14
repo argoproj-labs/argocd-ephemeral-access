@@ -1,6 +1,8 @@
 const path = require("path");
 const webpack = require("webpack");
 const TerserWebpackPlugin = require("terser-webpack-plugin");
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+
 const extName = "ephemeral-access";
 
 const config = {
@@ -9,7 +11,7 @@ const config = {
   },
   output: {
     filename: `extensions-${extName}.js`,
-    path: __dirname + `/dist/resources/extension-${extName}.js`,
+    path: path.resolve(__dirname, `dist/resources/extension-${extName}.js`),
     libraryTarget: "window",
     library: ["tmp", "extensions"],
   },
@@ -35,9 +37,17 @@ const config = {
     ],
   },
   plugins: [
-    new webpack.LoaderOptionsPlugin({
-      minimize: true,
-      debug: false,
+    new webpack.DefinePlugin({
+      SYSTEM_INFO: JSON.stringify({
+        version: process.env.VERSION || 'latest',
+      }),
+    }),
+    new CopyWebpackPlugin({
+      patterns: [{
+          from: 'node_modules/argo-ui/src/assets',
+          to: 'assets'
+        },
+      ],
     }),
   ],
   module: {
@@ -52,12 +62,13 @@ const config = {
       },
       {
         test: /\.scss$/,
-        use: ["style-loader", "raw-loader", "sass-loader"],
+        use: ['style-loader', 'raw-loader', 'sass-loader'],
       },
       {
         test: /\.css$/,
-        use: ["style-loader", "raw-loader"],
+        use: ['style-loader', 'raw-loader'],
       },
+
     ],
   },
 };
