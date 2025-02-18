@@ -4,8 +4,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { BUTTON_LABELS } from '../constant';
 import { Application, UserInfo } from '../models/type';
 import { getAccessRoles, Spinner } from '../utils/utils';
-import  RoleSelection  from './role-selection';
-import './ephemeral-access-details.scss';
+import EphemeralRoleSelection from './ephemeral-role-selection';
+import './style.scss';
 import moment from 'moment';
 import {
   AccessRequestResponseBody,
@@ -33,7 +33,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const [roles, setRoles] = useState<AllowedRoleResponseBody[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('');
 
-  const [enabled, setEnabled] = useState<boolean>(false);
+  const [enabled, setEnabled] = useState<boolean>(true);
   const applicationNamespace = application?.metadata?.namespace || '';
   const applicationName = application?.metadata?.name || '';
   const project = application?.spec?.project || '';
@@ -49,11 +49,12 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         project,
         username
       );
-      setRoles(usrRoles);
-      if (usrRoles.length === 1) {
-        setSelectedRole(usrRoles[0].roleName);
+      setRoles(usrRoles || []);
+      if ((usrRoles || []).length === 1) {
+        setSelectedRole(usrRoles[0]?.roleName);
       }
     } catch (error) {
+      setEnabled(true);
       notify('Failed to fetch roles: ' + error.message);
     }
   }, [applicationName, applicationNamespace, project, username]);
@@ -84,7 +85,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       (item) => item.status === AccessRequestResponseBodyStatus.GRANTED
     );
     setCurrentAccessRequest(accessRequestData);
-    if(accessRequestData.status === AccessRequestResponseBodyStatus.GRANTED){
+    if (accessRequestData.status === AccessRequestResponseBodyStatus.GRANTED) {
       setSelectedRole(accessRequestData.role);
     }
     localStorage.setItem(applicationName, JSON.stringify(grantedPermission || null));
@@ -131,7 +132,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         return null;
       }
 
-      setEnabled(true);
+      setEnabled(false);
       await createAccessrequest(
         { roleName: selectedRoleRef.current || roles[0].roleName },
         {
@@ -154,7 +155,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         }
       }, 500);
 
-      setEnabled(false);
+      setEnabled(true);
       return { roleName: selectedRoleRef.current || roles[0].roleName };
     } catch (error) {
       returnError(error);
@@ -166,7 +167,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     if (error.response) {
       switch (error.response.status) {
         case 409:
-          notify('Permission request already exists');
+          notify(selectedRole + ' role: A permission request already exists.');
           const accessData = await getUserAccess();
           if (
             accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
@@ -199,6 +200,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const selectRoleChange = (selectedOption: SelectOption) => {
     selectedRoleRef.current = selectedOption.value;
     setSelectedRole(selectedOption.value);
+    setEnabled(false);
   };
 
   useEffect(() => {
@@ -216,6 +218,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
           className='argo-button argo-button--base'
           onClick={submitAccessRequest}
+          disabled={enabled}
         >
           {enabled && (
             <span>
@@ -227,18 +230,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           )}
           {BUTTON_LABELS.REQUEST_ACCESS}
         </button>
-
-        <div>
-          {roles.length > 1 && (
-            <div className='access-form__role-select'>
-              <RoleSelection
-                selectedRole={selectedRole}
-                options={options}
-                selectRoleChange={selectRoleChange}
-              />
-            </div>
-          )}
-        </div>
       </div>
       <div className='access-form__usrmsg'>
         <i className='fa fa-info-circle icon-background' />
@@ -263,6 +254,17 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           </div>
         </div>
       </div>
+      <div style={{ marginTop: '15px' }}>
+        {roles.length > 1 && (
+          <div className='white-box' style={{ marginTop: '15px' }}>
+            <EphemeralRoleSelection
+              selectedRole={selectedRole}
+              options={options}
+              selectRoleChange={selectRoleChange}
+            />
+          </div>
+        )}
+      </div>
       <div className='white-box' style={{ marginTop: '15px' }}>
         <div className='white-box__details'>
           <p>USER'S CURRENT PERMISSION</p>
@@ -277,12 +279,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           </div>
           {currentAccessRequest?.status === AccessRequestResponseBodyStatus.GRANTED && (
             <div>
-              <div className='row white-box__details-row'>
-                <div className='columns small-3'>REQUEST DATA</div>
-                <div className='columns small-9'>
-                  {moment(currentAccessRequest?.requestedAt).format('MMMM Do YYYY, h:mm:ss a')}
-                </div>
-              </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>ROLE</div>
                 <div className='columns small-9'>{currentAccessRequest?.role}</div>

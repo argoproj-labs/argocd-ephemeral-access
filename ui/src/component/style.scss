@@ -2,12 +2,13 @@
 
 .access-form {
   padding: 20px;
-
-  &__role-select{
-    width: 200px;
+  &__label {
+    align-self: center;
     padding: 10px;
-    min-width: 200px;
-    flex-direction: row-reverse;
+  }
+
+  &__select {
+    width: 150px;
   }
 
   &__usrmsg {

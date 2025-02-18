@@ -10,6 +10,10 @@ import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
 
+  const appName = application.metadata?.name || '';
+  const appNamespace = application.metadata?.namespace || '';
+  const linkHref = `/applications/${appNamespace}/${appName}?view=tree&resource=&extension=ephemeral_access`;
+
   const getPermissions = (accessPermission: AccessRequestResponseBody) => {
     if (accessPermission) {
       const expiryTime = moment.parseZone(accessPermission.expiresAt);
@@ -33,7 +37,7 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
       } else {
         getPermissions(accessPermission);
       }
-    }, 1000);
+    }, 500);
 
     return () => clearInterval(intervalId);
   }, [localStorage.getItem(application.metadata?.name), accessRequest]);
@@ -104,7 +108,7 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
         >
           <div className={'application-status-panel__item-value'} style={{ marginBottom: '0.5em' }}>
             <a
-              href='/applications/argocd/argo-rollouts?view=tree&resource=&extension=ephemeral_access'
+              href={linkHref}
               target='_blank'
               rel='noopener noreferrer'
               data-testid='argo-link'

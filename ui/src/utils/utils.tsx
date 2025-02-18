@@ -6,8 +6,10 @@ import {
 } from '../gen/ephemeral-access-api';
 import {getHeaders} from "../config/client";
 
-export enum AccessRole {
-  DEFAULT_DISPLAY_ACCESS = 'Read'
+export enum PermissionRole {
+  DEFAULT_DISPLAY_ACCESS = 'Read',
+  PERMISSION_REQUEST = 'PERMISSION REQUEST',
+  REQUEST_ROLE_LABEL = 'REQUEST ROLE',
 }
 
 export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSSProperties }) =>
@@ -19,7 +21,7 @@ export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSS
 
 
 export const getDefaultDisplayAccessRole = (): string => {
-  return window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS || AccessRole.DEFAULT_DISPLAY_ACCESS;
+  return window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS || PermissionRole.DEFAULT_DISPLAY_ACCESS;
 };
 
 export const EnableEphemeralAccess = (application: Application) => {

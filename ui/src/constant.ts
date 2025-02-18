@@ -1,7 +1,6 @@
 
 export const BUTTON_LABELS = {
   REQUEST_ACCESS: "Request Access",
-  REQUEST_ACCESS_GRANTED: "Request Access GRANTED",
   CANCEL: "Cancel",
 };
 
