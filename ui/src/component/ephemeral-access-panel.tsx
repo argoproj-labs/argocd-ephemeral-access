@@ -37,7 +37,7 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
       } else {
         getPermissions(accessPermission);
       }
-    }, 500);
+    }, 100);
 
     return () => clearInterval(intervalId);
   }, [localStorage.getItem(application.metadata?.name), accessRequest]);
