@@ -70,6 +70,23 @@ components:
         - permission
         - role
       type: object
+    AllowedRoleResponseBody:
+      additionalProperties: false
+      properties:
+        roleDisplayName:
+          description: The human friendly name of the role that can be used to display to users.
+          examples:
+            - Write (DevOps)
+          type: string
+        roleName:
+          description: The role template name to request.
+          examples:
+            - custom-role-template
+          type: string
+      required:
+        - roleName
+        - roleDisplayName
+      type: object
     CreateAccessRequestBody:
       additionalProperties: false
       properties:
@@ -160,6 +177,25 @@ components:
         items:
           items:
             $ref: "#/components/schemas/AccessRequestResponseBody"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+      type: object
+    ListAllowedRolesResponseBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/schemas/ListAllowedRolesResponseBody.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/AllowedRoleResponseBody"
           type:
             - array
             - "null"
@@ -314,3 +350,72 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Error
       summary: Create AccessRequest
+  /roles:
+    get:
+      description: Will retrieve an ordered list of allowed roles that the user can be elevated to
+      operationId: list-allowedroles
+      parameters:
+        - description: The trusted ArgoCD username header. This should be automatically sent by Argo CD API server.
+          example: some-user@acme.org
+          in: header
+          name: Argocd-Username
+          required: true
+          schema:
+            description: The trusted ArgoCD username header. This should be automatically sent by Argo CD API server.
+            examples:
+              - some-user@acme.org
+            type: string
+        - description: The trusted ArgoCD user groups header. This should be automatically sent by Argo CD API server.
+          example: group1,group2
+          in: header
+          name: Argocd-User-Groups
+          required: true
+          schema:
+            description: The trusted ArgoCD user groups header. This should be automatically sent by Argo CD API server.
+            examples:
+              - group1,group2
+            type: string
+        - description: The trusted ArgoCD application header. This should be automatically sent by Argo CD API server.
+          example: some-namespace:app-name
+          in: header
+          name: Argocd-Application-Name
+          required: true
+          schema:
+            description: The trusted ArgoCD application header. This should be automatically sent by Argo CD API server.
+            examples:
+              - some-namespace:app-name
+            type: string
+        - description: The trusted ArgoCD project header. This should be automatically sent by Argo CD API server.
+          example: some-project-name
+          in: header
+          name: Argocd-Project-Name
+          required: true
+          schema:
+            description: The trusted ArgoCD project header. This should be automatically sent by Argo CD API server.
+            examples:
+              - some-project-name
+            type: string
+        - description: The trusted namespace of the ArgoCD control plane. This should be automatically sent by Argo CD API server.
+          example: argocd
+          in: header
+          name: Argocd-Namespace
+          required: true
+          schema:
+            description: The trusted namespace of the ArgoCD control plane. This should be automatically sent by Argo CD API server.
+            examples:
+              - argocd
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListAllowedRolesResponseBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      summary: List allowed roles for the user

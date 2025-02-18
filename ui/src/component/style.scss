@@ -2,6 +2,14 @@
 
 .access-form {
   padding: 20px;
+  &__label {
+    align-self: center;
+    padding: 10px;
+  }
+
+  &__select {
+    width: 150px;
+  }
 
   &__usrmsg {
     display: flex;
