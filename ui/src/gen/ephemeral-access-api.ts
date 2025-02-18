@@ -27,6 +27,14 @@ type NonReadonly<T> = [T] extends [UnionToIntersection<T>]
     }
   : DistributeReadOnlyOverUnions<T>;
 
+export type ListAllowedRolesResponseBodyItems = AllowedRoleResponseBody[] | null;
+
+export interface ListAllowedRolesResponseBody {
+  /** A URL to the JSON Schema for this object. */
+  readonly $schema?: string;
+  items: ListAllowedRolesResponseBodyItems;
+}
+
 export type ListAccessRequestResponseBodyItems = AccessRequestResponseBody[] | null;
 
 export interface ListAccessRequestResponseBody {
@@ -69,6 +77,13 @@ export interface ErrorModel {
 export interface CreateAccessRequestBody {
   /** A URL to the JSON Schema for this object. */
   readonly $schema?: string;
+  /** The role template name to request. */
+  roleName: string;
+}
+
+export interface AllowedRoleResponseBody {
+  /** The human friendly name of the role that can be used to display to users. */
+  roleDisplayName: string;
   /** The role template name to request. */
   roleName: string;
 }
@@ -132,5 +147,16 @@ export const createAccessrequest = <TData = AxiosResponse<AccessRequestResponseB
   return axios.post(`/accessrequests`, createAccessRequestBody, options);
 };
 
+/**
+ * Will retrieve an ordered list of allowed roles that the user can be elevated to
+ * @summary List allowed roles for the user
+ */
+export const listAllowedroles = <TData = AxiosResponse<ListAllowedRolesResponseBody>>(
+  options?: AxiosRequestConfig
+): Promise<TData> => {
+  return axios.get(`/roles`, options);
+};
+
 export type ListAccessrequestResult = AxiosResponse<ListAccessRequestResponseBody>;
 export type CreateAccessrequestResult = AxiosResponse<AccessRequestResponseBody>;
+export type ListAllowedrolesResult = AxiosResponse<ListAllowedRolesResponseBody>;

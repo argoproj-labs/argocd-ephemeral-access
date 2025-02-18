@@ -138,8 +138,9 @@ build-ui: clean-ui ## build the Argo CD UI extension creating the ui/extension.t
 	yarn --cwd ${UI_DIR} install
 	yarn --cwd ${UI_DIR} build
 
-.PHONY: update-openapi-ui
-update-openapi-ui:  build goreman  ## Update the OpenAPI spec from the local server.
+.PHONY: openapi-ui
+openapi-ui:  build goreman  ## Update the OpenAPI spec from the local server.
+	@echo "Updating OpenAPI specification..."
 	@echo "Starting the backend server"
 	goreman start backend &
 	sleep 5
@@ -147,10 +148,16 @@ update-openapi-ui:  build goreman  ## Update the OpenAPI spec from the local ser
 	yarn --cwd ${UI_DIR} api:download
 	killall goreman || true
 
+
 .PHONY: codegen-ui
 codegen-ui: ## Generate the UI API files based on the OpenAPI spec.
+	@echo "Generating API files..."
+	if [ -f ${UI_DIR}/src/gen/schema.yaml ]; then echo "run make openapi-ui"; fi
 	yarn --cwd ${UI_DIR}  api:generate
 
+
+codegen-ui-local:  openapi-ui codegen-ui
+	rm -f ${UI_DIR}/src/gen/schema.yaml
 
 .PHONY: goreleaser-build-local
 goreleaser-build-local: goreleaser ## Run goreleaser build locally. Use to validate the goreleaser configuration.
