@@ -107,15 +107,7 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
           }}
         >
           <div className={'application-status-panel__item-value'} style={{ marginBottom: '0.5em' }}>
-            <a
-              href={linkHref}
-              target='_blank'
-              rel='noopener noreferrer'
-              data-testid='argo-link'
-              style={{ marginLeft: '10px' }} // Optional: Add margin for spacing
-            >
-              <AccessPanel accessRequest={accessRequest} />
-            </a>
+            <AccessPanel accessRequest={accessRequest} />
           </div>
         </div>
 
