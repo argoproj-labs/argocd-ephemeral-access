@@ -76,7 +76,8 @@
     "webpack-cli": "^4.7.2"
   },
   "resolutions": {
-    "react-toastify": "9.0.3"
+    "react-toastify": "9.0.3",
+    "@types/react": "^16.9.3"
   },
   "engines": {
     "node": ">=16.0.0"
