@@ -51,7 +51,6 @@ export const getAccessRoles = async (
     } else {
         try {
             const response = await listAllowedroles({
-                baseURL: '/extensions/ephemeral/',
                 headers: getHeaders({ applicationName, applicationNamespace, project, username })
             });
             return response.data.items;

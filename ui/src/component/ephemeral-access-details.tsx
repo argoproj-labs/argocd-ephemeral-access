@@ -118,7 +118,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const getUserAccess = useCallback(async (): Promise<AccessRequestResponseBody | null> => {
     try {
       const { data } = await listAccessrequest({
-        baseURL: '/extensions/ephemeral/',
         headers: getHeaders({ applicationName, applicationNamespace, project, username })
       });
       return await saveAccessRequest(data);
@@ -138,7 +137,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       await createAccessrequest(
         { roleName: selectedRoleRef.current || roles[0].roleName },
         {
-          baseURL: '/extensions/ephemeral/',
           headers: getHeaders({ applicationName, applicationNamespace, project, username })
         }
       );

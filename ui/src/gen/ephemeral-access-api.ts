@@ -133,7 +133,7 @@ export interface AccessRequestResponseBody {
 export const listAccessrequest = <TData = AxiosResponse<ListAccessRequestResponseBody>>(
   options?: AxiosRequestConfig
 ): Promise<TData> => {
-  return axios.get(`/accessrequests`, options);
+  return axios.get(`/extensions/ephemeral/accessrequests`, options);
 };
 
 /**
@@ -144,7 +144,7 @@ export const createAccessrequest = <TData = AxiosResponse<AccessRequestResponseB
   createAccessRequestBody: NonReadonly<CreateAccessRequestBody>,
   options?: AxiosRequestConfig
 ): Promise<TData> => {
-  return axios.post(`/accessrequests`, createAccessRequestBody, options);
+  return axios.post(`/extensions/ephemeral/accessrequests`, createAccessRequestBody, options);
 };
 
 /**
@@ -154,7 +154,7 @@ export const createAccessrequest = <TData = AxiosResponse<AccessRequestResponseB
 export const listAllowedroles = <TData = AxiosResponse<ListAllowedRolesResponseBody>>(
   options?: AxiosRequestConfig
 ): Promise<TData> => {
-  return axios.get(`/roles`, options);
+  return axios.get(`/extensions/ephemeral/roles`, options);
 };
 
 export type ListAccessrequestResult = AxiosResponse<ListAccessRequestResponseBody>;
