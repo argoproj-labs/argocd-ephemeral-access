@@ -7,7 +7,7 @@ import { EnableEphemeralAccess } from '../utils/utils';
 export const RequestAccessBtn = () => {
   return (
     <div className="show-for-large" qe-id='ext-access'>
-      <i className="fa-solid fa-lock" style={{ marginLeft: '-5px', marginRight: '5px' }}></i>
+      <i className="fa-solid fa-lock" style={{ marginLeft: '-5px', marginRight: '5px' }} aria-hidden="true"></i>
       <span style={{paddingLeft: '2px'}}>Permission</span>
     </div>
   );
