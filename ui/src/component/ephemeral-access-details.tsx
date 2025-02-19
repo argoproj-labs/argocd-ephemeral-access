@@ -32,8 +32,9 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     useState<AccessRequestResponseBody | null>(null);
   const [roles, setRoles] = useState<AllowedRoleResponseBody[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const [enabled, setEnabled] = useState<boolean>(true);
+  const [enableBtn, setEnableBtn] = useState<boolean>(true);
   const applicationNamespace = application?.metadata?.namespace || '';
   const applicationName = application?.metadata?.name || '';
   const project = application?.spec?.project || '';
@@ -54,7 +55,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         setSelectedRole(usrRoles[0]?.roleName);
       }
     } catch (error) {
-      setEnabled(true);
+      setEnableBtn(true);
       notify('Failed to fetch roles: ' + error.message);
     }
   }, [applicationName, applicationNamespace, project, username]);
@@ -66,6 +67,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       if (timeoutDuration > 0) {
         setTimeout(() => {
           setCurrentAccessRequest(null);
+          setEnableBtn(false);
           setSelectedRole('');
           selectedRoleRef.current = '';
           localStorage.setItem(applicationName, 'null');
@@ -77,6 +79,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   async function saveAccessRequest(data: ListAccessRequestResponseBody) {
     if (data.items.length === 0) {
       localStorage.setItem(applicationName, 'null');
+      setEnableBtn(false);
       return null;
     }
 
@@ -120,7 +123,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       });
       return await saveAccessRequest(data);
     } catch (error) {
-      notify('Failed to connect to backend: ' + error.message);
       return null;
     }
   }, [applicationName, applicationNamespace, project, username]);
@@ -128,11 +130,11 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const submitAccessRequest = async (): Promise<CreateAccessRequestBody | null> => {
     try {
       if (!selectedRoleRef.current && roles.length > 1) {
-        notify('Please select a role from the dropdown');
+        setErrorMessage('Please select a role');
         return null;
       }
 
-      setEnabled(false);
+      setEnableBtn(false);
       await createAccessrequest(
         { roleName: selectedRoleRef.current || roles[0].roleName },
         {
@@ -149,16 +151,16 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           (updatedAccessData.status === AccessRequestResponseBodyStatus.GRANTED ||
             updatedAccessData.status === AccessRequestResponseBodyStatus.DENIED)
         ) {
-          // wait for the access request
           handleAccessExpiration(updatedAccessData);
           clearInterval(intervalId);
         }
-      }, 500);
+      }, 200);
 
-      setEnabled(true);
+      setEnableBtn(true);
       return { roleName: selectedRoleRef.current || roles[0].roleName };
     } catch (error) {
-      setEnabled(true);
+      notify('Failed to connect to backend: ' + error.message);
+      setEnableBtn(true);
       returnError(error);
       return null;
     }
@@ -199,9 +201,14 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   }));
 
   const selectRoleChange = (selectedOption: SelectOption) => {
+    if (selectedOption.value != '') {
+      setErrorMessage('');
+    } else {
+      setErrorMessage('Please select a role');
+    }
     selectedRoleRef.current = selectedOption.value;
     setSelectedRole(selectedOption.value);
-    setEnabled(false);
+    setEnableBtn(false);
   };
 
   useEffect(() => {
@@ -219,9 +226,9 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
           className='argo-button argo-button--base'
           onClick={submitAccessRequest}
-          disabled={enabled}
+          disabled={enableBtn}
         >
-          {enabled && (
+          {enableBtn && (
             <span>
               <Spinner
                 show={currentAccessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED}
@@ -262,6 +269,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
               selectedRole={selectedRole}
               options={options}
               selectRoleChange={selectRoleChange}
+              validationMessage={errorMessage}
             />
           </div>
         )}

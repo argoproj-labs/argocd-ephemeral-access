@@ -11,6 +11,17 @@
     width: 150px;
   }
 
+  &__error-msg {
+    padding: 3px 0;
+    color: $argo-failed-color;
+    font-size: 14px;
+
+    i {
+      float: right;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+  }
   &__usrmsg {
     display: flex;
     flex-direction: row;

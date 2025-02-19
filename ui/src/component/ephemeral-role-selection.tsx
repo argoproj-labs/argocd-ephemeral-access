@@ -6,14 +6,20 @@ interface RoleSelectionProps {
   selectedRole: string;
   options: SelectOption[];
   selectRoleChange: (e: SelectOption) => void;
+  validationMessage: string;
 }
 
 const EphemeralRoleSelection: React.FC<RoleSelectionProps> = ({
   selectedRole,
   options,
-  selectRoleChange
+  selectRoleChange,
+  validationMessage
 }) => {
-  const getOptions = () => {
+  const handleSelectChange = (e: SelectOption) => {
+    selectRoleChange(e);
+  };
+
+  const getDropDownOptions = () => {
     return (
       <div>
         <p>{PermissionRole.PERMISSION_REQUEST}</p>
@@ -26,15 +32,19 @@ const EphemeralRoleSelection: React.FC<RoleSelectionProps> = ({
               id='role-select'
               value={selectedRole}
               options={options}
-              onChange={selectRoleChange}
+              onChange={handleSelectChange}
               placeholder='Select Role'
             />
+            {validationMessage && (
+              <div className='access-form__error-msg'> {validationMessage}</div>
+            )}
           </div>
         </div>
       </div>
     );
   };
-  return getOptions();
+
+  return getDropDownOptions();
 };
 
 export default EphemeralRoleSelection;
