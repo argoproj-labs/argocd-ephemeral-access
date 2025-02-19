@@ -55,7 +55,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         setSelectedRole(usrRoles[0]?.roleName);
       }
     } catch (error) {
-      setEnableBtn(true);
+      setEnableBtn(false);
       notify('Failed to fetch roles: ' + error.message);
     }
   }, [applicationName, applicationNamespace, project, username]);
@@ -166,32 +166,28 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   };
 
   const returnError = async (error: any) => {
-    if (error.response) {
-      switch (error.response.status) {
-        case 409:
-          notify(selectedRole + ' role: A permission request already exists.');
-          const accessData = await getUserAccess();
-          if (
-            accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
-            accessData?.status === AccessRequestResponseBodyStatus.DENIED
-          ) {
-            setCurrentAccessRequest(accessData);
-          }
-          break;
-        case 401:
-          notify('Unauthorized request:' + error.message);
-        case 403:
-          notify('Request access denied: No valid role found. Please check your permissions. Error details: ');
-          break;
-        case 502:
-          notify('Error occurred while requesting permission: ');
-          break;
-        default:
-          notify('Failed to connect to backend: ');
-          break;
-      }
-    } else {
-      notify('An unexpected error occurred: ' + error.message);
+    const status = error?.response?.status;
+
+    switch (status) {
+      case 409:
+        notify(`${selectedRole} role: A permission request already exists.`);
+        const accessData = await getUserAccess();
+        if (
+          accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
+          accessData?.status === AccessRequestResponseBodyStatus.DENIED
+        ) {
+          setCurrentAccessRequest(accessData);
+        }
+        break;
+      case 401:
+        notify(`Unauthorized request: ${error.message}`);
+        break;
+      case 403:
+        notify('Access Request Denied: No valid role was found. Please verify your permissions.');
+        break;
+      default:
+        notify(`Error occurred while requesting permission: ${error.message}`);
+        break;
     }
   };
 

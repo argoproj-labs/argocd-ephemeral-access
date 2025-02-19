@@ -55,8 +55,7 @@ export const getAccessRoles = async (
             });
             return response.data.items;
         } catch (error) {
-            console.error('Error fetching allowed roles:', error);
-            return [];
+            throw new Error(`Failed to get allowed roles: ${error}`);
         }
     }
 };
