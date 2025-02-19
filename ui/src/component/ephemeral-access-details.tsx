@@ -134,8 +134,10 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       }
 
       setEnableBtn(false);
+      const roleName = selectedRoleRef.current || (roles.length > 0 ? roles[0].roleName : '');
+
       await createAccessrequest(
-        { roleName: selectedRoleRef.current || roles[0].roleName },
+        { roleName: roleName },
         {
           headers: getHeaders({ applicationName, applicationNamespace, project, username })
         }
@@ -157,7 +159,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       setEnableBtn(true);
       return { roleName: selectedRoleRef.current || roles[0].roleName };
     } catch (error) {
-      notify('Failed to connect to backend: ' + error.message);
       setEnableBtn(true);
       returnError(error);
       return null;
@@ -178,14 +179,15 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           }
           break;
         case 401:
+          notify('Unauthorized request:' + error.message);
         case 403:
-          notify('Unauthorized request: ' + error.message);
+          notify('Request access denied: No valid role found. Please check your permissions. Error details: ');
           break;
         case 502:
-          notify('Error occurred while requesting permission: ' + error.message);
+          notify('Error occurred while requesting permission: ');
           break;
         default:
-          notify('Failed to connect to backend: ' + error.message);
+          notify('Failed to connect to backend: ');
           break;
       }
     } else {
