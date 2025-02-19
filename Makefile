@@ -139,7 +139,7 @@ build-ui: clean-ui ## build the Argo CD UI extension creating the ui/extension.t
 	yarn --cwd ${UI_DIR} build
 
 .PHONY: openapi-ui
-openapi-ui:  build goreman  ## Update the OpenAPI spec from the local server.
+openapi-ui:  build-go goreman  ## Update the OpenAPI spec from the local server.
 	@echo "Updating OpenAPI specification..."
 	@echo "Starting the backend server"
 	goreman start backend &
