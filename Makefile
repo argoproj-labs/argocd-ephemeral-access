@@ -149,14 +149,11 @@ openapi-ui:  build-go goreman  ## Update the OpenAPI spec from the local server.
 	killall goreman || true
 
 
-.PHONY: codegen-ui
-codegen-ui: ## Generate the UI API files based on the OpenAPI spec.
+.PHONY: codegen-ui openapi-ui
+codegen-ui: openapi-ui ## Generate the UI API files based on the OpenAPI spec.
 	@echo "Generating API files..."
-	if [ -f ${UI_DIR}/src/gen/schema.yaml ]; then echo "run make openapi-ui"; fi
-	yarn --cwd ${UI_DIR}  api:generate
-
-
-codegen-ui-local:  openapi-ui codegen-ui
+	UI_DIR=${CURRENT_DIR}/ui
+	yarn --cwd ${UI_DIR} api:generate
 	rm -f ${UI_DIR}/src/gen/schema.yaml
 
 .PHONY: goreleaser-build-local
