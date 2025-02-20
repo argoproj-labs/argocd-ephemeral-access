@@ -1,40 +1,75 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import moment from 'moment';
+import Moment from 'react-moment';
 import { Application } from '../models/type';
 import { ARGO_GRAY6_COLOR } from '../shared/colors';
 import { HelpIcon } from 'argo-ui/src/components/help-icon/help-icon';
-import { AccessPanel, EnableEphemeralAccess } from '../utils/utils';
+import { EnableEphemeralAccess, getDefaultDisplayAccessRole } from '../utils/utils';
 import { AccessRequestResponseBody } from '../gen/ephemeral-access-api';
-import { getDisplayTime } from '../utils/utils';
+import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
 
-  const getPermissions = useCallback(() => {
-    const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
-
+  const getPermissions = (accessPermission: AccessRequestResponseBody) => {
     if (accessPermission) {
       const expiryTime = moment.parseZone(accessPermission.expiresAt);
       setAccessRequest(accessPermission);
       const diffInSeconds = expiryTime.diff(moment(), 'seconds');
-
       if (diffInSeconds <= 0) {
-        // Access expired, remove from local storage and set to null
-        localStorage.removeItem(application.metadata?.name);
         setAccessRequest(null);
       } else {
         setAccessRequest(accessPermission);
       }
     }
-  }, [application.metadata?.name]);
-
+  };
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      getPermissions();
-    }, 500);
+      const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
+      if (accessPermission === null) {
+        clearInterval(intervalId);
+        localStorage.removeItem(application.metadata?.name);
+        setAccessRequest(null);
+      } else {
+        getPermissions(accessPermission);
+      }
+    }, 100);
 
     return () => clearInterval(intervalId);
-  }, [getPermissions]);
+  }, [localStorage.getItem(application.metadata?.name), accessRequest]);
+
+  const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
+    let color = ACCESS_DEFAULT_COLOR;
+    let icon = 'fa-solid fa-lock';
+    if (accessRequest) {
+      color = ACCESS_PERMISSION_COLOR;
+      icon = 'fa-solid fa-unlock';
+    } else {
+      color = ACCESS_DEFAULT_COLOR;
+      icon = 'fa-solid fa-lock';
+    }
+
+    return (
+      <React.Fragment>
+        <i
+          qe-id='Access-role-title'
+          title={getRoleTitle(accessRequest)}
+          className={'fa ' + icon}
+          style={{ color, minWidth: '15px', textAlign: 'center' }}
+        />{' '}
+        &nbsp;
+        {getRoleTitle(accessRequest)}
+      </React.Fragment>
+    );
+  };
+
+  const getRoleTitle = (accessRequest: AccessRequestResponseBody) => {
+    if (accessRequest === null) {
+      return getDefaultDisplayAccessRole();
+    } else {
+      return accessRequest.permission;
+    }
+  };
 
   return EnableEphemeralAccess(application) ? (
     <div
@@ -67,12 +102,7 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
             fontFamily: 'inherit'
           }}
         >
-          <div
-            className={
-              'application-status-panel__item-value'
-            }
-            style={{ alignItems: 'baseline' }}
-          >
+          <div className={'application-status-panel__item-value'} style={{ marginBottom: '0.5em' }}>
             <AccessPanel accessRequest={accessRequest} />
           </div>
         </div>
@@ -80,7 +110,11 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
         {accessRequest?.expiresAt && (
           <div className={'application-status-panel__item-name'}>
             Expires In: &nbsp;
-            {getDisplayTime(accessRequest)}
+            <>
+              <Moment fromNow ago>
+                {new Date(accessRequest.expiresAt)}
+              </Moment>
+            </>
           </div>
         )}
       </div>

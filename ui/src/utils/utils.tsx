@@ -1,8 +1,16 @@
 import React from 'react';
-import Moment from 'react-moment';
 import { Application } from '../models/type';
-import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
-import { AccessRequestResponseBody } from '../gen/ephemeral-access-api';
+import {
+    AllowedRoleResponseBody,
+    listAllowedroles,
+} from '../gen/ephemeral-access-api';
+import {getHeaders} from "../config/client";
+
+export enum PermissionRole {
+  DEFAULT_DISPLAY_ACCESS = 'Read',
+  PERMISSION_REQUEST = 'PERMISSION REQUEST',
+  REQUEST_ROLE_LABEL = 'REQUEST ROLE',
+}
 
 export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSSProperties }) =>
   show ? (
@@ -11,55 +19,9 @@ export const Spinner = ({ show, style = {} }: { show: boolean; style?: React.CSS
     </span>
   ) : null;
 
-export enum AccessRole {
-  DEFAULT_DISPLAY_ACCESS = 'Read'
-}
 
-const getDefaultDisplayAccessRole = (): string => {
-  return window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS || AccessRole.DEFAULT_DISPLAY_ACCESS;
-};
-
-export const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
-  let color = ACCESS_DEFAULT_COLOR;
-  let icon = 'fa-solid fa-lock';
-  if (accessRequest) {
-    color = ACCESS_PERMISSION_COLOR;
-    icon = 'fa-solid fa-unlock';
-  } else {
-    color = ACCESS_DEFAULT_COLOR;
-    icon = 'fa-solid fa-lock';
-  }
-
-  return (
-    <React.Fragment>
-      <i
-        qe-id='Access-role-title'
-        title={getRoleTitle(accessRequest)}
-        className={'fa ' + icon}
-        style={{ color, minWidth: '15px', textAlign: 'center' }}
-      />{' '}
-      &nbsp;
-      {getRoleTitle(accessRequest)}
-    </React.Fragment>
-  );
-};
-
-const getRoleTitle = (accessRequest: AccessRequestResponseBody) => {
-  if (accessRequest === null) {
-    return getDefaultDisplayAccessRole();
-  } else {
-    return accessRequest.permission;
-  }
-};
-
-export const getDisplayTime = (accessRequest: AccessRequestResponseBody): any => {
-  return (
-    <span>
-      <Moment fromNow={true} ago={true}>
-        {new Date(accessRequest.expiresAt)}
-      </Moment>
-    </span>
-  );
+export const getDefaultDisplayAccessRole = (): string => {
+  return window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS || PermissionRole.DEFAULT_DISPLAY_ACCESS;
 };
 
 export const EnableEphemeralAccess = (application: Application) => {
@@ -75,3 +37,27 @@ export const EnableEphemeralAccess = (application: Application) => {
       window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_LABEL_VALUE
   );
 };
+
+export const getAccessRoles = async (
+    applicationName: string,
+    applicationNamespace: string,
+    project: string,
+    username: string,
+): Promise<AllowedRoleResponseBody[]> => {
+    const defaultRole = window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_TARGET_ROLE;
+    const defaultDisplayRole = window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS;
+    if (defaultRole) {
+        return [{ roleName: defaultRole, roleDisplayName: defaultDisplayRole}] as unknown as AllowedRoleResponseBody[];
+    } else {
+        try {
+            const response = await listAllowedroles({
+                headers: getHeaders({ applicationName, applicationNamespace, project, username })
+            });
+            return response.data.items;
+        } catch (error) {
+            throw new Error(`Failed to get allowed roles: ${error}`);
+        }
+    }
+};
+
+

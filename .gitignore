@@ -32,3 +32,4 @@ dist-goreleaser/
 bin/
 install.yaml
 *.DS_Store
+ui/src/gen/schema.yaml

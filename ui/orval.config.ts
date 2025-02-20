@@ -4,6 +4,7 @@ module.exports = {
     output: {
       target: "./src/gen/ephemeral-access-api.ts",
       prettier: true,
+      baseUrl: '/extensions/ephemeral/',
     },
   },
 };
