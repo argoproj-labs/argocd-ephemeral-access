@@ -30,10 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/controller/testdata"
-	"github.com/argoproj-labs/ephemeral-access/test/utils"
+	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/testdata"
+	"github.com/argoproj-labs/argocd-ephemeral-access/test/utils"
 )
 
 var appprojectResource = schema.GroupVersionResource{

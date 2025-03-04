@@ -1,9 +1,9 @@
 package backend_test
 
 import (
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/backend"
-	"github.com/argoproj-labs/ephemeral-access/test/utils"
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend"
+	"github.com/argoproj-labs/argocd-ephemeral-access/test/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )

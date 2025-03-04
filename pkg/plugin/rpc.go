@@ -6,8 +6,8 @@ import (
 	"net/rpc"
 	"os/exec"
 
-	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 
 	"github.com/hashicorp/go-hclog"
 	goPlugin "github.com/hashicorp/go-plugin"

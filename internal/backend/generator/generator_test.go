@@ -3,7 +3,7 @@ package generator_test
 import (
 	"testing"
 
-	"github.com/argoproj-labs/ephemeral-access/internal/backend/generator"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend/generator"
 	"github.com/stretchr/testify/assert"
 )
 

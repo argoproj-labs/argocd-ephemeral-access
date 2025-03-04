@@ -1,4 +1,4 @@
-module github.com/argoproj-labs/ephemeral-access
+module github.com/argoproj-labs/argocd-ephemeral-access
 
 go 1.22.0
 

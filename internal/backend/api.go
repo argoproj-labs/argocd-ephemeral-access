@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/pkg/log"
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/danielgtaylor/huma/v2"
 )
 

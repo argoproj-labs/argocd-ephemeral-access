@@ -36,10 +36,10 @@ import (
 
 	// "sigs.k8s.io/controller-runtime/pkg/source"    // Required for Watching
 
-	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/internal/controller/config"
-	"github.com/argoproj-labs/ephemeral-access/pkg/log"
+	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 )
 
 // AccessRequestReconciler reconciles a AccessRequest object

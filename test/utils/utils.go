@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
