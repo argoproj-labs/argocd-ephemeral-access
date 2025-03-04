@@ -1,5 +1,5 @@
 # The lines below are called `modelines`. See `:help modeline`
-# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.3.2/www/docs/static/schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/goreleaser/goreleaser/v2.7.0/www/docs/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
 
 project_name: argocd-ephemeral-access
@@ -46,7 +46,7 @@ dockers:
 
 archives:
   - id: binary
-    format: tar.gz
+    formats: [ 'tar.gz' ]
     builds:
       - "ephemeral-access"
     # this name template makes the OS and Arch compatible with the results of `uname`.
@@ -60,9 +60,9 @@ archives:
     # use zip for windows archives
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ 'zip' ]
   - id: ui-extension
-    format: gz
+    formats: [ 'gz' ]
     name_template: extension.tar
     meta: true
     files: 

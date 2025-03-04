@@ -22,8 +22,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/argoproj-labs/ephemeral-access/internal/backend"
-	"github.com/argoproj-labs/ephemeral-access/pkg/log"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/danielgtaylor/huma/v2/humacli"

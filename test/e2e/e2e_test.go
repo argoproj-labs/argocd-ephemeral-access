@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/argoproj-labs/ephemeral-access/test/utils"
+	"github.com/argoproj-labs/argocd-ephemeral-access/test/utils"
 )
 
 const namespace = "argocd-ephemeral-access-system"

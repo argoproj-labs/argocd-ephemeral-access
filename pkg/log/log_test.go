@@ -3,7 +3,7 @@ package log_test
 import (
 	"testing"
 
-	"github.com/argoproj-labs/ephemeral-access/pkg/log"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/stretchr/testify/assert"
 )
 

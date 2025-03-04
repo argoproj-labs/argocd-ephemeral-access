@@ -7,7 +7,7 @@ layout:
 - go.kubebuilder.io/v4
 multigroup: true
 projectName: argocd-ephemeral-access
-repo: github.com/argoproj-labs/ephemeral-access
+repo: github.com/argoproj-labs/argocd-ephemeral-access
 resources:
 - api:
     crdVersion: v1
@@ -16,7 +16,7 @@ resources:
   domain: argoproj-labs.io
   group: ephemeral-access
   kind: AccessRequest
-  path: github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1
+  path: github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -24,6 +24,6 @@ resources:
   domain: argoproj-labs.io
   group: ephemeral-access
   kind: RoleTemplate
-  path: github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1
+  path: github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1
   version: v1alpha1
 version: "3"

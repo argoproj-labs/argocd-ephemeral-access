@@ -15,9 +15,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	argocd "github.com/argoproj-labs/ephemeral-access/api/argoproj/v1alpha1"
-	api "github.com/argoproj-labs/ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/ephemeral-access/pkg/log"
+	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 )
 
 const (

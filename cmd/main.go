@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/argoproj-labs/ephemeral-access/cmd/backend"
-	"github.com/argoproj-labs/ephemeral-access/cmd/controller"
-	"github.com/argoproj-labs/ephemeral-access/pkg/log"
+	"github.com/argoproj-labs/argocd-ephemeral-access/cmd/backend"
+	"github.com/argoproj-labs/argocd-ephemeral-access/cmd/controller"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/spf13/cobra"
 )
 
