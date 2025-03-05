@@ -17,12 +17,12 @@ type GrantStatus string
 type RevokeStatus string
 
 const (
-	Granted       GrantStatus  = "granted"
-	GrantPending  GrantStatus  = "grant-pending"
-	Denied        GrantStatus  = "denied"
-	Revoked       RevokeStatus = "revoked"
-	RevokePending RevokeStatus = "revoke-pending"
-	Key           string       = "ephemeralaccess"
+	GrantStatusGranted  GrantStatus  = "granted"
+	GrantStatusPending  GrantStatus  = "grant-pending"
+	GrantStatusDenied   GrantStatus  = "denied"
+	RevokeStatusRevoked RevokeStatus = "revoked"
+	RevokeStatusPending RevokeStatus = "revoke-pending"
+	Key                 string       = "ephemeralaccess"
 )
 
 func init() {

@@ -9,6 +9,7 @@ import (
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin"
 	"github.com/cnf/structhash"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -35,14 +36,16 @@ type K8sClient interface {
 }
 
 type Service struct {
-	k8sClient K8sClient
-	Config    config.ControllerConfigurer
+	k8sClient       K8sClient
+	Config          config.ControllerConfigurer
+	accessRequester plugin.AccessRequester
 }
 
-func NewService(c K8sClient, cfg config.ControllerConfigurer) *Service {
+func NewService(c K8sClient, cfg config.ControllerConfigurer, accessRequester plugin.AccessRequester) *Service {
 	return &Service{
-		k8sClient: c,
-		Config:    cfg,
+		k8sClient:       c,
+		Config:          cfg,
+		accessRequester: accessRequester,
 	}
 }
 
@@ -68,17 +71,26 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 		return api.ExpiredStatus, nil
 	}
 
-	resp, err := Allowed(ctx, ar, app)
+	resp, err := s.Allowed(ctx, ar, app)
 	if err != nil {
 		return "", fmt.Errorf("error verifying if subject is allowed: %w", err)
 	}
 	if !resp.Allowed {
 		rtHash := RoleTemplateHash(rt)
-		err = s.updateStatus(ctx, ar, api.DeniedStatus, resp.Message, rtHash)
-		if err != nil {
-			return "", fmt.Errorf("error updating access request status to denied: %w", err)
+		switch resp.Status {
+		case plugin.GrantStatusDenied:
+			err = s.updateStatus(ctx, ar, api.DeniedStatus, resp.Message, rtHash)
+			if err != nil {
+				return "", fmt.Errorf("error updating access request status to denied: %w", err)
+			}
+			return api.DeniedStatus, nil
+		case plugin.GrantStatusPending:
+			err = s.updateStatus(ctx, ar, api.RequestedStatus, resp.Message, rtHash)
+			if err != nil {
+				return "", fmt.Errorf("error updating access request status to requested: %w", err)
+			}
+			return api.RequestedStatus, nil
 		}
-		return api.DeniedStatus, nil
 	}
 
 	details := resp.Message
@@ -331,13 +343,29 @@ func addRoleInProject(project *argocd.AppProject, ar *api.AccessRequest, rt *api
 // verifier plugins.
 type AllowedResponse struct {
 	Allowed bool
+	Status  plugin.GrantStatus
 	Message string
 }
 
-// TODO
-// 0. implement the plugin system
-// 1. verify if user is sudoer
-// 2. verify if CR is approved
-func Allowed(ctx context.Context, ar *api.AccessRequest, app *argocd.Application) (AllowedResponse, error) {
-	return AllowedResponse{Allowed: true, Message: ""}, nil
+// Allowed will invoke the GrantAccess() function from this Service.accessRequester plugin.
+// If the Service.accessRequester plugin is nil, it will allow the controller to proceed with
+// handling the permission.
+func (s *Service) Allowed(ctx context.Context, ar *api.AccessRequest, app *argocd.Application) (*AllowedResponse, error) {
+	// always return true if there is no plugin registered
+	if s.accessRequester == nil {
+		return &AllowedResponse{Allowed: true, Message: ""}, nil
+	}
+	resp, err := s.accessRequester.GrantAccess(ar, app)
+	if err != nil {
+		return nil, fmt.Errorf("error invoking plugin GrantAccess function: %w", err)
+	}
+	allowed := false
+	if resp.Status == plugin.GrantStatusGranted {
+		allowed = true
+	}
+	return &AllowedResponse{
+		Allowed: allowed,
+		Status:  resp.Status,
+		Message: resp.Message,
+	}, nil
 }

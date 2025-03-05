@@ -131,7 +131,7 @@ func TestAccessRequesterRPC(t *testing.T) {
 			receivedAr = ar
 			receivedApp = app
 			return &plugin.GrantResponse{
-				Status:  plugin.Granted,
+				Status:  plugin.GrantStatusGranted,
 				Message: expectedMessage,
 			}, nil
 
@@ -147,7 +147,7 @@ func TestAccessRequesterRPC(t *testing.T) {
 		assert.NotNil(t, resp)
 		assert.Equal(t, ar, receivedAr)
 		assert.Equal(t, app, receivedApp)
-		assert.Equal(t, plugin.Granted, resp.Status)
+		assert.Equal(t, plugin.GrantStatusGranted, resp.Status)
 		assert.Equal(t, expectedMessage, resp.Message)
 		f.accessRequesterMock.AssertNumberOfCalls(t, "Init", 0)
 		f.accessRequesterMock.AssertNumberOfCalls(t, "GrantAccess", 1)
@@ -185,7 +185,7 @@ func TestAccessRequesterRPC(t *testing.T) {
 			receivedAr = ar
 			receivedApp = app
 			return &plugin.RevokeResponse{
-				Status:  plugin.Revoked,
+				Status:  plugin.RevokeStatusRevoked,
 				Message: expectedMessage,
 			}, nil
 
@@ -201,7 +201,7 @@ func TestAccessRequesterRPC(t *testing.T) {
 		assert.NotNil(t, resp)
 		assert.Equal(t, ar, receivedAr)
 		assert.Equal(t, app, receivedApp)
-		assert.Equal(t, plugin.Revoked, resp.Status)
+		assert.Equal(t, plugin.RevokeStatusRevoked, resp.Status)
 		assert.Equal(t, expectedMessage, resp.Message)
 		f.accessRequesterMock.AssertNumberOfCalls(t, "Init", 0)
 		f.accessRequesterMock.AssertNumberOfCalls(t, "GrantAccess", 0)

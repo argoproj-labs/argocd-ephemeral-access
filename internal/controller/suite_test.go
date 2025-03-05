@@ -105,7 +105,7 @@ var _ = BeforeSuite(func() {
 	config, err := config.ReadEnvConfigs()
 	Expect(err).ToNot(HaveOccurred())
 
-	service := NewService(k8sManager.GetClient(), config)
+	service := NewService(k8sManager.GetClient(), config, nil)
 	arReconciler := &AccessRequestReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),

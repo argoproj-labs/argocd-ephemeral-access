@@ -60,7 +60,6 @@ func TestPluginLogger(t *testing.T) {
 		assert.True(t, logger.IsDebug())
 		assert.Equal(t, "plugin", logger.Name())
 	})
-
 	t.Run("will validate if default configurations are applied", func(t *testing.T) {
 		// When
 		logger, err := log.NewPluginLogger()
@@ -69,6 +68,37 @@ func TestPluginLogger(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
 		assert.True(t, logger.IsInfo())
+		assert.Equal(t, "plugin", logger.Name())
+	})
+	t.Run("will validate if env var are applied automatically", func(t *testing.T) {
+		// Given
+		t.Setenv(log.EphemeralLogLevel, "debug")
+		t.Setenv(log.EphemeralLogFormat, "json")
+
+		// When
+		logger, err := log.NewPluginLogger()
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, logger)
+		assert.True(t, logger.IsDebug())
+		assert.Equal(t, "plugin", logger.Name())
+	})
+	t.Run("will validate if provided configs takes precedence", func(t *testing.T) {
+		// Given
+		t.Setenv(log.EphemeralLogLevel, "info")
+		t.Setenv(log.EphemeralLogFormat, "text")
+
+		// When
+		logger, err := log.NewPluginLogger(
+			log.WithLevel(log.DebugLevel),
+			log.WithFormat(log.JsonFormat),
+		)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, logger)
+		assert.True(t, logger.IsDebug())
 		assert.Equal(t, "plugin", logger.Name())
 	})
 }
