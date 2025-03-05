@@ -6,6 +6,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const extName = "ephemeral-access";
 
 const config = {
+  stats: 'verbose',
   entry: {
     extension: "./src/index.tsx",
   },
@@ -41,13 +42,6 @@ const config = {
       SYSTEM_INFO: JSON.stringify({
         version: process.env.VERSION || 'latest',
       }),
-    }),
-    new CopyWebpackPlugin({
-      patterns: [{
-          from: 'node_modules/argo-ui/src/assets',
-          to: 'assets'
-        },
-      ],
     }),
   ],
   module: {
