@@ -138,6 +138,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("plugin initialization error: %w", err)
 		}
+		setupLog.Info("AccessRequester plugin initialized successfully...")
 	}
 
 	service := controller.NewService(mgr.GetClient(), config, accessRequester)
@@ -169,6 +170,7 @@ func run(cmd *cobra.Command, args []string) error {
 // initPlugin will initialize the AccessRequester plugin from the binary
 // provided in the given path.
 func initPlugin(path string) (plugin.AccessRequester, error) {
+	setupLog.Info("Initializing AccessRequester plugin...", "path", path)
 	pluginLog, err := log.NewPluginLogger()
 	if err != nil {
 		return nil, fmt.Errorf("error building plugin logger: %w", err)
@@ -179,6 +181,7 @@ func initPlugin(path string) (plugin.AccessRequester, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting AccessRequester plugin: %w", err)
 	}
+	setupLog.Info("Calling AccessRequester plugin Init function...")
 	err = accessRequester.Init()
 	if err != nil {
 		return nil, fmt.Errorf("error initializing the AccessRequester plugin: %w", err)

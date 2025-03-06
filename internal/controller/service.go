@@ -79,12 +79,14 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 		rtHash := RoleTemplateHash(rt)
 		switch resp.Status {
 		case plugin.GrantStatusDenied:
+			logger.Info("AccessRequest denied", "message", resp.Message)
 			err = s.updateStatus(ctx, ar, api.DeniedStatus, resp.Message, rtHash)
 			if err != nil {
 				return "", fmt.Errorf("error updating access request status to denied: %w", err)
 			}
 			return api.DeniedStatus, nil
 		case plugin.GrantStatusPending:
+			logger.Info("AccessRequest pending...", "message", resp.Message)
 			err = s.updateStatus(ctx, ar, api.RequestedStatus, resp.Message, rtHash)
 			if err != nil {
 				return "", fmt.Errorf("error updating access request status to requested: %w", err)
@@ -251,8 +253,11 @@ func (s *Service) updateStatusWithRetry(ctx context.Context, ar *api.AccessReque
 // updateStatus will update the given AccessRequest status field with the
 // given status and details.
 func (s *Service) updateStatus(ctx context.Context, ar *api.AccessRequest, status api.Status, details string, rtHash string) error {
+	log := log.FromContext(ctx)
+	log.Debug("Updating AccessRequest status...")
 	// if it is already updated skip
 	if ar.Status.RequestState == status && ar.Status.RoleTemplateHash == rtHash {
+		log.Debug("No need to update AccessRequest status")
 		return nil
 	}
 	ar.UpdateStatusHistory(status, details)
