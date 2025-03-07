@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
@@ -99,13 +100,16 @@ var _ = BeforeSuite(func() {
 
 	k8sManager, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme: scheme.Scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: ":9393",
+		},
 	})
 	Expect(err).ToNot(HaveOccurred())
 
 	config, err := config.ReadEnvConfigs()
 	Expect(err).ToNot(HaveOccurred())
 
-	service := NewService(k8sManager.GetClient(), config)
+	service := NewService(k8sManager.GetClient(), config, nil)
 	arReconciler := &AccessRequestReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),

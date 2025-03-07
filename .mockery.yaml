@@ -4,19 +4,19 @@ with-expecter: true
 dir: "test/mocks"
 outpkg: "mocks"
 packages:
-  github.com/argoproj-labs/ephemeral-access/internal/controller:
+  github.com/argoproj-labs/argocd-ephemeral-access/internal/controller:
     interfaces:
       K8sClient:
-  github.com/argoproj-labs/ephemeral-access/internal/controller/config:
+  github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config:
     interfaces:
       Configurer:
-  github.com/argoproj-labs/ephemeral-access/pkg/plugin:
+  github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin:
     interfaces:
       AccessRequester:
-  github.com/argoproj-labs/ephemeral-access/pkg/log:
+  github.com/argoproj-labs/argocd-ephemeral-access/pkg/log:
     interfaces:
       Logger:
-  github.com/argoproj-labs/ephemeral-access/internal/backend:
+  github.com/argoproj-labs/argocd-ephemeral-access/internal/backend:
     interfaces:
       Service:
       Persister:

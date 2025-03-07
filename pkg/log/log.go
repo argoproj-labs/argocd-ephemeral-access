@@ -3,6 +3,7 @@ package log
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -182,9 +183,24 @@ func logConfig(opts ...Opts) *LogConfig {
 	return cfg
 }
 
+const (
+	EphemeralLogLevel  = "EPHEMERAL_LOG_LEVEL"
+	EphemeralLogFormat = "EPHEMERAL_LOG_FORMAT"
+)
+
 // NewPluginLogger will initialize a logger to be used in ephemeral-access plugins.
 func NewPluginLogger(opts ...Opts) (hclog.Logger, error) {
-	cfg := logConfig(opts...)
+	envOpts := []Opts{}
+	logFormat := os.Getenv(EphemeralLogFormat)
+	if logFormat != "" {
+		envOpts = append(envOpts, WithFormat(LogFormat(logFormat)))
+	}
+	logLevel := os.Getenv(EphemeralLogLevel)
+	if logLevel != "" {
+		envOpts = append(envOpts, WithLevel(LogLevel(logLevel)))
+	}
+	options := append(envOpts, opts...)
+	cfg := logConfig(options...)
 	jsonFormat := false
 	if cfg.logFormat == JsonFormat {
 		jsonFormat = true

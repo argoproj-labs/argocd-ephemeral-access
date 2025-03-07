@@ -16,12 +16,18 @@ type Configurer interface {
 	LogConfigurer
 	MetricsConfigurer
 	ControllerConfigurer
+	PluginConfigurer
 }
 
 // LogConfigurer defines the accessor methods for log configurations.
 type LogConfigurer interface {
 	LogLevel() string
 	LogFormat() string
+}
+
+// PluginConfigurer defines the accessor methods for the plugin configurations.
+type PluginConfigurer interface {
+	PluginPath() string
 }
 
 // MetricsConfigurer defines the accessor methods for metrics configurations.
@@ -85,6 +91,11 @@ func (c *Config) ControllerRequeueInterval() time.Duration {
 	return c.Controller.RequeueInterval
 }
 
+// PluginPath acessor method
+func (c *Config) PluginPath() string {
+	return c.Plugin.Path
+}
+
 // Config defines all configurations available for this controller
 type Config struct {
 	// Metrics defines the metrics configurations
@@ -93,6 +104,13 @@ type Config struct {
 	Log LogConfig `env:", prefix=EPHEMERAL_LOG_"`
 	// Controller defines the controller configurations
 	Controller ControllerConfig `env:", prefix=EPHEMERAL_CONTROLLER_"`
+	Plugin     PluginConfig     `env:", prefix=EPHEMERAL_PLUGIN_"`
+}
+
+// PluginConfig defines the plugin configuration
+type PluginConfig struct {
+	// Path must be the full path to the binary implementing the plugin interface
+	Path string `env:"PATH"`
 }
 
 // MetricsConfig defines the metrics configurations
@@ -138,7 +156,7 @@ type LogConfig struct {
 // String prints the config state
 func (c *Config) String() string {
 	return fmt.Sprintf(
-		"Metrics: [ Address: %s Secure: %t ] Log [ Level: %s Format: %s ] Controller [ EnableLeaderElection: %t HealthProbeAddress: %s EnableHTTP2: %t RequeueInterval: %s]",
+		"Metrics: [ Address: %s Secure: %t ] Log [ Level: %s Format: %s ] Controller [ EnableLeaderElection: %t HealthProbeAddress: %s EnableHTTP2: %t RequeueInterval: %s ] Plugin [ Path : %s ]",
 		c.Metrics.Address,
 		c.Metrics.Secure,
 		c.Log.Level,
@@ -147,6 +165,7 @@ func (c *Config) String() string {
 		c.Controller.HealthProbeAddr,
 		c.Controller.EnableHTTP2,
 		c.Controller.RequeueInterval,
+		c.Plugin.Path,
 	)
 }
 

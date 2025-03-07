@@ -151,7 +151,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// initialize the status if not done yet
 	if ar.Status.RequestState == "" {
 		logger.Debug("Initializing status")
-		ar.UpdateStatusHistory(api.RequestedStatus, "")
 		ar.Status.TargetProject = application.Spec.Project
 		ar.Status.RoleName = renderedRt.AppProjectRoleName(application.GetName(), application.GetNamespace())
 		ar.Status.RoleTemplateHash = RoleTemplateHash(renderedRt)

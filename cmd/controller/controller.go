@@ -24,6 +24,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	goPlugin "github.com/hashicorp/go-plugin"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -37,6 +38,7 @@ import (
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin"
 	"github.com/spf13/cobra"
 	// +kubebuilder:scaffold:imports
 )
@@ -129,7 +131,17 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unable to start manager: %w", err)
 	}
 
-	service := controller.NewService(mgr.GetClient(), config)
+	var accessRequester plugin.AccessRequester
+	// register the plugin when the path is provided
+	if config.PluginPath() != "" {
+		accessRequester, err = initPlugin(config.PluginPath())
+		if err != nil {
+			return fmt.Errorf("plugin initialization error: %w", err)
+		}
+		setupLog.Info("AccessRequester plugin initialized successfully...")
+	}
+
+	service := controller.NewService(mgr.GetClient(), config, accessRequester)
 
 	if err = (&controller.AccessRequestReconciler{
 		Client:  mgr.GetClient(),
@@ -153,4 +165,26 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("problem running manager: %w", err)
 	}
 	return nil
+}
+
+// initPlugin will initialize the AccessRequester plugin from the binary
+// provided in the given path.
+func initPlugin(path string) (plugin.AccessRequester, error) {
+	setupLog.Info("Initializing AccessRequester plugin...", "path", path)
+	pluginLog, err := log.NewPluginLogger()
+	if err != nil {
+		return nil, fmt.Errorf("error building plugin logger: %w", err)
+	}
+	cliConfig := plugin.NewClientConfig(path, pluginLog)
+	client := goPlugin.NewClient(cliConfig)
+	accessRequester, err := plugin.GetAccessRequester(client)
+	if err != nil {
+		return nil, fmt.Errorf("error getting AccessRequester plugin: %w", err)
+	}
+	setupLog.Info("Calling AccessRequester plugin Init function...")
+	err = accessRequester.Init()
+	if err != nil {
+		return nil, fmt.Errorf("error initializing the AccessRequester plugin: %w", err)
+	}
+	return accessRequester, nil
 }
