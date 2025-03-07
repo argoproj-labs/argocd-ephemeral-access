@@ -64,7 +64,7 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 
 	if ar.IsExpiring() {
 		logger.Info("AccessRequest is expired")
-		err := s.handleAccessExpired(ctx, ar, rt)
+		err := s.handleAccessExpired(ctx, ar, app, rt)
 		if err != nil {
 			return "", fmt.Errorf("error handling access expired: %w", err)
 		}
@@ -113,13 +113,26 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 
 // handleAccessExpired will remove the Argo CD access for the subject and
 // update the AccessRequest status field.
-func (s *Service) handleAccessExpired(ctx context.Context, ar *api.AccessRequest, rt *api.RoleTemplate) error {
+func (s *Service) handleAccessExpired(ctx context.Context, ar *api.AccessRequest, app *argocd.Application, rt *api.RoleTemplate) error {
+	log := log.FromContext(ctx)
+	statusDetails := ""
+	if s.hasPlugin() {
+		resp, err := s.accessRequester.RevokeAccess(ar, app)
+		if err != nil {
+			log.Error(err, "Error invoking plugin RevokeAccess function")
+			return fmt.Errorf("error invoking plugin RevokeAccess function: %w", err)
+		}
+		if resp != nil {
+			log.Info("Plugin RevokeAccess called", "status", resp.Status, "message", resp.Message)
+			statusDetails = resp.Message
+		}
+	}
 	err := s.RemoveArgoCDAccess(ctx, ar, rt)
 	if err != nil {
 		return fmt.Errorf("error removing access for expired request: %w", err)
 	}
 	hash := RoleTemplateHash(rt)
-	err = s.updateStatus(ctx, ar, api.ExpiredStatus, "", hash)
+	err = s.updateStatus(ctx, ar, api.ExpiredStatus, statusDetails, hash)
 	if err != nil {
 		return fmt.Errorf("error updating access request status to expired: %w", err)
 	}
@@ -352,17 +365,28 @@ type AllowedResponse struct {
 	Message string
 }
 
+// hasPlugin will check if this service is configured with an AccessRequester plugin.
+func (s *Service) hasPlugin() bool {
+	if s.accessRequester == nil {
+		return false
+	}
+	return true
+}
+
 // Allowed will invoke the GrantAccess() function from this Service.accessRequester plugin.
 // If the Service.accessRequester plugin is nil, it will allow the controller to proceed with
 // handling the permission.
 func (s *Service) Allowed(ctx context.Context, ar *api.AccessRequest, app *argocd.Application) (*AllowedResponse, error) {
 	// always return true if there is no plugin registered
-	if s.accessRequester == nil {
+	if !s.hasPlugin() {
 		return &AllowedResponse{Allowed: true, Message: ""}, nil
 	}
 	resp, err := s.accessRequester.GrantAccess(ar, app)
 	if err != nil {
 		return nil, fmt.Errorf("error invoking plugin GrantAccess function: %w", err)
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("plugin GrantAccess call returned null response")
 	}
 	allowed := false
 	if resp.Status == plugin.GrantStatusGranted {
