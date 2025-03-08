@@ -3,7 +3,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BUTTON_LABELS } from '../constant';
 import { Application, UserInfo } from '../models/type';
-import { getAccessRoles, Spinner } from '../utils/utils';
+import { getAccessRoles, getDisplayTime, Spinner } from '../utils/utils';
 import EphemeralRoleSelection from './ephemeral-role-selection';
 import './style.scss';
 import moment from 'moment';
@@ -12,9 +12,7 @@ import {
   AccessRequestResponseBodyStatus,
   AllowedRoleResponseBody,
   createAccessrequest,
-  CreateAccessRequestBody,
-  listAccessrequest,
-  ListAccessRequestResponseBody
+  listAccessrequest
 } from '../gen/ephemeral-access-api';
 import { getHeaders } from '../config/client';
 import { SelectOption } from 'argo-ui/src/components/select/select';
@@ -33,137 +31,14 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const [roles, setRoles] = useState<AllowedRoleResponseBody[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
-
-  const [enableBtn, setEnableBtn] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const applicationNamespace = application?.metadata?.namespace || '';
   const applicationName = application?.metadata?.name || '';
   const project = application?.spec?.project || '';
   const username = userInfo?.username || '';
   const selectedRoleRef = useRef(selectedRole);
+
   const notify = (msg: string) => toast.warning('System message: ' + msg);
-
-  const getUserRoles = useCallback(async () => {
-    try {
-      const usrRoles = await getAccessRoles(
-        applicationName,
-        applicationNamespace,
-        project,
-        username
-      );
-      setRoles(usrRoles || []);
-      if ((usrRoles || []).length === 1) {
-        setSelectedRole(usrRoles[0]?.roleName);
-      }
-    } catch (error) {
-      setEnableBtn(false);
-      notify('Failed to fetch roles: ' + error.message);
-    }
-  }, [applicationName, applicationNamespace, project, username]);
-
-  function handleAccessExpiration(accessRequestData: AccessRequestResponseBody) {
-    if (accessRequestData.expiresAt) {
-      const timeoutDuration =
-        moment.parseZone(accessRequestData.expiresAt).valueOf() - moment().valueOf();
-      if (timeoutDuration > 0) {
-        setTimeout(() => {
-          setCurrentAccessRequest(null);
-          setEnableBtn(false);
-          setSelectedRole('');
-          selectedRoleRef.current = '';
-          localStorage.setItem(applicationName, 'null');
-        }, timeoutDuration);
-      }
-    }
-  }
-
-  async function saveAccessRequest(data: ListAccessRequestResponseBody) {
-    if (data.items.length === 0) {
-      localStorage.setItem(applicationName, 'null');
-      setEnableBtn(false);
-      return null;
-    }
-
-    const accessRequestData = data.items[0];
-    const grantedPermission = data.items.find(
-      (item) => item.status === AccessRequestResponseBodyStatus.GRANTED
-    );
-    setCurrentAccessRequest(accessRequestData);
-    if (accessRequestData.status === AccessRequestResponseBodyStatus.GRANTED) {
-      setSelectedRole(accessRequestData.role);
-    }
-    localStorage.setItem(applicationName, JSON.stringify(grantedPermission || null));
-
-    switch (accessRequestData?.status) {
-      case AccessRequestResponseBodyStatus.GRANTED:
-        break;
-      case AccessRequestResponseBodyStatus.DENIED:
-        notify('Last request was denied: ' + accessRequestData?.message + '. Please try again!');
-        setCurrentAccessRequest(null);
-        break;
-      case AccessRequestResponseBodyStatus.REQUESTED:
-        break;
-      default:
-        break;
-    }
-
-    if (
-      accessRequestData.status === AccessRequestResponseBodyStatus.GRANTED ||
-      accessRequestData.status === AccessRequestResponseBodyStatus.DENIED
-    ) {
-      handleAccessExpiration(accessRequestData);
-    }
-    return accessRequestData;
-  }
-
-  const getUserAccess = useCallback(async (): Promise<AccessRequestResponseBody | null> => {
-    try {
-      const { data } = await listAccessrequest({
-        headers: getHeaders({ applicationName, applicationNamespace, project, username })
-      });
-      return await saveAccessRequest(data);
-    } catch (error) {
-      return null;
-    }
-  }, [applicationName, applicationNamespace, project, username]);
-
-  const submitAccessRequest = async (): Promise<CreateAccessRequestBody | null> => {
-    try {
-      if (!selectedRoleRef.current && roles.length > 1) {
-        setErrorMessage('Please select a role');
-        return null;
-      }
-
-      setEnableBtn(false);
-      const roleName = selectedRoleRef.current || (roles.length > 0 ? roles[0].roleName : '');
-
-      await createAccessrequest(
-        { roleName: roleName },
-        {
-          headers: getHeaders({ applicationName, applicationNamespace, project, username })
-        }
-      );
-
-      // start polling for access request status
-      const intervalId = setInterval(async () => {
-        const updatedAccessData = await getUserAccess();
-        if (
-          updatedAccessData &&
-          (updatedAccessData.status === AccessRequestResponseBodyStatus.GRANTED ||
-            updatedAccessData.status === AccessRequestResponseBodyStatus.DENIED)
-        ) {
-          handleAccessExpiration(updatedAccessData);
-          clearInterval(intervalId);
-        }
-      }, 200);
-
-      setEnableBtn(true);
-      return { roleName: selectedRoleRef.current || roles[0].roleName };
-    } catch (error) {
-      setEnableBtn(true);
-      returnError(error);
-      return null;
-    }
-  };
 
   const returnError = async (error: any) => {
     const status = error?.response?.status;
@@ -171,13 +46,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     switch (status) {
       case 409:
         notify(`${selectedRole} role: A permission request already exists.`);
-        const accessData = await getUserAccess();
-        if (
-          accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
-          accessData?.status === AccessRequestResponseBodyStatus.DENIED
-        ) {
-          setCurrentAccessRequest(accessData);
-        }
         break;
       case 401:
         notify(`Unauthorized request: ${error.message}`);
@@ -185,9 +53,121 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       case 403:
         notify('Access Request Denied: No valid role was found. Please verify your permissions.');
         break;
+      case 408:
+        notify('Request Timeout: Please try again later.');
+        break;
       default:
         notify(`Error occurred while requesting permission: ${error.message}`);
         break;
+    }
+  };
+
+  const handleAccessExpiration = (accessData: AccessRequestResponseBody) => {
+    if (accessData.expiresAt) {
+      const timeoutDuration = moment.parseZone(accessData.expiresAt).valueOf() - moment().valueOf();
+      if (timeoutDuration > 0) {
+        setTimeout(() => {
+          setCurrentAccessRequest(null);
+          setIsLoading(false);
+          setSelectedRole('');
+          selectedRoleRef.current = '';
+          localStorage.setItem(applicationName, 'null');
+        }, timeoutDuration);
+      }
+    }
+  };
+
+  const AccessRoles = useCallback(async () => {
+    try {
+      const accessRoles = await getAccessRoles(
+        applicationName,
+        applicationNamespace,
+        project,
+        username
+      );
+      setRoles(accessRoles || []);
+      if ((accessRoles || []).length === 1) {
+        setSelectedRole(accessRoles[0]?.roleName);
+      }
+    } catch (error) {
+      setIsLoading(false);
+      notify('Failed to fetch roles: ' + error.message);
+    }
+  }, [applicationName, applicationNamespace, project, username]);
+
+  const fetchAccessRequest = useCallback(async () => {
+    let currentDelay = 300;
+    const maxDelay = 60000;
+    const maxPollingDuration = 300000;
+    const pollingEndTime = Date.now() + maxPollingDuration;
+
+    const poll = async () => {
+      try {
+        const { data } = await listAccessrequest({
+          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+        });
+        if (data.items.length > 0) {
+          const accessRequestData = data.items[0];
+          setCurrentAccessRequest(accessRequestData);
+          const status = accessRequestData?.status;
+
+          if (status === AccessRequestResponseBodyStatus.GRANTED) {
+            handleAccessExpiration(accessRequestData);
+            return;
+          } else if (
+            accessRequestData.status === undefined ||
+            status === AccessRequestResponseBodyStatus.REQUESTED
+          ) {
+            setIsLoading(true);
+            if (Date.now() < pollingEndTime) {
+              currentDelay = Math.min(currentDelay * 2, maxDelay);
+              setTimeout(poll, currentDelay);
+            } else {
+              setIsLoading(false);
+              const errorObject = {
+                response: {
+                  status: 408
+                },
+                message: 'Check the status of the change request!'
+              };
+              returnError(errorObject);
+            }
+          } else if (
+            status === AccessRequestResponseBodyStatus.DENIED ||
+            status === AccessRequestResponseBodyStatus.INVALID
+          ) {
+            return;
+          }
+        } else {
+          localStorage.setItem(applicationName, 'null');
+        }
+      } catch (error) {
+        console.error('Error during polling:', error);
+        returnError(error);
+        setTimeout(poll, currentDelay);
+        setIsLoading(false);
+      }
+    };
+    poll();
+  }, [applicationName, applicationNamespace, project, username]);
+
+  const submitAccessRequest = async () => {
+    try {
+      if (!selectedRoleRef.current && roles.length > 1) {
+        setErrorMessage('Please select a role');
+        return;
+      }
+      const roleName = selectedRoleRef.current || (roles.length > 0 ? roles[0].roleName : '');
+      await createAccessrequest(
+        { roleName },
+        {
+          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+        }
+      );
+
+      fetchAccessRequest();
+    } catch (error) {
+      notify('Error submitting access request: ' + error.message);
     }
   };
 
@@ -197,22 +177,19 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   }));
 
   const selectRoleChange = (selectedOption: SelectOption) => {
-    if (selectedOption.value != '') {
+    if (selectedOption.value !== '') {
       setErrorMessage('');
     } else {
       setErrorMessage('Please select a role');
     }
     selectedRoleRef.current = selectedOption.value;
     setSelectedRole(selectedOption.value);
-    setEnableBtn(false);
+    setIsLoading(false);
   };
 
   useEffect(() => {
-    getUserRoles();
-  }, []);
-
-  useEffect(() => {
-    getUserAccess();
+    AccessRoles();
+    fetchAccessRequest();
   }, []);
 
   return (
@@ -221,10 +198,13 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         <button
           style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
           className='argo-button argo-button--base'
-          onClick={submitAccessRequest}
-          disabled={enableBtn}
+          onClick={() => {
+            setIsLoading(true);
+            submitAccessRequest();
+          }}
+          disabled={isLoading}
         >
-          {enableBtn && (
+          {isLoading && (
             <span>
               <Spinner
                 show={currentAccessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED}
@@ -234,6 +214,10 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           )}
           {BUTTON_LABELS.REQUEST_ACCESS}
         </button>
+
+        {isLoading && currentAccessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED && (
+          <div className='access-form__error-msg'> Check the status of the change request</div>
+        )}
       </div>
       <div className='access-form__usrmsg'>
         <i className='fa fa-info-circle icon-background' />
@@ -282,7 +266,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
             <div className='columns small-3'>PERMISSION</div>
             <div className='columns small-9'>{currentAccessRequest?.permission || 'Read Only'}</div>
           </div>
-          {currentAccessRequest?.status === AccessRequestResponseBodyStatus.GRANTED && (
+          {currentAccessRequest && (
             <div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>ROLE</div>
@@ -291,6 +275,12 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>STATUS</div>
                 <div className='columns small-9'>{currentAccessRequest?.status}</div>
+              </div>
+              <div className='row white-box__details-row'>
+                <div className='columns small-3'>REQUESTED-AT</div>
+                <div className='columns small-9'>
+                  {getDisplayTime(currentAccessRequest?.requestedAt)}
+                </div>
               </div>
 
               {currentAccessRequest?.expiresAt && (
@@ -306,8 +296,8 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
               )}
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>MESSAGE</div>
-                <div className='columns small-9'>
-                  {currentAccessRequest?.status === AccessRequestResponseBodyStatus.GRANTED ? (
+                <div className='columns small-9' style={{ lineHeight: '1.75' }}>
+                  {currentAccessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED ? (
                     <span style={{ display: 'flex', flexDirection: 'column', margin: '0' }}>
                       {currentAccessRequest?.message}
                       {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL && (

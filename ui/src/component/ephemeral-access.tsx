@@ -33,7 +33,7 @@ export const RequestAccessBtnFlyout = ({ application }: RequestAccessBtnFlyoutPr
     };
 
     fetchUserInfo();
-  }, [application]);
+  }, []);
 
   return (
     <>{userInfo && <EphemeralAccessDetails application={application} userInfo={userInfo} />}</>
