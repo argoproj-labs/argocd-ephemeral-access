@@ -98,7 +98,9 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const fetchAccessRequest = useCallback(async () => {
     let currentDelay = 300;
     const maxDelay = 60000;
+    // 5 minutes max polling duration
     const maxPollingDuration = 300000;
+
     const pollingEndTime = Date.now() + maxPollingDuration;
 
     const poll = async () => {
@@ -112,6 +114,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           const status = accessRequestData?.status;
 
           if (status === AccessRequestResponseBodyStatus.GRANTED) {
+            localStorage.setItem(applicationName, JSON.stringify(accessRequestData || null));
             handleAccessExpiration(accessRequestData);
             return;
           } else if (
