@@ -1,7 +1,6 @@
 const path = require("path");
 const webpack = require("webpack");
 const TerserWebpackPlugin = require("terser-webpack-plugin");
-const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 const extName = "ephemeral-access";
 
@@ -41,13 +40,6 @@ const config = {
       SYSTEM_INFO: JSON.stringify({
         version: process.env.VERSION || 'latest',
       }),
-    }),
-    new CopyWebpackPlugin({
-      patterns: [{
-          from: 'node_modules/argo-ui/src/assets',
-          to: 'assets'
-        },
-      ],
     }),
   ],
   module: {
