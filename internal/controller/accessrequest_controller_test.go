@@ -196,7 +196,7 @@ var _ = Describe("AccessRequest Controller", func() {
 					return ar.Status.RequestState
 				}, timeout, interval).ShouldNot(BeEmpty())
 				Expect(ar.Status.History).NotTo(BeEmpty())
-				Expect(ar.Status.History[0].RequestState).To(Equal(api.GrantedStatus))
+				Expect(ar.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
 			})
 			It("will validate if the access is eventually granted", func() {
 				ar := &api.AccessRequest{}
@@ -206,8 +206,9 @@ var _ = Describe("AccessRequest Controller", func() {
 					return ar.Status.RequestState
 				}, timeout, interval).Should(Equal(api.GrantedStatus))
 				Expect(ar.Status.ExpiresAt).NotTo(BeNil())
-				Expect(ar.Status.History).Should(HaveLen(1))
-				Expect(ar.Status.History[0].RequestState).To(Equal(api.GrantedStatus))
+				Expect(ar.Status.History).Should(HaveLen(2))
+				Expect(ar.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
+				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 			})
 			It("will validate Argo CD AppProject", func() {
 				key := client.ObjectKey{
@@ -242,9 +243,10 @@ var _ = Describe("AccessRequest Controller", func() {
 					Expect(err).NotTo(HaveOccurred())
 					return ar.Status.RequestState
 				}, timeout, interval).Should(Equal(api.ExpiredStatus))
-				Expect(ar.Status.History).Should(HaveLen(2))
-				Expect(ar.Status.History[0].RequestState).To(Equal(api.GrantedStatus))
-				Expect(ar.Status.History[1].RequestState).To(Equal(api.ExpiredStatus))
+				Expect(ar.Status.History).Should(HaveLen(3))
+				Expect(ar.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
+				Expect(ar.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
+				Expect(ar.Status.History[2].RequestState).To(Equal(api.ExpiredStatus))
 			})
 			It("will validate if subject is removed from Argo CD role", func() {
 				key := client.ObjectKey{
@@ -317,7 +319,7 @@ var _ = Describe("AccessRequest Controller", func() {
 					return ar.Status.RequestState
 				}, timeout, interval).ShouldNot(BeEmpty())
 				Expect(ar.Status.History).NotTo(BeEmpty())
-				Expect(ar.Status.History[0].RequestState).To(Equal(api.GrantedStatus))
+				Expect(ar.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
 			})
 			It("will return immutable error on attempt to change the target role", func() {
 				ar := &api.AccessRequest{}
@@ -429,7 +431,7 @@ var _ = Describe("AccessRequest Controller", func() {
 						return returnedAR.Status.RequestState
 					}, timeout, interval).ShouldNot(BeEmpty())
 					Expect(returnedAR.Status.History).NotTo(BeEmpty())
-					Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.GrantedStatus))
+					Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
 				}
 			})
 			It("will validate Argo CD AppProject", func() {
@@ -526,7 +528,7 @@ var _ = Describe("AccessRequest Controller", func() {
 					return returnedAR.Status.RequestState
 				}, timeout, interval).ShouldNot(BeEmpty())
 				Expect(returnedAR.Status.History).NotTo(BeEmpty())
-				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.GrantedStatus))
+				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
 			})
 			It("will revert changes made in the AppProject managed role", func() {
 				key := client.ObjectKey{
@@ -623,7 +625,7 @@ var _ = Describe("AccessRequest Controller", func() {
 					return returnedAR.Status.RequestState
 				}, timeout, interval).ShouldNot(BeEmpty())
 				Expect(returnedAR.Status.History).NotTo(BeEmpty())
-				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.GrantedStatus))
+				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
 			})
 		})
 		When("creating conflicting AccessRequest", func() {
@@ -667,8 +669,9 @@ var _ = Describe("AccessRequest Controller", func() {
 					return returnedAR.Status.RequestState
 				}, timeout, interval).Should(Equal(api.GrantedStatus))
 				Expect(returnedAR.Status.History).NotTo(BeEmpty())
-				Expect(returnedAR.Status.History).Should(HaveLen(1))
-				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.GrantedStatus))
+				Expect(returnedAR.Status.History).Should(HaveLen(2))
+				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
+				Expect(returnedAR.Status.History[1].RequestState).To(Equal(api.GrantedStatus))
 			})
 		})
 		When("creating two AccessRequests at the same time", func() {
