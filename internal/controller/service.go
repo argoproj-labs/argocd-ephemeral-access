@@ -130,7 +130,6 @@ func (s *Service) handleAccessExpired(ctx context.Context, ar *api.AccessRequest
 	if s.hasPlugin() {
 		resp, err := s.accessRequester.RevokeAccess(ar, app)
 		if err != nil {
-			log.Error(err, "Error invoking plugin RevokeAccess function")
 			return fmt.Errorf("error invoking plugin RevokeAccess function: %w", err)
 		}
 		if resp != nil {

@@ -29,7 +29,7 @@ func (p *SomePlugin) Init() error {
 
 // GrantAccess is the method that will be called by the EphemeralAccess controller
 // when an AccessRequest is created. The EphemeralAccess controller will only proceed
-// grating the access if the returned GrantResponse.Status is plugin.GrantStatusGranted.
+// granting the access if the returned GrantResponse.Status is plugin.GrantStatusGranted.
 // Returning a nil GrantResponse will cause an error in the EphemeralAccess controller
 // and no access will be granted.
 // This function can be used to addresss different use-cases.
@@ -45,7 +45,7 @@ func (p *SomePlugin) GrantAccess(ar *api.AccessRequest, app *argocd.Application)
 }
 
 // RevokeAccess is the method that will be called by the EphemeralAccess controller
-// and an AccessRequest is expired. Plugins authors may decide to not implement this
+// when an AccessRequest is expired. Plugins authors may decide to not implement this
 // method depending on the use case. In this case it is safe to just return nil, nil.
 func (p *SomePlugin) RevokeAccess(ar *api.AccessRequest, app *argocd.Application) (*plugin.RevokeResponse, error) {
 	p.Logger.Info("This is a call to the RevokeAccess method")
