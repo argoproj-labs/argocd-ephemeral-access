@@ -140,6 +140,7 @@ spec:
                       description: RequestState is the new status assigned to this
                         access request
                       enum:
+                      - initiated
                       - requested
                       - granted
                       - expired
@@ -160,6 +161,7 @@ spec:
                   Status defines the different stages a given access request can be
                   at a given time.
                 enum:
+                - initiated
                 - requested
                 - granted
                 - expired

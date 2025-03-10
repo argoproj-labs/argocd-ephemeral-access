@@ -71,6 +71,17 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 		return api.ExpiredStatus, nil
 	}
 
+	// initialize the status if not done yet
+	if ar.Status.RequestState == "" {
+		logger.Debug("Initializing status")
+		ar.Status.TargetProject = app.Spec.Project
+		ar.Status.RoleName = rt.AppProjectRoleName(app.GetName(), app.GetNamespace())
+		s.updateStatus(ctx, ar, api.InitiatedStatus, "", RoleTemplateHash(rt))
+	}
+
+	// invoke the configured plugin to check if the ar.Spec.Subject
+	// is allowed to get their access elevated. If no plugin is configured
+	// it will always allow.
 	resp, err := s.Allowed(ctx, ar, app)
 	if err != nil {
 		return "", fmt.Errorf("error verifying if subject is allowed: %w", err)
@@ -179,7 +190,7 @@ func (s *Service) RemoveArgoCDAccess(ctx context.Context, ar *api.AccessRequest,
 // Argo CD AppProject specified in the ar.Spec.AppProject in the role defined
 // in ar.TargetRoleName. The AppProject update will be executed via a patch with
 // optimistic lock enabled. It Will retry in case of AppProject conflict is
-// identied.
+// identified.
 func (s *Service) grantArgoCDAccess(ctx context.Context, ar *api.AccessRequest, rt *api.RoleTemplate) (api.Status, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Granting Argo CD Access")
