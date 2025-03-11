@@ -19,7 +19,10 @@ spec:
             runAsUser: 65534
             allowPrivilegeEscalation: false
       containers:
-        - name: argocd-server
+        - name: controller
+          env:
+            - name: EPHEMERAL_PLUGIN_PATH
+              value: /tmp/plugin/plugin
           volumeMounts:
             - name: plugins
               mountPath: /tmp/plugin/
