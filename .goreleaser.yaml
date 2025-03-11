@@ -32,23 +32,35 @@ builds:
 
 dockers:
   - image_templates:
-    - quay.io/argoprojlabs/argocd-ephemeral-access:latest
-    - quay.io/argoprojlabs/argocd-ephemeral-access:{{ .Tag }}
+      - quay.io/argoprojlabs/argocd-ephemeral-access:latest
+      - quay.io/argoprojlabs/argocd-ephemeral-access:{{ .Tag }}
     dockerfile: release.Dockerfile
-    skip_push: "{{ .IsSnapshot }}"
+    skip_push: '{{ .IsSnapshot }}'
     build_flag_templates:
-    - "--pull"
-    - "--label=org.opencontainers.image.created={{.Date}}"
-    - "--label=org.opencontainers.image.title={{.ProjectName}}"
-    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-    - "--label=org.opencontainers.image.version={{.Version}}"
-    - "--platform=linux/amd64"
+      - '--pull'
+      - '--label=org.opencontainers.image.created={{.Date}}'
+      - '--label=org.opencontainers.image.title={{.ProjectName}}'
+      - '--label=org.opencontainers.image.revision={{.FullCommit}}'
+      - '--label=org.opencontainers.image.version={{.Version}}'
+      - '--platform=linux/amd64'
+  - image_templates:
+      - quay.io/argoprojlabs/argocd-ephemeral-access-plugin:latest
+      - quay.io/argoprojlabs/argocd-ephemeral-access-plugin:{{ .Tag }}
+    dockerfile: plugin.Dockerfile
+    skip_push: '{{ .IsSnapshot }}'
+    build_flag_templates:
+      - '--pull'
+      - '--label=org.opencontainers.image.created={{.Date}}'
+      - '--label=org.opencontainers.image.title={{.ProjectName}}'
+      - '--label=org.opencontainers.image.revision={{.FullCommit}}'
+      - '--label=org.opencontainers.image.version={{.Version}}'
+      - '--platform=linux/amd64'
 
 archives:
   - id: binary
-    formats: [ 'tar.gz' ]
+    formats: ['tar.gz']
     builds:
-      - "ephemeral-access"
+      - 'ephemeral-access'
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -60,14 +72,14 @@ archives:
     # use zip for windows archives
     format_overrides:
       - goos: windows
-        formats: [ 'zip' ]
+        formats: ['zip']
   - id: ui-extension
-    formats: [ 'gz' ]
+    formats: ['gz']
     name_template: extension.tar
     meta: true
-    files: 
-    - src: ui/extension.tar
-      strip_parent: true
+    files:
+      - src: ui/extension.tar
+        strip_parent: true
 
 checksum:
   name_template: 'extension_checksums.txt'
@@ -92,8 +104,7 @@ release:
     <a href="https://argoproj.github.io/cd/"><img src="https://raw.githubusercontent.com/argoproj/argo-site/c42c87e68cea647eadc1564e9e264621442aa8cf/src/images/icon.png" width="25%" ></a>
 
 changelog:
-  use:
-    github
+  use: github
   sort: asc
   abbrev: 0
   groups: # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
