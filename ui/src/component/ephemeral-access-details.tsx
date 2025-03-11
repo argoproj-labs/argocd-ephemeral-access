@@ -42,7 +42,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   const returnError = async (error: any) => {
     const status = error?.response?.status;
-
+   setIsLoading(false);
     switch (status) {
       case 409:
         notify(`${selectedRole} role: A permission request already exists.`);
@@ -90,7 +90,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         setSelectedRole(accessRoles[0]?.roleName);
       }
     } catch (error) {
-      setIsLoading(false);
       returnError(error);
     }
   }, [applicationName, applicationNamespace, project, username]);
@@ -105,7 +104,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
     const poll = async () => {
       try {
-        setIsLoading(true);
         const { data } = await listAccessrequest({
           headers: getHeaders({ applicationName, applicationNamespace, project, username })
         });
@@ -122,7 +120,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
             accessRequestData.status === undefined ||
             status === AccessRequestResponseBodyStatus.REQUESTED
           ) {
-            setIsLoading(true);
             if (Date.now() < pollingEndTime) {
               currentDelay = Math.min(currentDelay * 2, maxDelay);
               setTimeout(poll, currentDelay);
@@ -146,10 +143,8 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           localStorage.setItem(applicationName, 'null');
         }
       } catch (error) {
-        console.error('Error during polling:', error);
-        returnError(error);
         setTimeout(poll, currentDelay);
-        setIsLoading(false);
+        returnError(error);
       }
     };
     poll();
@@ -158,10 +153,12 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const submitAccessRequest = async () => {
     try {
       if (!selectedRoleRef.current && roles.length > 1) {
+        setIsLoading(false);
         setErrorMessage('Please select a role');
         return;
       }
       const roleName = selectedRoleRef.current || (roles.length > 0 ? roles[0].roleName : '');
+      setIsLoading(true);
       await createAccessrequest(
         { roleName },
         {
@@ -183,8 +180,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const selectRoleChange = (selectedOption: SelectOption) => {
     if (selectedOption.value !== '') {
       setErrorMessage('');
-    } else {
-      setErrorMessage('Please select a role');
     }
     selectedRoleRef.current = selectedOption.value;
     setSelectedRole(selectedOption.value);
@@ -203,7 +198,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
           className='argo-button argo-button--base'
           onClick={() => {
-            setIsLoading(true);
             submitAccessRequest();
           }}
           disabled={isLoading}
