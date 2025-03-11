@@ -28,4 +28,4 @@ spec:
               mountPath: /tmp/plugin/
       volumes:
         - emptyDir: {}
-          name: plugin
+          name: plugins
