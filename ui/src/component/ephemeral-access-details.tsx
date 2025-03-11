@@ -54,7 +54,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         notify('Access Request Denied: No valid role was found. Please verify your permissions.');
         break;
       case 408:
-        notify('Request Timeout: Please try again later.');
         break;
       default:
         notify(`Error occurred while requesting permission: ${error.message}`);
