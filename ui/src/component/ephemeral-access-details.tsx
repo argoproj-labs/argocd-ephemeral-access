@@ -96,9 +96,9 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   const fetchAccessRequest = useCallback(async () => {
     let currentDelay = 300;
-    const maxDelay = 60000;
-    // 5 minutes max polling duration
-    const maxPollingDuration = 300000;
+    const maxDelay = 45000;
+    // 120 seconds max polling duration
+    const maxPollingDuration = 120000;
 
     const pollingEndTime = Date.now() + maxPollingDuration;
 
