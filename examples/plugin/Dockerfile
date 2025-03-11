@@ -27,14 +27,15 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ./
 # a specific version instead of using 'latest'.
 FROM quay.io/argoprojlabs/argocd-ephemeral-access-plugin:latest
 
-# Set the user to the Alpine nobody user.
-USER 65534
-
 # The plugin binary should be copied in the /workspace which is the only directory
-# where the user nobody (65534) has access to.
+# where the user nonroot (65532) has access to.
 WORKDIR /workspace
 
 # Just add the plugin binary to the current work directory. By convention
 # we expect the binary to be named as 'plugin' and living in the /workspace
 # directory.
-COPY --from=builder --chmod=700 --chown=nobody /workspace/plugin .
+COPY --from=builder --chmod=500 --chown=65532 /workspace/plugin .
+
+# Set the user to the nonroot user defined in the argoprojlabs/argocd-ephemeral-access-plugin
+# image.
+USER 65532
