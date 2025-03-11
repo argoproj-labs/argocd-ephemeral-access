@@ -65,3 +65,10 @@ export const getAccessRoles = async (
 export function getDisplayTime(requestedAt: string) {
   return new Date(requestedAt).toLocaleString();
 }
+
+export  function getDisplayValue(value: string) {
+  if (value === undefined) {
+    return '';
+  }
+  return value.toLowerCase()
+}

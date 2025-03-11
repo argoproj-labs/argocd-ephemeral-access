@@ -3,7 +3,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BUTTON_LABELS } from '../constant';
 import { Application, UserInfo } from '../models/type';
-import { getAccessRoles, getDisplayTime, Spinner } from '../utils/utils';
+import { getAccessRoles, getDisplayTime, getDisplayValue, Spinner } from "../utils/utils";
 import EphemeralRoleSelection from './ephemeral-role-selection';
 import './style.scss';
 import moment from 'moment';
@@ -91,7 +91,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       }
     } catch (error) {
       setIsLoading(false);
-      notify('Failed to fetch roles: ' + error.message);
+      returnError(error);
     }
   }, [applicationName, applicationNamespace, project, username]);
 
@@ -105,6 +105,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
     const poll = async () => {
       try {
+        setIsLoading(true);
         const { data } = await listAccessrequest({
           headers: getHeaders({ applicationName, applicationNamespace, project, username })
         });
@@ -170,7 +171,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
       fetchAccessRequest();
     } catch (error) {
-      notify('Error submitting access request: ' + error.message);
+      returnError(error);
     }
   };
 
@@ -263,21 +264,21 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
           <div className='row white-box__details-row'>
             <div className='columns small-3'>USER NAME</div>
-            <div className='columns small-9'>{userInfo?.username?.toUpperCase()}</div>
+            <div className='columns small-9'>{getDisplayValue(userInfo?.username)}</div>
           </div>
           <div className='row white-box__details-row'>
             <div className='columns small-3'>PERMISSION</div>
-            <div className='columns small-9'>{currentAccessRequest?.permission || 'Read Only'}</div>
+            <div className='columns small-9'>{getDisplayValue(currentAccessRequest?.permission) || 'read only'}</div>
           </div>
           {currentAccessRequest && (
             <div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>ROLE</div>
-                <div className='columns small-9'>{currentAccessRequest?.role}</div>
+                <div className='columns small-9'>{getDisplayValue(currentAccessRequest?.role)}</div>
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>STATUS</div>
-                <div className='columns small-9'>{currentAccessRequest?.status}</div>
+                <div className='columns small-9'>{getDisplayValue(currentAccessRequest?.status)}</div>
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>REQUESTED-AT</div>
