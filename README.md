@@ -1,15 +1,5 @@
 # Argo CD EphemeralAccess Extension
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Demo](#demo)
-- [Prereqs](#prereqs)
-- [Installation](#installation)
-- [How it Works](#how-it-works)
-- [Contributing](#contributing)
-- [Plugins](#plugins)
-
 ## Overview
 
 This project provides an Argo CD extension to enable ephemeral access
@@ -22,6 +12,16 @@ managed by creating and updating Argo CD `AppProject` roles.
 
 Note: This project requires that the Argo CD `Applications` are
 associated with an `AppProjects` different than `default`.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Demo](#demo)
+- [Prereqs](#prereqs)
+- [Installation](#installation)
+- [How it Works](#how-it-works)
+- [Contributing](#contributing)
+- [Plugins](#plugins)
 
 ## Demo
 
