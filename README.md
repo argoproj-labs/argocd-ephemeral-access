@@ -1,5 +1,15 @@
 # argocd-ephemeral-access
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Demo](#demo)
+- [Prereqs](#prereqs)
+- [Installation](#installation)
+- [How it Works](#how-it-works)
+- [Contributing](#contributing)
+- [Plugins](#plugins)
+
 ## Overview
 
 This project provides an Argo CD extension to enable ephemeral access
