@@ -13,7 +13,8 @@ import (
 )
 
 // SomePlugin this is the struct that implements the plugin.AccessRequester
-// interface.
+// interface. It is preferable (but not required) to rename this struct to
+// something related to what your plugin will be doing. Example: JiraPlugin
 type SomePlugin struct {
 	Logger hclog.Logger
 }
@@ -21,7 +22,7 @@ type SomePlugin struct {
 // This function will be called once when the EphemeralAccess controller is
 // initialized. It can be used to instantiate clients to other services needed by
 // this plugin for example. Those instances can then be assigned in this p for
-// later use.
+// later use. Just return nil of this is not required for your plugin.
 func (p *SomePlugin) Init() error {
 	p.Logger.Info("This is a call to the Init method")
 	return nil
@@ -65,7 +66,9 @@ func main() {
 		panic(fmt.Sprintf("Error creating plugin logger: %s", err))
 	}
 
-	// create a new instance of your plugin after initializing the logger and other dependencies.
+	// create a new instance of your plugin after initializing the logger and other
+	// dependencies. However it is preferable to leave the main function lean and
+	// initialize plugin dependencies in the `Init` method.
 	p := &SomePlugin{
 		Logger: logger,
 	}

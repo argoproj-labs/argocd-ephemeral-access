@@ -8,7 +8,7 @@ spec:
     spec:
       initContainers:
         - name: plugin-installer
-          image: argocd-ephemeral-access-installer:latest
+          image: CHANGE_THIS_TO_POINT_TO_YOUR_PLUGIN_IMAGE
           env:
             - name: PLUGIN_PATH
               value: /workspace/plugin
