@@ -341,6 +341,18 @@ To build a docker image with custom namespace and tag run
 IMAGE_NAMESPACE="my.company.com/argoproj-labs" IMAGE_TAG="$(git rev-parse --abbrev-ref HEAD)" make docker-build
 ```
 
+## Plugins
+
+The EphemeralAccess extension allows hooking a plugin to enhance the
+core functionality. A few examples are:
+
+- Access ServiceNow API to verify if the given app has an associated
+Change Request in approved state
+- Access internal service for last mile user access validation
+
+To learn how to implement an EphemeralAccess plugin please refer to
+the `examples/plugin` folder in this repo.
+
 [1]: https://github.com/argoproj-labs/argocd-ephemeral-access/releases
 [2]: https://github.com/argoproj-labs/argocd-extension-installer
 [3]: https://github.com/argoproj-labs/argocd-ephemeral-access/blob/main/config/backend/config.yaml
