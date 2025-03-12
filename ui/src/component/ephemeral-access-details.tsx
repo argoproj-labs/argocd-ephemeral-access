@@ -3,7 +3,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BUTTON_LABELS } from '../constant';
 import { Application, UserInfo } from '../models/type';
-import { getAccessRoles, getDisplayTime, getDisplayValue, Spinner } from "../utils/utils";
+import { getAccessRoles, getDisplayTime, getDisplayValue, Spinner } from '../utils/utils';
 import EphemeralRoleSelection from './ephemeral-role-selection';
 import './style.scss';
 import moment from 'moment';
@@ -42,7 +42,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   const returnError = async (error: any) => {
     const status = error?.response?.status;
-   setIsLoading(false);
     switch (status) {
       case 409:
         notify(`${selectedRole} role: A permission request already exists.`);
@@ -67,7 +66,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       if (timeoutDuration > 0) {
         setTimeout(() => {
           setCurrentAccessRequest(null);
-          setIsLoading(false);
           setSelectedRole('');
           selectedRoleRef.current = '';
           localStorage.setItem(applicationName, 'null');
@@ -95,9 +93,9 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   const fetchAccessRequest = useCallback(async () => {
     let currentDelay = 300;
-    const maxDelay = 45000;
-    // 120 seconds max polling duration
-    const maxPollingDuration = 120000;
+    const maxDelay = 30000;
+    // 1 hour max polling duration
+    const maxPollingDuration = 3600000;
 
     const pollingEndTime = Date.now() + maxPollingDuration;
 
@@ -106,20 +104,24 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         const { data } = await listAccessrequest({
           headers: getHeaders({ applicationName, applicationNamespace, project, username })
         });
-        if (data.items.length > 0) {
-          const accessRequestData = data.items[0];
-          setCurrentAccessRequest(accessRequestData);
-          const status = accessRequestData?.status;
+        const accessRequestData: AccessRequestResponseBody | null =
+          data.items.length > 0 ? data.items[0] : null;
+        setCurrentAccessRequest(accessRequestData);
 
-          if (status === AccessRequestResponseBodyStatus.GRANTED) {
+        const status = accessRequestData && accessRequestData?.status;
+
+        switch (status) {
+          case AccessRequestResponseBodyStatus.GRANTED:
             localStorage.setItem(applicationName, JSON.stringify(accessRequestData || null));
             handleAccessExpiration(accessRequestData);
-            return;
-          } else if (
-            accessRequestData.status === undefined ||
-            status === AccessRequestResponseBodyStatus.REQUESTED
-          ) {
+            break;
+
+          case AccessRequestResponseBodyStatus.INVALID:
+          case AccessRequestResponseBodyStatus.REQUESTED:
+          case undefined:
             if (Date.now() < pollingEndTime) {
+              setIsLoading(true);
+              // Exponential backoff
               currentDelay = Math.min(currentDelay * 2, maxDelay);
               setTimeout(poll, currentDelay);
             } else {
@@ -128,21 +130,26 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                 response: {
                   status: 408
                 },
-                message: 'Check the status of the change request!'
+                message: 'Polling timed out. Check the status of the change request!'
               };
               returnError(errorObject);
             }
-          } else if (
-            status === AccessRequestResponseBodyStatus.DENIED ||
-            status === AccessRequestResponseBodyStatus.INVALID
-          ) {
-            return;
-          }
-        } else {
-          localStorage.setItem(applicationName, 'null');
+            break;
+
+          case AccessRequestResponseBodyStatus.DENIED:
+            setIsLoading(false);
+            localStorage.setItem(applicationName, 'null');
+            break;
+
+          default:
+            setIsLoading(false);
+            localStorage.setItem(applicationName, 'null');
+            break;
         }
+
+        return;
       } catch (error) {
-        setTimeout(poll, currentDelay);
+        setIsLoading(false);
         returnError(error);
       }
     };
@@ -152,12 +159,10 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const submitAccessRequest = async () => {
     try {
       if (!selectedRoleRef.current && roles.length > 1) {
-        setIsLoading(false);
         setErrorMessage('Please select a role');
         return;
       }
       const roleName = selectedRoleRef.current || (roles.length > 0 ? roles[0].roleName : '');
-      setIsLoading(true);
       await createAccessrequest(
         { roleName },
         {
@@ -182,13 +187,15 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     }
     selectedRoleRef.current = selectedOption.value;
     setSelectedRole(selectedOption.value);
-    setIsLoading(false);
   };
 
   useEffect(() => {
     AccessRoles();
     fetchAccessRequest();
   }, []);
+
+  const { status, permission, role, requestedAt, message, expiresAt } = currentAccessRequest || {};
+  const changeRequestUrl = window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL;
 
   return (
     <div className='access-form'>
@@ -199,22 +206,9 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           onClick={() => {
             submitAccessRequest();
           }}
-          disabled={isLoading}
         >
-          {isLoading && (
-            <span>
-              <Spinner
-                show={currentAccessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED}
-                style={{ marginRight: '5px' }}
-              />{' '}
-            </span>
-          )}
           {BUTTON_LABELS.REQUEST_ACCESS}
         </button>
-
-        {isLoading && currentAccessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED && (
-          <div className='access-form__error-msg'> Check the status of the change request</div>
-        )}
       </div>
       <div className='access-form__usrmsg'>
         <i className='fa fa-info-circle icon-background' />
@@ -261,55 +255,58 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           </div>
           <div className='row white-box__details-row'>
             <div className='columns small-3'>PERMISSION</div>
-            <div className='columns small-9'>{getDisplayValue(currentAccessRequest?.permission) || 'read only'}</div>
+            <div className='columns small-9'>{getDisplayValue(permission) || 'read only'}</div>
           </div>
           {currentAccessRequest && (
             <div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>ROLE</div>
-                <div className='columns small-9'>{getDisplayValue(currentAccessRequest?.role)}</div>
+                <div className='columns small-9'>{getDisplayValue(role)}</div>
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>STATUS</div>
-                <div className='columns small-9'>{getDisplayValue(currentAccessRequest?.status)}</div>
+                <div className='columns small-9'>
+                  {getDisplayValue(status)}
+                  {isLoading && status === AccessRequestResponseBodyStatus.REQUESTED && (
+                    <>
+                      <Spinner show={true} style={{ margin: '5px' }} />
+                    </>
+                  )}
+                </div>
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>REQUESTED-AT</div>
-                <div className='columns small-9'>
-                  {getDisplayTime(currentAccessRequest?.requestedAt)}
-                </div>
+                {requestedAt && (
+                  <div className='columns small-9'>{getDisplayTime(requestedAt)}</div>
+                )}
               </div>
-
-              {currentAccessRequest?.expiresAt && (
+              {expiresAt && (
                 <div
                   className='row white-box__details-row'
                   style={{ display: 'flex', alignItems: 'center' }}
                 >
                   <div className='columns small-3'>EXPIRES</div>
                   <div className='columns small-9'>
-                    {moment(currentAccessRequest?.expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
+                    {moment(expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
                   </div>
                 </div>
               )}
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>MESSAGE</div>
                 <div className='columns small-9' style={{ lineHeight: '1.75' }}>
-                  {currentAccessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED ? (
-                    <span style={{ display: 'flex', flexDirection: 'column', margin: '0' }}>
-                      {currentAccessRequest?.message}
-                      {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL && (
-                        <a
-                          href={window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL}
-                          style={{ color: 'blue', textDecoration: 'underline' }}
-                          target={'_blank'}
-                        >
-                          Click here to create
-                        </a>
-                      )}
-                    </span>
-                  ) : (
-                    currentAccessRequest?.message
-                  )}
+                  <span style={{ display: 'flex', flexDirection: 'column', marginTop: '15px' }}>
+                    {message}
+                    {status === AccessRequestResponseBodyStatus.REQUESTED && changeRequestUrl && (
+                      <a
+                        href={changeRequestUrl}
+                        style={{ color: 'blue', textDecoration: 'underline' }}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                      >
+                        Click here to create
+                      </a>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
