@@ -1,4 +1,4 @@
-# argocd-ephemeral-access
+# Argo CD EphemeralAccess Extension
 
 ## Table of Contents
 
