@@ -3,7 +3,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BUTTON_LABELS } from '../constant';
 import { Application, UserInfo } from '../models/type';
-import { getAccessRoles, Spinner } from '../utils/utils';
+import { getAccessRoles, getDisplayTime, getDisplayValue, Spinner } from '../utils/utils';
 import EphemeralRoleSelection from './ephemeral-role-selection';
 import './style.scss';
 import moment from 'moment';
@@ -12,9 +12,7 @@ import {
   AccessRequestResponseBodyStatus,
   AllowedRoleResponseBody,
   createAccessrequest,
-  CreateAccessRequestBody,
-  listAccessrequest,
-  ListAccessRequestResponseBody
+  listAccessrequest
 } from '../gen/ephemeral-access-api';
 import { getHeaders } from '../config/client';
 import { SelectOption } from 'argo-ui/src/components/select/select';
@@ -33,151 +31,20 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   const [roles, setRoles] = useState<AllowedRoleResponseBody[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
-
-  const [enableBtn, setEnableBtn] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const applicationNamespace = application?.metadata?.namespace || '';
   const applicationName = application?.metadata?.name || '';
   const project = application?.spec?.project || '';
   const username = userInfo?.username || '';
   const selectedRoleRef = useRef(selectedRole);
+
   const notify = (msg: string) => toast.warning('System message: ' + msg);
-
-  const getUserRoles = useCallback(async () => {
-    try {
-      const usrRoles = await getAccessRoles(
-        applicationName,
-        applicationNamespace,
-        project,
-        username
-      );
-      setRoles(usrRoles || []);
-      if ((usrRoles || []).length === 1) {
-        setSelectedRole(usrRoles[0]?.roleName);
-      }
-    } catch (error) {
-      setEnableBtn(false);
-      notify('Failed to fetch roles: ' + error.message);
-    }
-  }, [applicationName, applicationNamespace, project, username]);
-
-  function handleAccessExpiration(accessRequestData: AccessRequestResponseBody) {
-    if (accessRequestData.expiresAt) {
-      const timeoutDuration =
-        moment.parseZone(accessRequestData.expiresAt).valueOf() - moment().valueOf();
-      if (timeoutDuration > 0) {
-        setTimeout(() => {
-          setCurrentAccessRequest(null);
-          setEnableBtn(false);
-          setSelectedRole('');
-          selectedRoleRef.current = '';
-          localStorage.setItem(applicationName, 'null');
-        }, timeoutDuration);
-      }
-    }
-  }
-
-  async function saveAccessRequest(data: ListAccessRequestResponseBody) {
-    if (data.items.length === 0) {
-      localStorage.setItem(applicationName, 'null');
-      setEnableBtn(false);
-      return null;
-    }
-
-    const accessRequestData = data.items[0];
-    const grantedPermission = data.items.find(
-      (item) => item.status === AccessRequestResponseBodyStatus.GRANTED
-    );
-    setCurrentAccessRequest(accessRequestData);
-    if (accessRequestData.status === AccessRequestResponseBodyStatus.GRANTED) {
-      setSelectedRole(accessRequestData.role);
-    }
-    localStorage.setItem(applicationName, JSON.stringify(grantedPermission || null));
-
-    switch (accessRequestData?.status) {
-      case AccessRequestResponseBodyStatus.GRANTED:
-        break;
-      case AccessRequestResponseBodyStatus.DENIED:
-        notify('Last request was denied: ' + accessRequestData?.message + '. Please try again!');
-        setCurrentAccessRequest(null);
-        break;
-      case AccessRequestResponseBodyStatus.REQUESTED:
-        break;
-      default:
-        break;
-    }
-
-    if (
-      accessRequestData.status === AccessRequestResponseBodyStatus.GRANTED ||
-      accessRequestData.status === AccessRequestResponseBodyStatus.DENIED
-    ) {
-      handleAccessExpiration(accessRequestData);
-    }
-    return accessRequestData;
-  }
-
-  const getUserAccess = useCallback(async (): Promise<AccessRequestResponseBody | null> => {
-    try {
-      const { data } = await listAccessrequest({
-        headers: getHeaders({ applicationName, applicationNamespace, project, username })
-      });
-      return await saveAccessRequest(data);
-    } catch (error) {
-      return null;
-    }
-  }, [applicationName, applicationNamespace, project, username]);
-
-  const submitAccessRequest = async (): Promise<CreateAccessRequestBody | null> => {
-    try {
-      if (!selectedRoleRef.current && roles.length > 1) {
-        setErrorMessage('Please select a role');
-        return null;
-      }
-
-      setEnableBtn(false);
-      const roleName = selectedRoleRef.current || (roles.length > 0 ? roles[0].roleName : '');
-
-      await createAccessrequest(
-        { roleName: roleName },
-        {
-          headers: getHeaders({ applicationName, applicationNamespace, project, username })
-        }
-      );
-
-      // start polling for access request status
-      const intervalId = setInterval(async () => {
-        const updatedAccessData = await getUserAccess();
-        if (
-          updatedAccessData &&
-          (updatedAccessData.status === AccessRequestResponseBodyStatus.GRANTED ||
-            updatedAccessData.status === AccessRequestResponseBodyStatus.DENIED)
-        ) {
-          handleAccessExpiration(updatedAccessData);
-          clearInterval(intervalId);
-        }
-      }, 200);
-
-      setEnableBtn(true);
-      return { roleName: selectedRoleRef.current || roles[0].roleName };
-    } catch (error) {
-      setEnableBtn(true);
-      returnError(error);
-      return null;
-    }
-  };
 
   const returnError = async (error: any) => {
     const status = error?.response?.status;
-
     switch (status) {
       case 409:
         notify(`${selectedRole} role: A permission request already exists.`);
-        const accessData = await getUserAccess();
-        if (
-          accessData?.status === AccessRequestResponseBodyStatus.GRANTED ||
-          accessData?.status === AccessRequestResponseBodyStatus.DENIED
-        ) {
-          setCurrentAccessRequest(accessData);
-        }
         break;
       case 401:
         notify(`Unauthorized request: ${error.message}`);
@@ -185,9 +52,127 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       case 403:
         notify('Access Request Denied: No valid role was found. Please verify your permissions.');
         break;
+      case 408:
+        break;
       default:
         notify(`Error occurred while requesting permission: ${error.message}`);
         break;
+    }
+  };
+
+  const handleAccessExpiration = (accessData: AccessRequestResponseBody) => {
+    if (accessData.expiresAt) {
+      const timeoutDuration = moment.parseZone(accessData.expiresAt).valueOf() - moment().valueOf();
+      if (timeoutDuration > 0) {
+        setTimeout(() => {
+          setCurrentAccessRequest(null);
+          setSelectedRole('');
+          selectedRoleRef.current = '';
+          localStorage.setItem(applicationName, 'null');
+        }, timeoutDuration);
+      }
+    }
+  };
+
+  const AccessRoles = useCallback(async () => {
+    try {
+      const accessRoles = await getAccessRoles(
+        applicationName,
+        applicationNamespace,
+        project,
+        username
+      );
+      setRoles(accessRoles || []);
+      if ((accessRoles || []).length === 1) {
+        setSelectedRole(accessRoles[0]?.roleName);
+      }
+    } catch (error) {
+      returnError(error);
+    }
+  }, [applicationName, applicationNamespace, project, username]);
+
+  const fetchAccessRequest = useCallback(async () => {
+    let currentDelay = 300;
+    const maxDelay = 30000;
+    // 1 hour max polling duration
+    const maxPollingDuration = 3600000;
+
+    const pollingEndTime = Date.now() + maxPollingDuration;
+
+    const poll = async () => {
+      try {
+        const { data } = await listAccessrequest({
+          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+        });
+        const accessRequestData: AccessRequestResponseBody | null =
+          data.items.length > 0 ? data.items[0] : null;
+        setCurrentAccessRequest(accessRequestData);
+
+        const status = accessRequestData && accessRequestData?.status;
+
+        switch (status) {
+          case AccessRequestResponseBodyStatus.GRANTED:
+            localStorage.setItem(applicationName, JSON.stringify(accessRequestData || null));
+            handleAccessExpiration(accessRequestData);
+            break;
+
+          case AccessRequestResponseBodyStatus.INVALID:
+          case AccessRequestResponseBodyStatus.REQUESTED:
+          case undefined:
+            if (Date.now() < pollingEndTime) {
+              setIsLoading(true);
+              // Exponential backoff
+              currentDelay = Math.min(currentDelay * 2, maxDelay);
+              setTimeout(poll, currentDelay);
+            } else {
+              setIsLoading(false);
+              const errorObject = {
+                response: {
+                  status: 408
+                },
+                message: 'Polling timed out. Check the status of the change request!'
+              };
+              returnError(errorObject);
+            }
+            break;
+
+          case AccessRequestResponseBodyStatus.DENIED:
+            setIsLoading(false);
+            localStorage.setItem(applicationName, 'null');
+            break;
+
+          default:
+            setIsLoading(false);
+            localStorage.setItem(applicationName, 'null');
+            break;
+        }
+
+        return;
+      } catch (error) {
+        setIsLoading(false);
+        returnError(error);
+      }
+    };
+    poll();
+  }, [applicationName, applicationNamespace, project, username]);
+
+  const submitAccessRequest = async () => {
+    try {
+      if (!selectedRoleRef.current && roles.length > 1) {
+        setErrorMessage('Please select a role');
+        return;
+      }
+      const roleName = selectedRoleRef.current || (roles.length > 0 ? roles[0].roleName : '');
+      await createAccessrequest(
+        { roleName },
+        {
+          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+        }
+      );
+
+      fetchAccessRequest();
+    } catch (error) {
+      returnError(error);
     }
   };
 
@@ -197,23 +182,20 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   }));
 
   const selectRoleChange = (selectedOption: SelectOption) => {
-    if (selectedOption.value != '') {
+    if (selectedOption.value !== '') {
       setErrorMessage('');
-    } else {
-      setErrorMessage('Please select a role');
     }
     selectedRoleRef.current = selectedOption.value;
     setSelectedRole(selectedOption.value);
-    setEnableBtn(false);
   };
 
   useEffect(() => {
-    getUserRoles();
+    AccessRoles();
+    fetchAccessRequest();
   }, []);
 
-  useEffect(() => {
-    getUserAccess();
-  }, []);
+  const { status, permission, role, requestedAt, message, expiresAt } = currentAccessRequest || {};
+  const changeRequestUrl = window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL;
 
   return (
     <div className='access-form'>
@@ -221,17 +203,10 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         <button
           style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
           className='argo-button argo-button--base'
-          onClick={submitAccessRequest}
-          disabled={enableBtn}
+          onClick={() => {
+            submitAccessRequest();
+          }}
         >
-          {enableBtn && (
-            <span>
-              <Spinner
-                show={currentAccessRequest?.status === AccessRequestResponseBodyStatus.REQUESTED}
-                style={{ marginRight: '5px' }}
-              />{' '}
-            </span>
-          )}
           {BUTTON_LABELS.REQUEST_ACCESS}
         </button>
       </div>
@@ -276,53 +251,62 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
           <div className='row white-box__details-row'>
             <div className='columns small-3'>USER NAME</div>
-            <div className='columns small-9'>{userInfo?.username?.toUpperCase()}</div>
+            <div className='columns small-9'>{getDisplayValue(userInfo?.username)}</div>
           </div>
           <div className='row white-box__details-row'>
             <div className='columns small-3'>PERMISSION</div>
-            <div className='columns small-9'>{currentAccessRequest?.permission || 'Read Only'}</div>
+            <div className='columns small-9'>{getDisplayValue(permission) || 'read only'}</div>
           </div>
-          {currentAccessRequest?.status === AccessRequestResponseBodyStatus.GRANTED && (
+          {currentAccessRequest && (
             <div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>ROLE</div>
-                <div className='columns small-9'>{currentAccessRequest?.role}</div>
+                <div className='columns small-9'>{getDisplayValue(role)}</div>
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>STATUS</div>
-                <div className='columns small-9'>{currentAccessRequest?.status}</div>
+                <div className='columns small-9'>
+                  {getDisplayValue(status)}
+                  {isLoading && status === AccessRequestResponseBodyStatus.REQUESTED && (
+                    <>
+                      <Spinner show={true} style={{ margin: '5px' }} />
+                    </>
+                  )}
+                </div>
               </div>
-
-              {currentAccessRequest?.expiresAt && (
+              <div className='row white-box__details-row'>
+                <div className='columns small-3'>REQUESTED-AT</div>
+                {requestedAt && (
+                  <div className='columns small-9'>{getDisplayTime(requestedAt)}</div>
+                )}
+              </div>
+              {expiresAt && (
                 <div
                   className='row white-box__details-row'
                   style={{ display: 'flex', alignItems: 'center' }}
                 >
                   <div className='columns small-3'>EXPIRES</div>
                   <div className='columns small-9'>
-                    {moment(currentAccessRequest?.expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
+                    {moment(expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
                   </div>
                 </div>
               )}
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>MESSAGE</div>
-                <div className='columns small-9'>
-                  {currentAccessRequest?.status === AccessRequestResponseBodyStatus.GRANTED ? (
-                    <span style={{ display: 'flex', flexDirection: 'column', margin: '0' }}>
-                      {currentAccessRequest?.message}
-                      {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL && (
-                        <a
-                          href={window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL}
-                          style={{ color: 'blue', textDecoration: 'underline' }}
-                          target={'_blank'}
-                        >
-                          Click here to create
-                        </a>
-                      )}
-                    </span>
-                  ) : (
-                    currentAccessRequest?.message
-                  )}
+                <div className='columns small-9' style={{ lineHeight: '1.75' }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', marginTop: '15px' }}>
+                    {message}
+                    {status === AccessRequestResponseBodyStatus.REQUESTED && changeRequestUrl && (
+                      <a
+                        href={changeRequestUrl}
+                        style={{ color: 'blue', textDecoration: 'underline' }}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                      >
+                        Click here to create
+                      </a>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
