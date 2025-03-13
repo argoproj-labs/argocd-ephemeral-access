@@ -115,7 +115,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
             localStorage.setItem(applicationName, JSON.stringify(accessRequestData || null));
             handleAccessExpiration(accessRequestData);
             break;
-
+          case undefined:
           case AccessRequestResponseBodyStatus.INVALID:
           case AccessRequestResponseBodyStatus.REQUESTED:
           case AccessRequestResponseBodyStatus.INITIATED:
@@ -275,7 +275,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                 </div>
               </div>
               <div className='row white-box__details-row'>
-                <div className='columns small-3'>REQUESTED-AT</div>
+                <div className='columns small-3'>REQUESTED AT</div>
                 {requestedAt && (
                   <div className='columns small-9'>{getDisplayTime(requestedAt)}</div>
                 )}
