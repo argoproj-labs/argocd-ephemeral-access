@@ -115,9 +115,9 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 	return nil, nil
 }
 
-// ListAccessRequests will return all AccessRequests based on the given key. Expired
-// AccessRequests will be removed from the result. If shouldSort is true, the result
-// list will be sorted using defaultAccessRequestSort algorithm.
+// ListAccessRequests will return all AccessRequests based on the given key. If
+// shouldSort is true, the result list will be sorted using
+// defaultAccessRequestSort algorithm.
 func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequestKey, shouldSort bool) ([]*api.AccessRequest, error) {
 	logKeys := []interface{}{
 		"namespace", key.Namespace, "app", key.ApplicationName, "username", key.Username, "appNamespace", key.ApplicationNamespace,
@@ -128,20 +128,16 @@ func (s *DefaultService) ListAccessRequests(ctx context.Context, key *AccessRequ
 		return nil, fmt.Errorf("error getting accessrequest from k8s: %w", err)
 	}
 
-	filtered := []*api.AccessRequest{}
-	for i, ar := range accessRequests.Items {
-		if ar.Status.RequestState == api.ExpiredStatus {
-			// ignore expired request
-			continue
-		}
-		filtered = append(filtered, &accessRequests.Items[i])
+	result := []*api.AccessRequest{}
+	for _, ar := range accessRequests.Items {
+		result = append(result, &ar)
 	}
 
 	if shouldSort {
-		slices.SortStableFunc(filtered, defaultAccessRequestSort)
+		slices.SortStableFunc(result, defaultAccessRequestSort)
 	}
 
-	return filtered, nil
+	return result, nil
 }
 
 func (s *DefaultService) GetGrantingAccessBinding(ctx context.Context, roleName string, namespace string, groups []string, app *unstructured.Unstructured, project *unstructured.Unstructured) (*api.AccessBinding, error) {

@@ -164,31 +164,6 @@ func TestServiceListAccessRequest(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "some internal error")
 	})
-	t.Run("will filter expired access request", func(t *testing.T) {
-		// Given
-		f := serviceSetup(t)
-		key := &backend.AccessRequestKey{
-			Namespace:            "some-namespace",
-			ApplicationName:      "some-app",
-			ApplicationNamespace: "app-ns",
-			Username:             "some-user",
-		}
-		ar := newAccessRequest(key, "some-role")
-		ar2 := newAccessRequest(key, "some-role")
-		utils.ToRequestedState()(ar2)
-		utils.ToGrantedState()(ar2)
-		utils.ToExpiredState()(ar2)
-		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*ar, *ar2}}, nil)
-
-		// When
-		result, err := f.svc.ListAccessRequests(context.Background(), key, false)
-
-		// Then
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Equal(t, 1, len(result))
-		assert.Equal(t, ar, result[0])
-	})
 	t.Run("will sort access request", func(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
