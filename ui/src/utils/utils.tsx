@@ -60,10 +60,17 @@ export const getAccessRoles = async (
     }
 };
 
+export function getDisplayTime(requestedAt: string | null | undefined): string {
+  if (!requestedAt) {
+    return "";
+  }
 
+  const date = new Date(requestedAt);
+  if (isNaN(date.getTime())) {
+    return "";
+  }
 
-export function getDisplayTime(requestedAt: string) {
-  return new Date(requestedAt).toLocaleString();
+  return date.toLocaleString();
 }
 
 export  function getDisplayValue(value: string) {
