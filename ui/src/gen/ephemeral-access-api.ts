@@ -96,6 +96,7 @@ export type AccessRequestResponseBodyStatus =
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const AccessRequestResponseBodyStatus = {
+  INITIATED: 'INITIATED',
   REQUESTED: 'REQUESTED',
   GRANTED: 'GRANTED',
   EXPIRED: 'EXPIRED',

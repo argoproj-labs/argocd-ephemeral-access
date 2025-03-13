@@ -118,7 +118,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
           case AccessRequestResponseBodyStatus.INVALID:
           case AccessRequestResponseBodyStatus.REQUESTED:
-          case undefined:
+          case AccessRequestResponseBodyStatus.INITIATED:
             if (Date.now() < pollingEndTime) {
               setIsLoading(true);
               // Exponential backoff
