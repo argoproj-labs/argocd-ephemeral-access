@@ -28,9 +28,22 @@ func (p *SomePlugin) Init() error {
 	return nil
 }
 
-// GrantAccess is the method that will be called by the EphemeralAccess controller
-// when an AccessRequest is created. The EphemeralAccess controller will only proceed
-// granting the access if the returned GrantResponse.Status is plugin.GrantStatusGranted.
+// GrantAccess is the method that will be called by the EphemeralAccess
+// controller when an AccessRequest is created. It must return the
+// GrantResponse with one of the possible Status defined: 
+//
+//   - GrantStatusGranted: The EphemeralAccess controller will proceed
+//     granting the access for the given AccessRequest (ar)
+//
+//   - GrantStatusDenied: The EphemeralAccess controller will update the given
+//     AccessRequest with denied status and no further action will be executed
+//     in it.
+//
+//   - GrantStatusPending: Instructs to the EphemeralAccess controller that the
+//     given AccessRequest can not be granted yet. It will cause the controller to
+//     retry after the period configured in the EPHEMERAL_CONTROLLER_REQUEUE_INTERVAL
+//     configuration
+//
 // Returning a nil GrantResponse will cause an error in the EphemeralAccess controller
 // and no access will be granted.
 // This function can be used to addresss different use-cases.
