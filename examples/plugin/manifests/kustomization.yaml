@@ -1,0 +1,14 @@
+# This Kustomization exemplifies a full installation of the EphemeralAccess
+# extension configured with your plugin.
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Download the resources for installing the EphemeralAccess extension.
+resources:
+  - https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.1.5/install.yaml
+
+# The provided plugin component will patch the necessary resources in the EphemeralAccess
+# manifests in order to have your plugin installed.
+components:
+  - ./plugin

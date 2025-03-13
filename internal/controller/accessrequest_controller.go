@@ -148,15 +148,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, fmt.Errorf("roleTemplate error: %w", err)
 	}
 
-	// initialize the status if not done yet
-	if ar.Status.RequestState == "" {
-		logger.Debug("Initializing status")
-		ar.Status.TargetProject = application.Spec.Project
-		ar.Status.RoleName = renderedRt.AppProjectRoleName(application.GetName(), application.GetNamespace())
-		ar.Status.RoleTemplateHash = RoleTemplateHash(renderedRt)
-		r.Status().Update(ctx, ar)
-	}
-
 	logger.Debug("Handling permission")
 	status, err := r.Service.HandlePermission(ctx, ar, application, renderedRt)
 	if err != nil {

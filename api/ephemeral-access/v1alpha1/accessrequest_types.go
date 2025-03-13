@@ -25,10 +25,13 @@ import (
 
 // Status defines the different stages a given access request can be
 // at a given time.
-// +kubebuilder:validation:Enum=requested;granted;expired;denied;invalid
+// +kubebuilder:validation:Enum=initiated;requested;granted;expired;denied;invalid
 type Status string
 
 const (
+	// InitiatedStatus is the stage that defines the access request as initiated
+	InitiatedStatus Status = "initiated"
+
 	// RequestedStatus is the stage that defines the access request as pending
 	RequestedStatus Status = "requested"
 

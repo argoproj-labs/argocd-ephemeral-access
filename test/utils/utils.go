@@ -236,16 +236,43 @@ func ToInvalidState() AccessRequestMutation {
 
 // ToRequestedState transition the AccessRequest to a requested status
 func ToRequestedState() AccessRequestMutation {
+	// return func(ar *api.AccessRequest) {
+	// 	ar.Status = api.AccessRequestStatus{
+	// 		RequestState:     api.RequestedStatus,
+	// 		TargetProject:    "my-proj",
+	// 		RoleName:         "ephemeral-some-role",
+	// 		RoleTemplateHash: "0123456789",
+	// 		History: []api.AccessRequestHistory{
+	// 			{
+	// 				TransitionTime: metav1.Now(),
+	// 				RequestState:   api.RequestedStatus,
+	// 			},
+	// 		},
+	// 	}
+	// }
+
+	return func(ar *api.AccessRequest) {
+		now := metav1.Now()
+		ar.Status.RequestState = api.RequestedStatus
+		ar.Status.History = append(ar.Status.History, api.AccessRequestHistory{
+			TransitionTime: now,
+			RequestState:   api.RequestedStatus,
+		})
+	}
+}
+
+// ToInitiatedState transition the AccessRequest to the initiated status
+func ToInitiatedState() AccessRequestMutation {
 	return func(ar *api.AccessRequest) {
 		ar.Status = api.AccessRequestStatus{
-			RequestState:     api.RequestedStatus,
+			RequestState:     api.InitiatedStatus,
 			TargetProject:    "my-proj",
 			RoleName:         "ephemeral-some-role",
 			RoleTemplateHash: "0123456789",
 			History: []api.AccessRequestHistory{
 				{
 					TransitionTime: metav1.Now(),
-					RequestState:   api.RequestedStatus,
+					RequestState:   api.InitiatedStatus,
 				},
 			},
 		}
@@ -336,19 +363,24 @@ func NewAccessRequestInvalid(transformers ...AccessRequestMutation) *api.AccessR
 	return NewAccessRequestCreated(append([]AccessRequestMutation{ToInvalidState()}, transformers...)...)
 }
 
+// NewAccessRequestRequested creates an AccessRequest in initiated state
+func NewAccessRequestInitiated(transformers ...AccessRequestMutation) *api.AccessRequest {
+	return NewAccessRequestCreated(append([]AccessRequestMutation{ToInitiatedState()}, transformers...)...)
+}
+
 // NewAccessRequestRequested creates an AccessRequest transitioned in a requested state
 func NewAccessRequestRequested(transformers ...AccessRequestMutation) *api.AccessRequest {
-	return NewAccessRequestCreated(append([]AccessRequestMutation{ToRequestedState()}, transformers...)...)
+	return NewAccessRequestInitiated(append([]AccessRequestMutation{ToRequestedState()}, transformers...)...)
 }
 
 // NewAccessRequestGranted creates an AccessRequest transitioned in an invalid state
 func NewAccessRequestGranted(transformers ...AccessRequestMutation) *api.AccessRequest {
-	return NewAccessRequestRequested(append([]AccessRequestMutation{ToGrantedState()}, transformers...)...)
+	return NewAccessRequestInitiated(append([]AccessRequestMutation{ToGrantedState()}, transformers...)...)
 }
 
 // NewAccessRequestDenied creates an AccessRequest transitioned in a denied state
 func NewAccessRequestDenied(transformers ...AccessRequestMutation) *api.AccessRequest {
-	return NewAccessRequestRequested(append([]AccessRequestMutation{ToDeniedState()}, transformers...)...)
+	return NewAccessRequestInitiated(append([]AccessRequestMutation{ToDeniedState()}, transformers...)...)
 }
 
 // NewAccessRequestExpired creates an AccessRequest transitioned in an expired state

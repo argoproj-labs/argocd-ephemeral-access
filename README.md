@@ -1,4 +1,4 @@
-# argocd-ephemeral-access
+# Argo CD EphemeralAccess Extension
 
 ## Overview
 
@@ -12,6 +12,16 @@ managed by creating and updating Argo CD `AppProject` roles.
 
 Note: This project requires that the Argo CD `Applications` are
 associated with an `AppProjects` different than `default`.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Demo](#demo)
+- [Prereqs](#prereqs)
+- [Installation](#installation)
+- [How it Works](#how-it-works)
+- [Contributing](#contributing)
+- [Plugins](#plugins)
 
 ## Demo
 
@@ -340,6 +350,18 @@ To build a docker image with custom namespace and tag run
 ```bash
 IMAGE_NAMESPACE="my.company.com/argoproj-labs" IMAGE_TAG="$(git rev-parse --abbrev-ref HEAD)" make docker-build
 ```
+
+## Plugins
+
+The EphemeralAccess extension provides a plugin capability that can be
+used to enhance its core functionality. A few examples are:
+
+- Access ServiceNow API to verify if the given Application has an associated
+Change Request in approved state before elevating the user's access.
+- Access company's internal services for last mile user access validation.
+
+To learn more about plugins and learn about how to implement one,
+check the `examples/plugin` folder in this repository.
 
 [1]: https://github.com/argoproj-labs/argocd-ephemeral-access/releases
 [2]: https://github.com/argoproj-labs/argocd-extension-installer

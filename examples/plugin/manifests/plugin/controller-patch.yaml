@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller
+  namespace: argocd-ephemeral-access
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: plugin-installer
+          image: CHANGE_THIS_TO_POINT_TO_YOUR_PLUGIN_IMAGE
+          env:
+            - name: PLUGIN_PATH
+              value: /workspace/plugin
+          volumeMounts:
+            - name: plugins
+              mountPath: /tmp/plugin/
+      containers:
+        - name: controller
+          env:
+            - name: EPHEMERAL_PLUGIN_PATH
+              value: /tmp/plugin/plugin
+          volumeMounts:
+            - name: plugins
+              mountPath: /tmp/plugin/
+      volumes:
+        - emptyDir: {}
+          name: plugins

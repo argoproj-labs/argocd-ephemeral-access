@@ -649,6 +649,23 @@ func Test_toAccessRequestResponseBody(t *testing.T) {
 			},
 		},
 		{
+			name:          "access request initiated",
+			accessRequest: utils.NewAccessRequestInitiated(utils.WithRole()),
+			expected: func(ar *api.AccessRequest) backend.AccessRequestResponseBody {
+				return backend.AccessRequestResponseBody{
+					Name:        ar.GetName(),
+					Namespace:   ar.GetNamespace(),
+					Username:    ar.Spec.Subject.Username,
+					Role:        ar.Spec.Role.TemplateRef.Name,
+					Permission:  *ar.Spec.Role.FriendlyName,
+					RequestedAt: getHistoryForStatus(ar.Status.History, api.InitiatedStatus).TransitionTime.Format(time.RFC3339),
+					Status:      strings.ToUpper(string(ar.Status.RequestState)),
+					ExpiresAt:   "",
+					Message:     "",
+				}
+			},
+		},
+		{
 			name:          "access request requested",
 			accessRequest: utils.NewAccessRequestRequested(utils.WithRole()),
 			expected: func(ar *api.AccessRequest) backend.AccessRequestResponseBody {
@@ -675,7 +692,7 @@ func Test_toAccessRequestResponseBody(t *testing.T) {
 					Username:    ar.Spec.Subject.Username,
 					Role:        ar.Spec.Role.TemplateRef.Name,
 					Permission:  *ar.Spec.Role.FriendlyName,
-					RequestedAt: getHistoryForStatus(ar.Status.History, api.RequestedStatus).TransitionTime.Format(time.RFC3339),
+					RequestedAt: getHistoryForStatus(ar.Status.History, api.InitiatedStatus).TransitionTime.Format(time.RFC3339),
 					Status:      strings.ToUpper(string(ar.Status.RequestState)),
 					ExpiresAt:   ar.Status.ExpiresAt.Format(time.RFC3339),
 					Message:     "",
@@ -692,7 +709,7 @@ func Test_toAccessRequestResponseBody(t *testing.T) {
 					Username:    ar.Spec.Subject.Username,
 					Role:        ar.Spec.Role.TemplateRef.Name,
 					Permission:  *ar.Spec.Role.FriendlyName,
-					RequestedAt: getHistoryForStatus(ar.Status.History, api.RequestedStatus).TransitionTime.Format(time.RFC3339),
+					RequestedAt: getHistoryForStatus(ar.Status.History, api.InitiatedStatus).TransitionTime.Format(time.RFC3339),
 					Status:      strings.ToUpper(string(ar.Status.RequestState)),
 					ExpiresAt:   ar.Status.ExpiresAt.Format(time.RFC3339),
 					Message:     "",
@@ -709,7 +726,7 @@ func Test_toAccessRequestResponseBody(t *testing.T) {
 					Username:    ar.Spec.Subject.Username,
 					Role:        ar.Spec.Role.TemplateRef.Name,
 					Permission:  *ar.Spec.Role.FriendlyName,
-					RequestedAt: getHistoryForStatus(ar.Status.History, api.RequestedStatus).TransitionTime.Format(time.RFC3339),
+					RequestedAt: getHistoryForStatus(ar.Status.History, api.InitiatedStatus).TransitionTime.Format(time.RFC3339),
 					Status:      strings.ToUpper(string(ar.Status.RequestState)),
 					ExpiresAt:   "",
 					Message:     *getHistoryForStatus(ar.Status.History, api.DeniedStatus).Details,
@@ -718,10 +735,11 @@ func Test_toAccessRequestResponseBody(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			expected := tt.expected(tt.accessRequest)
 			if got := backend.ToAccessRequestResponseBody(tt.accessRequest); !reflect.DeepEqual(got, expected) {
-				t.Errorf("toAccessRequestResponseBody() = %v, want %v", got, expected)
+				t.Errorf("%s test mismatch:\nwant: %v\ngot:  %v", tt.name, expected, got)
 			}
 		})
 	}
