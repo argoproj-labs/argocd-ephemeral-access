@@ -353,15 +353,15 @@ IMAGE_NAMESPACE="my.company.com/argoproj-labs" IMAGE_TAG="$(git rev-parse --abbr
 
 ## Plugins
 
-The EphemeralAccess extension allows hooking a plugin to enhance the
-core functionality. A few examples are:
+The EphemeralAccess extension provides a plugin capability that can be
+used to enhance its core functionality. A few examples are:
 
-- Access ServiceNow API to verify if the given app has an associated
-Change Request in approved state
-- Access internal service for last mile user access validation
+- Access ServiceNow API to verify if the given Application has an associated
+Change Request in approved state before elevating the user's access.
+- Access company's internal services for last mile user access validation.
 
-To learn how to implement an EphemeralAccess plugin please refer to
-the `examples/plugin` folder in this repo.
+To learn more about plugins and learn about how to implement one,
+check the `examples/plugin` folder in this repository.
 
 [1]: https://github.com/argoproj-labs/argocd-ephemeral-access/releases
 [2]: https://github.com/argoproj-labs/argocd-extension-installer
