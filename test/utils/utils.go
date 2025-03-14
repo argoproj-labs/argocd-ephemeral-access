@@ -236,21 +236,6 @@ func ToInvalidState() AccessRequestMutation {
 
 // ToRequestedState transition the AccessRequest to a requested status
 func ToRequestedState() AccessRequestMutation {
-	// return func(ar *api.AccessRequest) {
-	// 	ar.Status = api.AccessRequestStatus{
-	// 		RequestState:     api.RequestedStatus,
-	// 		TargetProject:    "my-proj",
-	// 		RoleName:         "ephemeral-some-role",
-	// 		RoleTemplateHash: "0123456789",
-	// 		History: []api.AccessRequestHistory{
-	// 			{
-	// 				TransitionTime: metav1.Now(),
-	// 				RequestState:   api.RequestedStatus,
-	// 			},
-	// 		},
-	// 	}
-	// }
-
 	return func(ar *api.AccessRequest) {
 		now := metav1.Now()
 		ar.Status.RequestState = api.RequestedStatus

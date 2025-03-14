@@ -64,8 +64,9 @@ type DefaultService struct {
 // and the order as value.
 func requestStateOrder() map[api.Status]int {
 	return map[api.Status]int{
-		// empty is the default and assumed to be the same as requested
+		// empty is the default and assumed to be the same as initiated
 		"":                  0,
+		api.InitiatedStatus: 0,
 		api.RequestedStatus: 0,
 		api.GrantedStatus:   1,
 		api.DeniedStatus:    2,
@@ -107,7 +108,8 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 	// find the first access request matching the requested role
 	for _, ar := range accessRequests {
 		if ar.Spec.Role.TemplateRef.Name == roleName &&
-			ar.Status.RequestState != api.DeniedStatus {
+			ar.Status.RequestState != api.DeniedStatus &&
+			ar.Status.RequestState != api.ExpiredStatus {
 			return ar, nil
 		}
 	}
@@ -376,7 +378,7 @@ func accessBindingOrdinalSortDesc(a, b *api.AccessBinding) int {
 // 1. requestStateOrder defined by the requestStateOrder() function
 // 2. AccessRequest.Spec.Role.Ordinal field
 // 3. AccessRequest.Spec.Role.TemplateRef.Name field
-// 4. AccessRequest.CreationTimestamp field
+// 4. AccessRequest.CreationTimestamp field in descending order
 func defaultAccessRequestSort(a, b *api.AccessRequest) int {
 	requestStateOrder := requestStateOrder()
 	// sort by status
@@ -385,7 +387,6 @@ func defaultAccessRequestSort(a, b *api.AccessRequest) int {
 		bOrder := requestStateOrder[b.Status.RequestState]
 		return aOrder - bOrder
 	}
-
 	// sort by ordinal ascending
 	if a.Spec.Role.Ordinal != b.Spec.Role.Ordinal {
 		return a.Spec.Role.Ordinal - b.Spec.Role.Ordinal
@@ -399,10 +400,9 @@ func defaultAccessRequestSort(a, b *api.AccessRequest) int {
 	// sort by creation date. Priority to newer request
 	if a.CreationTimestamp != b.CreationTimestamp {
 		if a.CreationTimestamp.Before(&b.CreationTimestamp) {
-			return -1
+			return +1
 		}
-		return +1
+		return -1
 	}
-
 	return 0
 }

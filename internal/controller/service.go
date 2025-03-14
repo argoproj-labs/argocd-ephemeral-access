@@ -79,6 +79,12 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 		s.updateStatus(ctx, ar, api.InitiatedStatus, "", RoleTemplateHash(rt))
 	}
 
+	// if accessRequest is already granted but not yet expired there is no
+	// permission to be modified.
+	if ar.Status.RequestState == api.GrantedStatus {
+		return api.GrantedStatus, nil
+	}
+
 	// invoke the configured plugin to check if the ar.Spec.Subject
 	// is allowed to get their access elevated. If no plugin is configured
 	// it will always allow.
