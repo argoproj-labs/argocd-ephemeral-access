@@ -65,7 +65,6 @@ export const getAccessRoles = async (
 };
 
 export function getDisplayTime(requestedAt: string): string {
-
   const date = new Date(requestedAt);
   if (isNaN(date.getTime())) {
     return '';

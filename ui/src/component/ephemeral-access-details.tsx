@@ -60,15 +60,20 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     }
   };
 
+  const resetPermissionState = () => {
+    setCurrentAccessRequest(null);
+    setSelectedRole('');
+    selectedRoleRef.current = '';
+    localStorage.setItem(applicationName, 'null');
+  };
+
   const handleAccessExpiration = (accessData: AccessRequestResponseBody) => {
-    if (accessData.expiresAt) {
+    if (accessData?.expiresAt) {
+      localStorage.setItem(applicationName, JSON.stringify(accessData || null));
       const timeoutDuration = moment.parseZone(accessData.expiresAt).valueOf() - moment().valueOf();
       if (timeoutDuration > 0) {
         setTimeout(() => {
-          setCurrentAccessRequest(null);
-          setSelectedRole('');
-          selectedRoleRef.current = '';
-          localStorage.setItem(applicationName, 'null');
+          resetPermissionState();
         }, timeoutDuration);
       }
     }
@@ -93,7 +98,8 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   const fetchAccessRequest = useCallback(async () => {
     let currentDelay = 300;
-    const maxDelay = 30000;
+    // max delay 3 seconds
+    const maxDelay = 3000;
     // 1 hour max polling duration
     const maxPollingDuration = 3600000;
 
@@ -106,19 +112,18 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         });
         const accessRequestData: AccessRequestResponseBody | null =
           data.items.length > 0 ? data.items[0] : null;
-        setCurrentAccessRequest(accessRequestData);
 
         const status = accessRequestData && accessRequestData?.status;
 
         switch (status) {
           case AccessRequestResponseBodyStatus.GRANTED:
-            localStorage.setItem(applicationName, JSON.stringify(accessRequestData || null));
+            setCurrentAccessRequest(accessRequestData);
             handleAccessExpiration(accessRequestData);
             break;
           case undefined:
-          case AccessRequestResponseBodyStatus.INVALID:
           case AccessRequestResponseBodyStatus.REQUESTED:
           case AccessRequestResponseBodyStatus.INITIATED:
+            setCurrentAccessRequest(accessRequestData);
             if (Date.now() < pollingEndTime) {
               setIsLoading(true);
               // Exponential backoff
@@ -135,18 +140,10 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
               returnError(errorObject);
             }
             break;
-
-          case AccessRequestResponseBodyStatus.DENIED:
-            setIsLoading(false);
-            localStorage.setItem(applicationName, 'null');
-            break;
-
           default:
-            setIsLoading(false);
-            localStorage.setItem(applicationName, 'null');
+            resetPermissionState();
             break;
         }
-
         return;
       } catch (error) {
         setIsLoading(false);
@@ -285,13 +282,12 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                 <div className='columns small-3'>REQUESTED AT</div>
                 <div className='columns small-9'>{getDisplayTime(requestedAt)}</div>
               </div>
-              <div
-                className='row white-box__details-row'
-                style={{ display: 'flex', alignItems: 'center' }}
-              >
+              <div className='row white-box__details-row'>
                 <div className='columns small-3'>EXPIRES</div>
                 <div className='columns small-9'>
-                  {moment(expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
+                  {expiresAt && expiresAt !== ''
+                    ? moment.utc(expiresAt).local().format('MMMM Do YYYY, h:mm:ss a')
+                    : ''}
                 </div>
               </div>
               <div className='row white-box__details-row'>
