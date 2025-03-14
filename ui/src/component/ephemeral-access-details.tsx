@@ -194,9 +194,18 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     fetchAccessRequest();
   }, []);
 
-  const { status, permission, role, requestedAt, message, expiresAt } = currentAccessRequest || {};
+  const {
+    status = '',
+    permission = '',
+    role = '',
+    requestedAt = '',
+    message = '',
+    expiresAt = ''
+  } = currentAccessRequest || {};
   const changeRequestUrl = window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_CHANGE_REQUEST_URL;
-
+  const mainBanner = window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER;
+  const mainBannerLink =
+    window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK;
   return (
     <div className='access-form'>
       <div className=''>
@@ -217,13 +226,11 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
             About Requesting Temporary Access
           </div>
           <div className='access-form__usrmsg__warning-content'>
-            {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER}
-            {window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK && (
+            {mainBanner}
+            {mainBannerLink && (
               <a
                 style={{ color: 'blue', textDecoration: 'underline' }}
-                href={
-                  window?.EPHEMERAL_ACCESS_VARS?.EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK
-                }
+                href={mainBannerLink}
                 target='_blank'
                 rel='noopener noreferrer'
               >
@@ -276,21 +283,17 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>REQUESTED AT</div>
-                {requestedAt && (
-                  <div className='columns small-9'>{getDisplayTime(requestedAt)}</div>
-                )}
+                <div className='columns small-9'>{getDisplayTime(requestedAt)}</div>
               </div>
-              {expiresAt && (
-                <div
-                  className='row white-box__details-row'
-                  style={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <div className='columns small-3'>EXPIRES</div>
-                  <div className='columns small-9'>
-                    {moment(expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
-                  </div>
+              <div
+                className='row white-box__details-row'
+                style={{ display: 'flex', alignItems: 'center' }}
+              >
+                <div className='columns small-3'>EXPIRES</div>
+                <div className='columns small-9'>
+                  {moment(expiresAt).format('MMMM Do YYYY, h:mm:ss a')}
                 </div>
-              )}
+              </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>MESSAGE</div>
                 <div className='columns small-9' style={{ lineHeight: '1.75' }}>
