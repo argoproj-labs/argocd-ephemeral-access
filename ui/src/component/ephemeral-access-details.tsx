@@ -94,7 +94,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     } catch (error) {
       returnError(error);
     }
-  }, [applicationName, applicationNamespace, project, username]);
+  }, [applicationName, applicationNamespace]);
 
   const fetchAccessRequest = useCallback(async () => {
     let currentDelay = 300;
@@ -151,7 +151,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       }
     };
     poll();
-  }, [applicationName, applicationNamespace, project, username]);
+  }, [applicationName, applicationNamespace]);
 
   const submitAccessRequest = async () => {
     try {
@@ -163,7 +163,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       await createAccessrequest(
         { roleName },
         {
-          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+          headers: getHeaders({ applicationName, applicationNamespace, project })
         }
       );
 
