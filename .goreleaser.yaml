@@ -47,6 +47,8 @@ dockers:
       - quay.io/argoprojlabs/argocd-ephemeral-access-plugin:latest
       - quay.io/argoprojlabs/argocd-ephemeral-access-plugin:{{ .Tag }}
     dockerfile: plugin.Dockerfile
+    extra_files:
+      - scripts/plugin-installer.sh
     skip_push: '{{ .IsSnapshot }}'
     build_flag_templates:
       - '--pull'
