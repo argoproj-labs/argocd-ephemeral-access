@@ -2,6 +2,7 @@ import React from 'react';
 import { Application } from '../models/type';
 import { AllowedRoleResponseBody, listAllowedroles } from '../gen/ephemeral-access-api';
 import { getHeaders } from '../config/client';
+import moment from "moment/moment";
 
 export enum PermissionRole {
   DEFAULT_DISPLAY_ACCESS = 'Read',
@@ -64,14 +65,14 @@ export const getAccessRoles = async (
   }
 };
 
-export function getDisplayTime(requestedAt: string): string {
+export function getDisplayTime(dateStr: string): string {
+  const date = moment.utc(dateStr);
 
-  const date = new Date(requestedAt);
-  if (isNaN(date.getTime())) {
+  if (!date.isValid()) {
     return '';
   }
 
-  return date.toLocaleString();
+  return date.local().format('MMMM Do YYYY, h:mm:ss a');
 }
 
 export function getDisplayValue(value: string) {

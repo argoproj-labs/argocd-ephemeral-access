@@ -21,7 +21,7 @@ const EphemeralRoleSelection: React.FC<RoleSelectionProps> = ({
 
   const getDropDownOptions = () => {
     return (
-      <div>
+      <div className='white-box__details'>
         <p>{PermissionRole.PERMISSION_REQUEST}</p>
         <div className='row white-box__details-row'>
           <div className='columns small-3 access-form__label'>
