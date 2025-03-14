@@ -284,11 +284,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>EXPIRES</div>
-                <div className='columns small-9'>
-                  {expiresAt && expiresAt !== ''
-                    ? moment.utc(expiresAt).local().format('MMMM Do YYYY, h:mm:ss a')
-                    : ''}
-                </div>
+                <div className='columns small-9'>{getDisplayTime(expiresAt)}</div>
               </div>
               <div className='row white-box__details-row'>
                 <div className='columns small-3'>MESSAGE</div>
