@@ -807,7 +807,7 @@ func Test_defaultAccessRequestSort(t *testing.T) {
 		require.Equal(t, second, items[1])
 		require.Equal(t, third, items[2])
 	})
-	t.Run("array should be ordered by creation for the same status, ordinal and role name", func(t *testing.T) {
+	t.Run("array should be descending ordered by creation for the same status, ordinal and role name", func(t *testing.T) {
 		// Given
 		base := utils.NewAccessRequestCreated(utils.WithRole())
 		first := base.DeepCopy()
@@ -829,9 +829,9 @@ func Test_defaultAccessRequestSort(t *testing.T) {
 		// Then
 		require.Equal(t, 3, len(items))
 		// compare each object because it makes it easier to investigate on test failures
-		require.Equal(t, first, items[0])
+		require.Equal(t, third, items[0])
 		require.Equal(t, second, items[1])
-		require.Equal(t, third, items[2])
+		require.Equal(t, first, items[2])
 	})
 }
 
