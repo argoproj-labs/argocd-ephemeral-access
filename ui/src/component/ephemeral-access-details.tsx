@@ -108,7 +108,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     const poll = async () => {
       try {
         const { data } = await listAccessrequest({
-          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+          headers: getHeaders({ applicationName, applicationNamespace, project })
         });
         const accessRequestData: AccessRequestResponseBody | null =
           data.items.length > 0 ? data.items[0] : null;

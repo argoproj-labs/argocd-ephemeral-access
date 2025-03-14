@@ -5,38 +5,68 @@ import { Application } from '../models/type';
 import { ARGO_GRAY6_COLOR } from '../shared/colors';
 import { HelpIcon } from 'argo-ui/src/components/help-icon/help-icon';
 import { EnableEphemeralAccess, getDefaultDisplayAccessRole } from '../utils/utils';
-import { AccessRequestResponseBody } from '../gen/ephemeral-access-api';
+import {
+  AccessRequestResponseBody,
+  AccessRequestResponseBodyStatus,
+  listAccessrequest
+} from "../gen/ephemeral-access-api";
 import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
+import { getHeaders } from "../config/client";
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
 
-  const getPermissions = (accessPermission: AccessRequestResponseBody) => {
-    if (accessPermission) {
-      const expiryTime = moment.parseZone(accessPermission.expiresAt);
-      setAccessRequest(accessPermission);
+  const applicationNamespace = application?.metadata?.namespace || '';
+  const applicationName = application?.metadata?.name || '';
+  const project = application?.spec?.project || '';
+
+  useEffect(() => {
+    const checkLocalStorage = () => {
+      const storedAccessPermission = JSON.parse((localStorage.getItem(applicationName) || '{}')) as AccessRequestResponseBody;
+      if (storedAccessPermission) {
+        setAccessRequest(storedAccessPermission);
+      }
+      const expiryTime = moment.parseZone(storedAccessPermission?.expiresAt);
+
       const diffInSeconds = expiryTime.diff(moment(), 'seconds');
       if (diffInSeconds <= 0) {
         setAccessRequest(null);
-      } else {
-        setAccessRequest(accessPermission);
       }
-    }
-  };
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
-      if (accessPermission === null) {
-        clearInterval(intervalId);
-        localStorage.removeItem(application.metadata?.name);
-        setAccessRequest(null);
-      } else {
-        getPermissions(accessPermission);
-      }
-    }, 100);
+    };
+    checkLocalStorage();
+    const intervalId = setInterval(checkLocalStorage, 1000);
 
     return () => clearInterval(intervalId);
-  }, [localStorage.getItem(application.metadata?.name), accessRequest]);
+  }, [applicationName]);
+
+  useEffect(() => {
+    const pollAccessRequest = async () => {
+      try {
+        const accessPermission = JSON.parse(localStorage.getItem(applicationName)) as AccessRequestResponseBody;
+
+        if (accessPermission && (accessPermission.permission === undefined || accessPermission.permission === AccessRequestResponseBodyStatus.REQUESTED || accessPermission.permission === AccessRequestResponseBodyStatus.INITIATED)) {
+          const { data } = await listAccessrequest({
+            headers: getHeaders({ applicationName, applicationNamespace, project })
+          });
+
+          const accessRequestData: AccessRequestResponseBody | null = data.items.length > 0 ? data.items[0] : null;
+
+          if (accessRequestData) {
+            const status = accessRequestData.status;
+            if (status === AccessRequestResponseBodyStatus.GRANTED || status === AccessRequestResponseBodyStatus.DENIED) {
+              setAccessRequest(accessRequestData);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error polling access request:', error);
+      }
+    };
+
+    const intervalId = setInterval(pollAccessRequest, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [applicationName, applicationNamespace, project]);
+
 
   const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
     let color = ACCESS_DEFAULT_COLOR;
