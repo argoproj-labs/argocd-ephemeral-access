@@ -35,43 +35,43 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
   useEffect(() => {
     const pollAccessRequest = async () => {
       try {
-        console.log('Polling access request');
         const accessPermission = JSON.parse(
           localStorage.getItem(applicationName)
         ) as AccessRequestResponseBody;
         const currStatus = accessPermission?.status;
-        if (
-          accessPermission &&
+        if(accessPermission) {
+          if
           (currStatus === undefined ||
-            currStatus=== AccessRequestResponseBodyStatus.REQUESTED ||
-            currStatus === AccessRequestResponseBodyStatus.INITIATED)
-        ) {
-          const { data } = await listAccessrequest({
-            headers: getHeaders({ applicationName, applicationNamespace, project })
-          });
+            currStatus === AccessRequestResponseBodyStatus.REQUESTED ||
+            currStatus === AccessRequestResponseBodyStatus.INITIATED
+          ) {
+            const { data } = await listAccessrequest({
+              headers: getHeaders({ applicationName, applicationNamespace, project })
+            });
 
-          const accessRequestData: AccessRequestResponseBody | null =
-            data.items.length > 0 ? data.items[0] : null;
+            const accessRequestData: AccessRequestResponseBody | null =
+              data.items.length > 0 ? data.items[0] : null;
 
-          if (accessRequestData) {
-            const nextStatus = accessRequestData.status;
-            if (
-              nextStatus === AccessRequestResponseBodyStatus.GRANTED ||
-              nextStatus === AccessRequestResponseBodyStatus.DENIED
-            ) {
-              setAccessRequest(accessRequestData);
-              const expiryTime = moment.parseZone(accessRequestData?.expiresAt);
-
-              const diffInSeconds = expiryTime.diff(moment(), 'seconds');
-              if (diffInSeconds <= 0) {
-                clearInterval(intervalId);
-                setAccessRequest(null);
+            if (accessRequestData) {
+              const nextStatus = accessRequestData.status;
+              if (
+                nextStatus === AccessRequestResponseBodyStatus.GRANTED ||
+                nextStatus === AccessRequestResponseBodyStatus.DENIED
+              ) {
+                setAccessRequest(accessRequestData);
+                const expiryTime = moment.parseZone(accessRequestData?.expiresAt);
+                const diffInSeconds = expiryTime.diff(moment(), 'seconds');
+                if (diffInSeconds <= 0) {
+                  clearInterval(intervalId);
+                  setAccessRequest(null);
+                }
               }
             }
           }
+        } else {
+          setAccessRequest(null);
         }
       } catch (error) {
-        console.error('Error polling access request:', error);
       }
     };
     const intervalId = setInterval(pollAccessRequest, 3000);
