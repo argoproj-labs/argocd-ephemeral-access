@@ -69,7 +69,6 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   const handleAccessExpiration = (accessData: AccessRequestResponseBody) => {
     if (accessData?.expiresAt) {
-      localStorage.setItem(applicationName, JSON.stringify(accessData || null));
       const timeoutDuration = moment.parseZone(accessData.expiresAt).valueOf() - moment().valueOf();
       if (timeoutDuration > 0) {
         setTimeout(() => {
@@ -114,16 +113,16 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
           data.items.length > 0 ? data.items[0] : null;
 
         const status = accessRequestData && accessRequestData?.status;
+        setCurrentAccessRequest(accessRequestData);
+        localStorage.setItem(applicationName, JSON.stringify(accessRequestData || null));
 
         switch (status) {
           case AccessRequestResponseBodyStatus.GRANTED:
-            setCurrentAccessRequest(accessRequestData);
             handleAccessExpiration(accessRequestData);
             break;
           case undefined:
           case AccessRequestResponseBodyStatus.REQUESTED:
           case AccessRequestResponseBodyStatus.INITIATED:
-            setCurrentAccessRequest(accessRequestData);
             if (Date.now() < pollingEndTime) {
               setIsLoading(true);
               // Exponential backoff
