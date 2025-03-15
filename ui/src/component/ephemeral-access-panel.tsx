@@ -8,32 +8,23 @@ import { EnableEphemeralAccess, getDefaultDisplayAccessRole } from '../utils/uti
 import {
   AccessRequestResponseBody,
   AccessRequestResponseBodyStatus,
+  listAccessrequest
 } from '../gen/ephemeral-access-api';
 import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
+import { getHeaders } from '../config/client';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
- const applicationName = application?.metadata?.name || '';
+  const [appStorage, setAppStorage] = useState<string | null>(null);
+
+  const applicationNamespace = application?.metadata?.namespace || '';
+  const applicationName = application?.metadata?.name || '';
+  const project = application?.spec?.project || '';
 
   useEffect(() => {
     const handleStorageChange = () => {
-      const accessRequestData = JSON.parse(localStorage.getItem('accessRequest')) as AccessRequestResponseBody;
-      if (accessRequestData) {
-        const nextStatus = accessRequestData.status;
-        if (
-          nextStatus === AccessRequestResponseBodyStatus.GRANTED ||
-          nextStatus === AccessRequestResponseBodyStatus.DENIED
-        ) {
-          setAccessRequest(accessRequestData);
-          const expiryTime = moment.parseZone(accessRequestData.expiresAt);
-
-          const diffInSeconds = expiryTime.diff(moment(), 'seconds');
-          if (diffInSeconds <= 0) {
-            setAccessRequest(null);
-          }
-        }
-      }
+      const storedValue = localStorage.getItem(applicationName);
+      setAppStorage(storedValue);
     };
-
     window.addEventListener('storage', handleStorageChange);
     handleStorageChange();
     return () => {
@@ -41,6 +32,51 @@ const DisplayAccessPermission: React.FC<{ application: Application }> = ({ appli
     };
   }, [applicationName]);
 
+  useEffect(() => {
+    const pollAccessRequest = async () => {
+      try {
+        console.log('Polling access request');
+        const accessPermission = JSON.parse(
+          localStorage.getItem(applicationName)
+        ) as AccessRequestResponseBody;
+        const currStatus = accessPermission?.status;
+        if (
+          accessPermission &&
+          (currStatus === undefined ||
+            currStatus=== AccessRequestResponseBodyStatus.REQUESTED ||
+            currStatus === AccessRequestResponseBodyStatus.INITIATED)
+        ) {
+          const { data } = await listAccessrequest({
+            headers: getHeaders({ applicationName, applicationNamespace, project })
+          });
+
+          const accessRequestData: AccessRequestResponseBody | null =
+            data.items.length > 0 ? data.items[0] : null;
+
+          if (accessRequestData) {
+            const nextStatus = accessRequestData.status;
+            if (
+              nextStatus === AccessRequestResponseBodyStatus.GRANTED ||
+              nextStatus === AccessRequestResponseBodyStatus.DENIED
+            ) {
+              setAccessRequest(accessRequestData);
+              const expiryTime = moment.parseZone(accessRequestData?.expiresAt);
+
+              const diffInSeconds = expiryTime.diff(moment(), 'seconds');
+              if (diffInSeconds <= 0) {
+                clearInterval(intervalId);
+                setAccessRequest(null);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error polling access request:', error);
+      }
+    };
+    const intervalId = setInterval(pollAccessRequest, 3000);
+    return () => clearInterval(intervalId);
+  }, [applicationName, applicationNamespace, project, appStorage]);
 
   const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
     let color = ACCESS_DEFAULT_COLOR;
