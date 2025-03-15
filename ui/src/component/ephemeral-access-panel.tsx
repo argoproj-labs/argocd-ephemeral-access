@@ -5,38 +5,78 @@ import { Application } from '../models/type';
 import { ARGO_GRAY6_COLOR } from '../shared/colors';
 import { HelpIcon } from 'argo-ui/src/components/help-icon/help-icon';
 import { EnableEphemeralAccess, getDefaultDisplayAccessRole } from '../utils/utils';
-import { AccessRequestResponseBody } from '../gen/ephemeral-access-api';
+import {
+  AccessRequestResponseBody,
+  AccessRequestResponseBodyStatus,
+  listAccessrequest
+} from '../gen/ephemeral-access-api';
 import { ACCESS_DEFAULT_COLOR, ACCESS_PERMISSION_COLOR } from '../constant';
+import { getHeaders } from '../config/client';
 const DisplayAccessPermission: React.FC<{ application: Application }> = ({ application }) => {
   const [accessRequest, setAccessRequest] = useState<AccessRequestResponseBody | null>(null);
+  const [appStorage, setAppStorage] = useState<string | null>(null);
 
-  const getPermissions = (accessPermission: AccessRequestResponseBody) => {
-    if (accessPermission) {
-      const expiryTime = moment.parseZone(accessPermission.expiresAt);
-      setAccessRequest(accessPermission);
-      const diffInSeconds = expiryTime.diff(moment(), 'seconds');
-      if (diffInSeconds <= 0) {
-        setAccessRequest(null);
-      } else {
-        setAccessRequest(accessPermission);
-      }
-    }
-  };
+  const applicationNamespace = application?.metadata?.namespace || '';
+  const applicationName = application?.metadata?.name || '';
+  const project = application?.spec?.project || '';
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      const accessPermission = JSON.parse(localStorage.getItem(application.metadata?.name));
-      if (accessPermission === null) {
-        clearInterval(intervalId);
-        localStorage.removeItem(application.metadata?.name);
-        setAccessRequest(null);
-      } else {
-        getPermissions(accessPermission);
-      }
-    }, 100);
+    const handleStorageChange = () => {
+      const storedValue = localStorage.getItem(applicationName);
+      setAppStorage(storedValue);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    handleStorageChange();
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [applicationName]);
 
+  useEffect(() => {
+    const pollAccessRequest = async () => {
+      try {
+        const accessPermission = JSON.parse(
+          localStorage.getItem(applicationName)
+        ) as AccessRequestResponseBody;
+        const currStatus = accessPermission?.status;
+        if(accessPermission) {
+          if
+          (currStatus === undefined ||
+            currStatus === AccessRequestResponseBodyStatus.REQUESTED ||
+            currStatus === AccessRequestResponseBodyStatus.INITIATED
+          ) {
+            const { data } = await listAccessrequest({
+              headers: getHeaders({ applicationName, applicationNamespace, project })
+            });
+
+            const accessRequestData: AccessRequestResponseBody | null =
+              data.items.length > 0 ? data.items[0] : null;
+
+            if (accessRequestData) {
+              const nextStatus = accessRequestData.status;
+              if (
+                nextStatus === AccessRequestResponseBodyStatus.GRANTED ||
+                nextStatus === AccessRequestResponseBodyStatus.DENIED
+              ) {
+                setAccessRequest(accessRequestData);
+                const expiryTime = moment.parseZone(accessRequestData?.expiresAt);
+                const diffInSeconds = expiryTime.diff(moment(), 'seconds');
+                if (diffInSeconds <= 0) {
+                  clearInterval(intervalId);
+                  setAccessRequest(null);
+                }
+              }
+            }
+          }
+        } else {
+          setAccessRequest(null);
+        }
+      } catch (error) {
+      }
+    };
+    const intervalId = setInterval(pollAccessRequest, 3000);
     return () => clearInterval(intervalId);
-  }, [localStorage.getItem(application.metadata?.name), accessRequest]);
+  }, [applicationName, applicationNamespace, project, appStorage]);
 
   const AccessPanel = ({ accessRequest }: { accessRequest: AccessRequestResponseBody }) => {
     let color = ACCESS_DEFAULT_COLOR;
