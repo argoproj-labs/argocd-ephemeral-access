@@ -19,6 +19,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend/metrics"
 	"net/http"
 	"time"
 
@@ -44,6 +45,8 @@ type Options struct {
 type BackendConfig struct {
 	// Port defines the port used to listen to http requests sent to this service
 	Port int `env:"EPHEMERAL_BACKEND_PORT, default=8888"`
+	// MetricPort defined the port used to expose http request metrics
+	MetricsPort int `env:"EPHEMERAL_BACKEND_METRICS_PORT, default=8883"`
 	// Kubeconfig is an optional configuration to allow connecting to a k8s cluster
 	// remotelly
 	Kubeconfig string `env:"KUBECONFIG"`
@@ -138,6 +141,14 @@ func run(cmd *cobra.Command, args []string) error {
 			Handler: router,
 		}
 
+		// Metrics server
+		metricsRouter := chi.NewMux()
+		metricsRouter.Handle("/metrics", metrics.MetricsHandler())
+		metricsServer := http.Server{
+			Addr:    fmt.Sprintf(":%d", opts.Backend.MetricsPort),
+			Handler: metricsRouter,
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 		hooks.OnStart(func() {
 			defer cancel()
@@ -153,23 +164,41 @@ func run(cmd *cobra.Command, args []string) error {
 			defer close(serverErr)
 			go func() {
 				logger.Info("Starting Ephemeral Access API Server...", "configs", opts)
-				server.ListenAndServe()
+				err := server.ListenAndServe()
+				if err != nil {
+					serverErr <- fmt.Errorf("server error: %w", err)
+				}
+			}()
+			metricsErr := make(chan error)
+			defer close(metricsErr)
+			go func() {
+				logger.Info("Starting Metrics Server...", "port", opts.Backend.MetricsPort)
+				if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					logger.Error(err, "metrics server error")
+				}
 			}()
 			select {
 			case <-ctx.Done():
 				logger.Info("Stopping Ephemeral Access API Server: Context done")
+				logger.Info("Stopping Metrics Server: Context done")
 				return
 			case err := <-cacheErr:
 				shutdownServer(&server)
+				shutdownServer(&metricsServer)
 				logger.Error(err, "cache error")
 			case err := <-serverErr:
 				logger.Error(err, "server error")
+				shutdownServer(&metricsServer)
+			case err := <-metricsErr:
+				logger.Error(err, "metrics server error")
+				shutdownServer(&server)
 			}
 		})
 		// graceful shutdown the server
 		hooks.OnStop(func() {
 			cancel()
 			shutdownServer(&server)
+			shutdownServer(&metricsServer)
 		})
 	})
 	cli.Run()

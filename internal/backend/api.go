@@ -8,6 +8,7 @@ import (
 	"time"
 
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend/metrics"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -129,6 +130,11 @@ func NewAPIHandler(s Service, logger log.Logger) *APIHandler {
 }
 
 func (h *APIHandler) listAllowedRolesHandler(ctx context.Context, input *ListAllowedRolesInput) (*ListAllowedRolesResponse, error) {
+	start := time.Now()
+	defer func() {
+		duration := time.Since(start).Seconds()
+		metrics.RecordAPIRequest("GET", "/roles", duration)
+	}()
 	if input.ArgoCDUserGroups == "" {
 		return nil, huma.Error400BadRequest(fmt.Sprintf("user (%s) has no groups", input.ArgoCDUsername))
 	}
@@ -156,9 +162,10 @@ func (h *APIHandler) listAllowedRolesHandler(ctx context.Context, input *ListAll
 
 	abList, err := h.service.GetAccessBindingsForGroups(ctx, input.ArgoCDNamespace, groups, app, project)
 	if err != nil {
+		metrics.RecordAPIRequestResponse("error")
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error listing allowed roles for user %s", input.ArgoCDUsername), err))
 	}
-
+	metrics.RecordAPIRequestResponse("success")
 	return &ListAllowedRolesResponse{Body: toListAllowedRolesResponseBody(abList)}, nil
 }
 
@@ -181,6 +188,11 @@ func toListAllowedRolesResponseBody(abList []*api.AccessBinding) ListAllowedRole
 }
 
 func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAccessRequestInput) (*ListAccessRequestResponse, error) {
+	start := time.Now()
+	defer func() {
+		duration := time.Since(start).Seconds()
+		metrics.RecordAPIRequest("GET", "/accessrequests", duration)
+	}()
 	appNamespace, appName, err := input.Application()
 	if err != nil {
 		return nil, huma.Error400BadRequest("error getting application name", err)
@@ -195,13 +207,19 @@ func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAc
 
 	accessRequests, err := h.service.ListAccessRequests(ctx, key, true)
 	if err != nil {
+		metrics.RecordAPIRequestResponse("error")
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error listing access request for user %s", key.Username), err))
 	}
-
+	metrics.RecordAPIRequestResponse("success")
 	return &ListAccessRequestResponse{Body: toListAccessRequestResponseBody(accessRequests)}, nil
 }
 
 func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *CreateAccessRequestInput) (*CreateAccessRequestResponse, error) {
+	start := time.Now()
+	defer func() {
+		duration := time.Since(start).Seconds()
+		metrics.RecordAPIRequest("POST", "/accessrequests", duration)
+	}()
 	appNamespace, appName, err := input.Application()
 	if err != nil {
 		return nil, huma.Error400BadRequest("invalid application", err)
@@ -251,9 +269,10 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	// Create Access Request
 	ar, err = h.service.CreateAccessRequest(ctx, key, grantingBinding)
 	if err != nil {
+		metrics.RecordAPIRequestResponse("error")
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error creating access request for role %s", grantingBinding.Spec.RoleTemplateRef.Name), err))
 	}
-
+	metrics.RecordAPIRequestResponse("success")
 	return &CreateAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
 
 }
