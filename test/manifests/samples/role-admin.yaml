@@ -1,0 +1,24 @@
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: RoleTemplate
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-ephemeral-access
+    app.kubernetes.io/managed-by: kustomize
+  name: admin
+spec:
+  name: admin
+  description: Ephemeral Access for {{.application}}
+  policies:
+    - p, {{.Role}}, applications, *, {{.project}}/{{.application}}, allow
+---
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: AccessBinding
+metadata:
+  name: admin
+spec:
+  ordinal: 0
+  friendlyName: Write (Admin)
+  roleTemplateRef:
+    name: admin
+  subjects:
+    - group2
