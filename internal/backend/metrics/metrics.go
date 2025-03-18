@@ -37,11 +37,6 @@ func MetricsHandler() http.Handler {
 	return promhttp.Handler()
 }
 
-// RecordAPIRequestResponse records metric responses for an API request
-func RecordAPIRequestResponse(status string) {
-	apiRequestsTotal.WithLabelValues(status).Inc()
-}
-
 // RecordAPIRequest records metrics for an API request
 func RecordAPIRequest(method, path string, duration float64) {
 	apiRequestsTotal.WithLabelValues(method, path).Inc()
