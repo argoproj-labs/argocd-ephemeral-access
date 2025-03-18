@@ -1,0 +1,28 @@
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: RoleTemplate
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-ephemeral-access
+    app.kubernetes.io/managed-by: kustomize
+  name: devops
+spec:
+  name: devops
+  description: Ephemeral Access for {{.application}}
+  policies:
+    - p, {{.role}}, applications, get, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, update, {{.project}}/{{.application}}, allow
+---
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: AccessBinding
+metadata:
+  name: devops
+spec:
+  ordinal: 5
+  friendlyName: Write (DevOps)
+  roleTemplateRef:
+    name: devops
+  subjects:
+    - group1
