@@ -7,7 +7,6 @@ import (
 )
 
 var (
-	// Metrics defined here
 	apiRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "api_requests_total",
@@ -27,7 +26,6 @@ var (
 )
 
 func init() {
-	// Register the metrics
 	prometheus.MustRegister(apiRequestsTotal)
 	prometheus.MustRegister(apiRequestDuration)
 }

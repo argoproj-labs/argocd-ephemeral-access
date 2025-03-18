@@ -11,12 +11,11 @@ var (
 			Name: "access_request_status_total",
 			Help: "Total number of AccessRequests by status",
 		},
-		[]string{"status"},
+		[]string{"accessRequestStatus"},
 	)
 )
 
 func init() {
-	// Register custom metrics with the global prometheus registry
 	metrics.Registry.MustRegister(accessRequestStatusTotal)
 }
 
