@@ -46,7 +46,7 @@ type BackendConfig struct {
 	// Port defines the port used to listen to http requests sent to this service
 	Port int `env:"EPHEMERAL_BACKEND_PORT, default=8888"`
 	// MetricPort defined the port used to expose http request metrics
-	MetricsPort int `env:"EPHEMERAL_BACKEND_METRICS_PORT, default=8883"`
+	MetricsPort int `env:"EPHEMERAL_BACKEND_METRICS_PORT, default=8086"`
 	// Kubeconfig is an optional configuration to allow connecting to a k8s cluster
 	// remotelly
 	Kubeconfig string `env:"KUBECONFIG"`

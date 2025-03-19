@@ -13,7 +13,7 @@ spec:
     # Should be served on another port to use different connection pool
     - name: metrics
       protocol: TCP
-      port: 8883
-      targetPort: 8883
+      port: 8086
+      targetPort: 8086
   selector:
     app.kubernetes.io/component: backend

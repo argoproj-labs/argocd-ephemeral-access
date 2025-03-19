@@ -68,7 +68,7 @@ spec:
             - containerPort: 8888
               name: backend
               protocol: TCP
-            - containerPort: 8883
+            - containerPort: 8086
               name: metrics
               protocol: TCP
           securityContext:
