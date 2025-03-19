@@ -6,7 +6,6 @@ export function getHeaders({
   applicationName,
   applicationNamespace,
   project,
-  username,
 }: {
   applicationName: string;
   applicationNamespace: string;
@@ -33,7 +32,6 @@ export async function getUserInfo(application: any): Promise<UserInfo> {
     });
     return await response.json();
   } catch (err) {
-    console.error('Error fetching user info:', err);
     return null;
   }
 }
