@@ -130,11 +130,6 @@ func NewAPIHandler(s Service, logger log.Logger) *APIHandler {
 }
 
 func (h *APIHandler) listAllowedRolesHandler(ctx context.Context, input *ListAllowedRolesInput) (*ListAllowedRolesResponse, error) {
-	start := time.Now()
-	defer func() {
-		duration := time.Since(start).Seconds()
-		metrics.RecordAPIRequest(listAllowedRolesOperation().Method, listAllowedRolesOperation().Path, duration)
-	}()
 	if input.ArgoCDUserGroups == "" {
 		return nil, huma.Error400BadRequest(fmt.Sprintf("user (%s) has no groups", input.ArgoCDUsername))
 	}
@@ -186,11 +181,6 @@ func toListAllowedRolesResponseBody(abList []*api.AccessBinding) ListAllowedRole
 }
 
 func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAccessRequestInput) (*ListAccessRequestResponse, error) {
-	start := time.Now()
-	defer func() {
-		duration := time.Since(start).Seconds()
-		metrics.RecordAPIRequest(listAccessRequestOperation().Method, listAccessRequestOperation().Path, duration)
-	}()
 	appNamespace, appName, err := input.Application()
 	if err != nil {
 		return nil, huma.Error400BadRequest("error getting application name", err)
@@ -211,11 +201,6 @@ func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAc
 }
 
 func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *CreateAccessRequestInput) (*CreateAccessRequestResponse, error) {
-	start := time.Now()
-	defer func() {
-		duration := time.Since(start).Seconds()
-		metrics.RecordAPIRequest(createAccessRequestOperation().Method, createAccessRequestOperation().Path, duration)
-	}()
 	appNamespace, appName, err := input.Application()
 	if err != nil {
 		return nil, huma.Error400BadRequest("invalid application", err)
@@ -268,7 +253,6 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error creating access request for role %s", grantingBinding.Spec.RoleTemplateRef.Name), err))
 	}
 	return &CreateAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
-
 }
 
 func (h *APIHandler) loggedError(err huma.StatusError) huma.StatusError {
@@ -360,6 +344,16 @@ func createAccessRequestOperation() huma.Operation {
 		Summary:     "Create AccessRequest",
 		Description: "Will create an access request for the given role and context",
 	}
+}
+
+// MetricsMiddleware is a middleware function that records API request metrics.
+func MetricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		duration := time.Since(start).Seconds()
+		metrics.RecordAPIRequest(r.Method, r.URL.Path, duration)
+	})
 }
 
 // RegisterRoutes will register all routes provided by the access request REST API

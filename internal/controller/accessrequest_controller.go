@@ -156,7 +156,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
 	// Record the metric for the current status of the Access Request
-	metrics.RecordAccessRequestStatus(string(status))
+	metrics.IncrementAccessRequestCounter(string(status))
 
 	result := buildResult(status, ar, r.Config.ControllerRequeueInterval())
 	logger.Info("Reconciliation concluded", "status", status, "result", result)

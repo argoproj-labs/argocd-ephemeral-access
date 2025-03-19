@@ -19,7 +19,7 @@ func init() {
 	metrics.Registry.MustRegister(accessRequestStatusTotal)
 }
 
-// RecordAccessRequestStatus increments the counter for a given AccessRequest status
-func RecordAccessRequestStatus(status string) {
+// IncrementAccessRequestCounter increments the counter for a given AccessRequest status
+func IncrementAccessRequestCounter(status string) {
 	accessRequestStatusTotal.WithLabelValues(status).Inc()
 }

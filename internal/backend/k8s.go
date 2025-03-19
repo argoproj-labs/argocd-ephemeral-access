@@ -193,6 +193,8 @@ func (p *K8sPersister) StartCache(ctx context.Context) error {
 	errCh := make(chan error)
 	defer close(errCh)
 	go func() {
+		// Simulate a cache error
+		errCh <- fmt.Errorf("simulated cache error for testing")
 		err := p.cache.Start(ctx)
 		if err != nil {
 			errCh <- fmt.Errorf("cache start error: %w", err)
