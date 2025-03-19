@@ -8,7 +8,6 @@ import (
 	"time"
 
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend/metrics"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -159,6 +158,7 @@ func (h *APIHandler) listAllowedRolesHandler(ctx context.Context, input *ListAll
 	if err != nil {
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error listing allowed roles for user %s", input.ArgoCDUsername), err))
 	}
+
 	return &ListAllowedRolesResponse{Body: toListAllowedRolesResponseBody(abList)}, nil
 }
 
@@ -197,6 +197,7 @@ func (h *APIHandler) listAccessRequestHandler(ctx context.Context, input *ListAc
 	if err != nil {
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error listing access request for user %s", key.Username), err))
 	}
+
 	return &ListAccessRequestResponse{Body: toListAccessRequestResponseBody(accessRequests)}, nil
 }
 
@@ -252,7 +253,9 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 	if err != nil {
 		return nil, h.loggedError(huma.Error500InternalServerError(fmt.Sprintf("error creating access request for role %s", grantingBinding.Spec.RoleTemplateRef.Name), err))
 	}
+
 	return &CreateAccessRequestResponse{Body: toAccessRequestResponseBody(ar)}, nil
+
 }
 
 func (h *APIHandler) loggedError(err huma.StatusError) huma.StatusError {
@@ -344,16 +347,6 @@ func createAccessRequestOperation() huma.Operation {
 		Summary:     "Create AccessRequest",
 		Description: "Will create an access request for the given role and context",
 	}
-}
-
-// MetricsMiddleware is a middleware function that records API request metrics.
-func MetricsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		duration := time.Since(start).Seconds()
-		metrics.RecordAPIRequest(r.Method, r.URL.Path, duration)
-	})
 }
 
 // RegisterRoutes will register all routes provided by the access request REST API

@@ -4,6 +4,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
+	"time"
 )
 
 var (
@@ -36,7 +37,17 @@ func MetricsHandler() http.Handler {
 }
 
 // RecordAPIRequest records metrics for an API request
-func RecordAPIRequest(method, path string, duration float64) {
+func recordAPIRequest(method, path string, duration float64) {
 	apiRequestsTotal.WithLabelValues(method, path).Inc()
 	apiRequestDuration.WithLabelValues(method, path).Observe(duration)
+}
+
+// MetricsMiddleware is a middleware function that records API request metrics.
+func MetricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		duration := time.Since(start).Seconds()
+		recordAPIRequest(r.Method, r.URL.Path, duration)
+	})
 }

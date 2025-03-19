@@ -133,7 +133,7 @@ func run(cmd *cobra.Command, args []string) error {
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {
 		router := chi.NewMux()
-		router.Use(backend.MetricsMiddleware)
+		router.Use(metrics.MetricsMiddleware)
 		api := humachi.New(router, huma.DefaultConfig(backend.APITitle, backend.APIVersion))
 		backend.RegisterRoutes(api, handler)
 
