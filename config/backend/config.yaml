@@ -7,17 +7,14 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 # data:
   ## Log configurations
-  # backend.log.level: info
-  # backend.log.format: json
+  # EPHEMERAL_LOG_LEVEL: info
+  # EPHEMERAL_LOG_FORMAT: json
 
   ## The API server port
-  # backend.port: '8888'
+  # EPHEMERAL_BACKEND_PORT: '8888'
 
-  ## The address the metric endpoint binds to
-  # backend.metrics.address: :8883
-
-  ## If set the metrics endpoint is served securely
-  # backend.metrics.secure: 'true'
+  ## The metrics server port
+  # EPHEMERAL_BACKEND_METRICS_PORT: '8883'
 
   ## Defines the default duration to be used when creating AccessRequests
-  # backend.defaultAccessDuration: 4h
+  # EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION: 4h
