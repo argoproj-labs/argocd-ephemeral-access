@@ -5,16 +5,16 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
-# data:
+  # data:
   ## Log configurations
-  # EPHEMERAL_LOG_LEVEL: info
-  # EPHEMERAL_LOG_FORMAT: json
+  # backend.log.level: info
+  # backend.log.format: json
 
   ## The API server port
-  # EPHEMERAL_BACKEND_PORT: '8888'
+  # backend.port: '8888'
 
-  ## The metrics server port
-  # EPHEMERAL_BACKEND_METRICS_PORT: '8883'
+  ## The address the metric endpoint binds to
+  # backend.metrics.address: :8883
 
   ## Defines the default duration to be used when creating AccessRequests
-  # EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION: 4h
+  # backend.defaultAccessDuration: 4h

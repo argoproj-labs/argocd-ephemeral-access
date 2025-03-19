@@ -45,12 +45,6 @@ spec:
                   name: backend-cm
                   key: backend.metrics.address
                   optional: true
-            - name: EPHEMERAL_METRICS_SECURE
-              valueFrom:
-                configMapKeyRef:
-                  name: backend-cm
-                  key: backend.metrics.secure
-                  optional: true
             - name: EPHEMERAL_BACKEND_PORT
               valueFrom:
                 configMapKeyRef:
