@@ -14,7 +14,7 @@ metadata:
   # backend.port: '8888'
 
   ## The address the metric endpoint binds to
-  # backend.metrics.address: :8086
+  # backend.metrics.address: :8091
 
   ## Defines the default duration to be used when creating AccessRequests
   # backend.defaultAccessDuration: 4h

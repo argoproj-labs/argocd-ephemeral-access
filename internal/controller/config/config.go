@@ -117,7 +117,7 @@ type PluginConfig struct {
 type MetricsConfig struct {
 	// Address The address the metric endpoint binds to.
 	// Can be set to 0 in order to disable the metrics server
-	Address string `env:"ADDR, default=:8083"`
+	Address string `env:"ADDR, default=:8090"`
 	// Secure If set the metrics endpoint is served securely.
 	Secure bool `env:"SECURE, default=false"`
 }

@@ -17,7 +17,7 @@ func TestConfiguration(t *testing.T) {
 		assert.NoError(t, err, "NewConfiguration error")
 		assert.Equal(t, "info", config.LogLevel())
 		assert.Equal(t, "text", config.LogFormat())
-		assert.Equal(t, ":8083", config.MetricsAddress())
+		assert.Equal(t, ":8090", config.MetricsAddress())
 		assert.Equal(t, false, config.MetricsSecure())
 		assert.Equal(t, 8081, config.ControllerPort())
 		assert.Equal(t, false, config.EnableLeaderElection())
