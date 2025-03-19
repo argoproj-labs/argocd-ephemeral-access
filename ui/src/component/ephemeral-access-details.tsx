@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BUTTON_LABELS } from '../constant';
@@ -40,7 +40,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
 
   const notify = (msg: string) => toast.warning('System message: ' + msg);
 
-  const returnError = async (error: any) => {
+  const returnError = (error: any) => {
     const status = error?.response?.status;
     switch (status) {
       case 409:
@@ -79,7 +79,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     }
   };
 
-  const AccessRoles = useCallback(async () => {
+  const AccessRoles: () => Promise<void> = async () => {
     try {
       const accessRoles = await getAccessRoles(
         applicationName,
@@ -94,9 +94,9 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     } catch (error) {
       returnError(error);
     }
-  }, [applicationName, applicationNamespace, project, username]);
+  };
 
-  const fetchAccessRequest = useCallback(async () => {
+  const fetchAccessRequest: () => Promise<void> = async () => {
     let currentDelay = 300;
     // max delay 3 seconds
     const maxDelay = 3000;
@@ -108,22 +108,20 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     const poll = async () => {
       try {
         const { data } = await listAccessrequest({
-          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+          headers: getHeaders({ applicationName, applicationNamespace, project })
         });
         const accessRequestData: AccessRequestResponseBody | null =
           data.items.length > 0 ? data.items[0] : null;
 
         const status = accessRequestData && accessRequestData?.status;
-
+        setCurrentAccessRequest(accessRequestData);
         switch (status) {
           case AccessRequestResponseBodyStatus.GRANTED:
-            setCurrentAccessRequest(accessRequestData);
             handleAccessExpiration(accessRequestData);
             break;
           case undefined:
           case AccessRequestResponseBodyStatus.REQUESTED:
           case AccessRequestResponseBodyStatus.INITIATED:
-            setCurrentAccessRequest(accessRequestData);
             if (Date.now() < pollingEndTime) {
               setIsLoading(true);
               // Exponential backoff
@@ -150,8 +148,8 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         returnError(error);
       }
     };
-    poll();
-  }, [applicationName, applicationNamespace, project, username]);
+    await poll();
+  };
 
   const submitAccessRequest = async () => {
     try {
@@ -163,11 +161,11 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
       await createAccessrequest(
         { roleName },
         {
-          headers: getHeaders({ applicationName, applicationNamespace, project, username })
+          headers: getHeaders({ applicationName, applicationNamespace, project })
         }
       );
 
-      fetchAccessRequest();
+      await fetchAccessRequest();
     } catch (error) {
       returnError(error);
     }
@@ -187,9 +185,9 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
   };
 
   useEffect(() => {
-    AccessRoles();
-    fetchAccessRequest();
-  }, []);
+    AccessRoles().then((r) => r);
+    fetchAccessRequest().then((r) => r);
+  }, [applicationName]);
 
   const {
     status = '',
@@ -207,6 +205,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
     <div className='access-form'>
       <div className=''>
         <button
+          qe-id='request-access-btn'
           style={{ position: 'relative', minWidth: '120px', minHeight: '20px' }}
           className='argo-button argo-button--base'
           onClick={() => {
@@ -217,7 +216,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
         </button>
       </div>
       <div className='access-form__usrmsg'>
-        <i className='fa fa-info-circle icon-background' />
+        <i aria-hidden='true' className='fa fa-info-circle icon-background' />
         <div className='access-form__usrmsg__warning'>
           <div className='access-form__usrmsg__warning-title'>
             About Requesting Temporary Access
