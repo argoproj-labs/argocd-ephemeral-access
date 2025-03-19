@@ -178,7 +178,7 @@ func run(cmd *cobra.Command, args []string) error {
 				defer close(metricsErr)
 				logger.Info("Starting Metrics Server...", "port", opts.Backend.MetricsPort)
 				if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-					logger.Error(err, "metrics server error")
+					metricsErr <- fmt.Errorf("metrics server error: %w", err)
 				}
 			}()
 			select {
