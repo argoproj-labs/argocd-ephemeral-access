@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
-  # data:
+# data:
   ## Log configurations
   # backend.log.level: info
   # backend.log.format: json

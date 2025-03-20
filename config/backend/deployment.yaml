@@ -39,7 +39,7 @@ spec:
                   name: backend-cm
                   key: backend.log.format
                   optional: true
-            - name: EPHEMERAL_METRICS_ADDR
+            - name: EPHEMERAL_BACKEND_METRICS_PORT
               valueFrom:
                 configMapKeyRef:
                   name: backend-cm
