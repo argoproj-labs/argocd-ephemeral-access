@@ -11,7 +11,7 @@ spec:
   ports:
     - name: metrics
       protocol: TCP
-      port: 8083
-      targetPort: 8083
+      port: 8090
+      targetPort: 8090
   selector:
     app.kubernetes.io/component: controller

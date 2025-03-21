@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend/metrics"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -44,6 +45,8 @@ type Options struct {
 type BackendConfig struct {
 	// Port defines the port used to listen to http requests sent to this service
 	Port int `env:"EPHEMERAL_BACKEND_PORT, default=8888"`
+	// MetricPort defined the port used to expose http request metrics
+	MetricsPort int `env:"EPHEMERAL_BACKEND_METRICS_PORT, default=8091"`
 	// Kubeconfig is an optional configuration to allow connecting to a k8s cluster
 	// remotelly
 	Kubeconfig string `env:"KUBECONFIG"`
@@ -130,6 +133,7 @@ func run(cmd *cobra.Command, args []string) error {
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {
 		router := chi.NewMux()
+		router.Use(metrics.MetricsMiddleware)
 		api := humachi.New(router, huma.DefaultConfig(backend.APITitle, backend.APIVersion))
 		backend.RegisterRoutes(api, handler)
 
@@ -138,47 +142,82 @@ func run(cmd *cobra.Command, args []string) error {
 			Handler: router,
 		}
 
+		// Metrics server
+		metricsRouter := chi.NewMux()
+		metricsRouter.Handle("/metrics", metrics.MetricsHandler())
+		metricsServer := http.Server{
+			Addr:    fmt.Sprintf(":%d", opts.Backend.MetricsPort),
+			Handler: metricsRouter,
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 		hooks.OnStart(func() {
 			defer cancel()
 			cacheErr := make(chan error)
-			defer close(cacheErr)
+
 			go func() {
+				defer close(cacheErr)
 				err := persister.StartCache(ctx)
 				if err != nil {
 					cacheErr <- fmt.Errorf("start persister cache error: %w", err)
 				}
 			}()
 			serverErr := make(chan error)
-			defer close(serverErr)
+
 			go func() {
+				defer close(serverErr)
 				logger.Info("Starting Ephemeral Access API Server...", "configs", opts)
-				server.ListenAndServe()
+				err := server.ListenAndServe()
+				if err != nil {
+					serverErr <- fmt.Errorf("server error: %w", err)
+				}
+			}()
+			metricsErr := make(chan error)
+
+			go func() {
+				defer close(metricsErr)
+				logger.Info("Starting Metrics Server...", "port", opts.Backend.MetricsPort)
+				if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					metricsErr <- fmt.Errorf("metrics server error: %w", err)
+				}
 			}()
 			select {
 			case <-ctx.Done():
 				logger.Info("Stopping Ephemeral Access API Server: Context done")
+				logger.Info("Stopping Metrics Server: Context done")
 				return
 			case err := <-cacheErr:
-				shutdownServer(&server)
 				logger.Error(err, "cache error")
+				shutdownServer(&server, logger)
+				shutdownServer(&metricsServer, logger)
 			case err := <-serverErr:
 				logger.Error(err, "server error")
+				shutdownServer(&metricsServer, logger)
+			case err := <-metricsErr:
+				logger.Error(err, "metrics server error")
+				shutdownServer(&server, logger)
 			}
 		})
 		// graceful shutdown the server
 		hooks.OnStop(func() {
 			cancel()
-			shutdownServer(&server)
+			logger.Info("Shutting down Ephemeral Access API Server: Context done")
+			shutdownServer(&server, logger)
+			logger.Info("Shutting down Metrics Server: Context done")
+			shutdownServer(&metricsServer, logger)
 		})
 	})
 	cli.Run()
 	return nil
 }
 
-func shutdownServer(server *http.Server) {
+func shutdownServer(server *http.Server, logger log.Logger) {
 	// Give the server 10 seconds to gracefully shut down, then give up.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	server.Shutdown(ctx)
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error(err, "Error during server shutdown", "address", server.Addr)
+	} else {
+		logger.Info("Server shutdown completed successfully", "address", server.Addr)
+	}
 }

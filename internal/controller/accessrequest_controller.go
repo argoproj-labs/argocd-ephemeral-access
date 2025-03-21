@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -154,6 +155,8 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Error(err, "HandlePermission error")
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
+	// Record the metric for the current status of the Access Request
+	metrics.IncrementAccessRequestCounter(string(status))
 
 	result := buildResult(status, ar, r.Config.ControllerRequeueInterval())
 	logger.Info("Reconciliation concluded", "status", status, "result", result)

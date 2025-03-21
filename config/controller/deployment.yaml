@@ -87,7 +87,7 @@ spec:
           ports:
             - containerPort: 8081
             - containerPort: 8082
-            - containerPort: 8083
+            - containerPort: 8090
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
