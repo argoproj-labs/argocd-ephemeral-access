@@ -43,7 +43,7 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: backend-cm
-                  key: backend.metrics.address
+                  key: backend.metrics.port
                   optional: true
             - name: EPHEMERAL_BACKEND_PORT
               valueFrom:
