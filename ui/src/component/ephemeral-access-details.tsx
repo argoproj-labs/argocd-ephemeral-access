@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BUTTON_LABELS } from '../constant';
@@ -289,7 +290,7 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                 <div className='columns small-3'>MESSAGE</div>
                 <div className='columns small-9' style={{ lineHeight: '1.75' }}>
                   <span style={{ display: 'flex', flexDirection: 'column', marginTop: '15px' }}>
-                    {message}
+                    <ReactMarkdown>{message}</ReactMarkdown>
                     {status === AccessRequestResponseBodyStatus.REQUESTED && changeRequestUrl && (
                       <a
                         href={changeRequestUrl}
