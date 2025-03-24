@@ -54,7 +54,7 @@ func (p *SomePlugin) GrantAccess(ar *api.AccessRequest, app *argocd.Application)
 	p.Logger.Info("This is a call to the GrantAccess method")
 	return &plugin.GrantResponse{
 		Status: plugin.GrantStatusGranted,
-		// Return the message in the markdown format
+		// The message can be returned as markdown
 		Message: "Granted access by the example plugin",
 	}, nil
 }
@@ -66,7 +66,7 @@ func (p *SomePlugin) RevokeAccess(ar *api.AccessRequest, app *argocd.Application
 	p.Logger.Info("This is a call to the RevokeAccess method")
 	return &plugin.RevokeResponse{
 		Status: plugin.RevokeStatusRevoked,
-		// Return the message in the markdown format
+		// The message can be returned as markdown
 		Message: "Revoked access by the example plugin",
 	}, nil
 }
