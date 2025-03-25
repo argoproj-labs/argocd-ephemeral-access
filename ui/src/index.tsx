@@ -1,4 +1,4 @@
-import { RequestAccessBtnFlyout, RequestAccessBtn, ShowDeployBtn } from './component/ephemeral-access';
+import { PermissionBtnFlyout, PermissionBtnComponent, ShowPermissionBtn } from './component/ephemeral-access';
 import DisplayAccessPermission from './component/ephemeral-access-panel';
 
 const PERMISSION_TITLE = 'Ephemeral Access';
@@ -16,11 +16,11 @@ function initializeExtensions(window: any) {
   );
 
   window.extensionsAPI.registerTopBarActionMenuExt(
-    RequestAccessBtn,
+    PermissionBtnComponent,
     PERMISSION_TITLE,
     PERMISSION_ID,
-    RequestAccessBtnFlyout,
-    ShowDeployBtn,
+    PermissionBtnFlyout,
+    ShowPermissionBtn,
     '',
     true
   );
