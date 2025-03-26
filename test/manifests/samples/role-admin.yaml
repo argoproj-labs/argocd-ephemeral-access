@@ -7,9 +7,9 @@ metadata:
   name: admin
 spec:
   name: admin
-  description: Ephemeral Access for {{.application}}
+  description: Admin Role Managed by the EphemeralAccess Controller
   policies:
-    - p, {{.Role}}, applications, *, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, *, {{.project}}/{{.application}}, allow
 ---
 apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
 kind: AccessBinding
