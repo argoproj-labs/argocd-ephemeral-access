@@ -7,7 +7,7 @@ metadata:
   name: developer
 spec:
   name: dev
-  description: Ephemeral Access for {{.application}}
+  description: Developer Role Managed by the EphemeralAccess Controller
   policies:
     - p, {{.role}}, applications, get, {{.project}}/{{.application}}, allow
     - p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow
