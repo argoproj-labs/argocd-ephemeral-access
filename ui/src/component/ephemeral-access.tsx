@@ -4,7 +4,7 @@ import { getUserInfo } from '../config/client';
 import { Application, UserInfo } from '../models/type';
 import { EnableEphemeralAccess } from '../utils/utils';
 
-export const RequestAccessBtn = () => {
+export const PermissionBtnComponent = () => {
   return (
     <div className='show-for-large' qe-id='ext-access'>
       <i
@@ -17,7 +17,7 @@ export const RequestAccessBtn = () => {
   );
 };
 
-export const ShowDeployBtn = (application: Application) => {
+export const ShowPermissionBtn = (application: Application) => {
   return EnableEphemeralAccess(application);
 };
 
@@ -25,7 +25,7 @@ interface RequestAccessBtnFlyoutProps {
   application: any;
 }
 
-export const RequestAccessBtnFlyout = ({ application }: RequestAccessBtnFlyoutProps) => {
+export const PermissionBtnFlyout = ({ application }: RequestAccessBtnFlyoutProps) => {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   useEffect(() => {

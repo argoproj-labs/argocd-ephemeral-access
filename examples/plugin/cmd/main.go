@@ -30,7 +30,7 @@ func (p *SomePlugin) Init() error {
 
 // GrantAccess is the method that will be called by the EphemeralAccess
 // controller when an AccessRequest is created. It must return the
-// GrantResponse with one of the possible Status defined: 
+// GrantResponse with one of the possible Status defined:
 //
 //   - GrantStatusGranted: The EphemeralAccess controller will proceed
 //     granting the access for the given AccessRequest (ar)
@@ -53,7 +53,8 @@ func (p *SomePlugin) Init() error {
 func (p *SomePlugin) GrantAccess(ar *api.AccessRequest, app *argocd.Application) (*plugin.GrantResponse, error) {
 	p.Logger.Info("This is a call to the GrantAccess method")
 	return &plugin.GrantResponse{
-		Status:  plugin.GrantStatusGranted,
+		Status: plugin.GrantStatusGranted,
+		// The message can be returned as markdown
 		Message: "Granted access by the example plugin",
 	}, nil
 }
@@ -64,7 +65,8 @@ func (p *SomePlugin) GrantAccess(ar *api.AccessRequest, app *argocd.Application)
 func (p *SomePlugin) RevokeAccess(ar *api.AccessRequest, app *argocd.Application) (*plugin.RevokeResponse, error) {
 	p.Logger.Info("This is a call to the RevokeAccess method")
 	return &plugin.RevokeResponse{
-		Status:  plugin.RevokeStatusRevoked,
+		Status: plugin.RevokeStatusRevoked,
+		// The message can be returned as markdown
 		Message: "Revoked access by the example plugin",
 	}, nil
 }
