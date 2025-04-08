@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"fmt"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
@@ -136,11 +137,13 @@ func (s *Service) handleAccessExpired(ctx context.Context, ar *api.AccessRequest
 	if s.hasPlugin() {
 		resp, err := s.accessRequester.RevokeAccess(ar, app)
 		if err != nil {
+			metrics.RecordPluginOperationResult("revoke_access", err)
 			return fmt.Errorf("error invoking plugin RevokeAccess function: %w", err)
 		}
 		if resp != nil {
 			log.Info("Plugin RevokeAccess called", "status", resp.Status, "message", resp.Message)
 			statusDetails = resp.Message
+			metrics.RecordPluginOperationResult("revoke_access", resp.Status)
 		}
 	}
 	err := s.RemoveArgoCDAccess(ctx, ar, rt)
@@ -399,15 +402,18 @@ func (s *Service) Allowed(ctx context.Context, ar *api.AccessRequest, app *argoc
 	}
 	resp, err := s.accessRequester.GrantAccess(ar, app)
 	if err != nil {
+		metrics.RecordPluginOperationResult("grant_access", err)
 		return nil, fmt.Errorf("error invoking plugin GrantAccess function: %w", err)
 	}
 	if resp == nil {
+		metrics.RecordPluginOperationResult("grant_access", fmt.Errorf("null response"))
 		return nil, fmt.Errorf("plugin GrantAccess call returned null response")
 	}
 	allowed := false
 	if resp.Status == plugin.GrantStatusGranted {
 		allowed = true
 	}
+	metrics.RecordPluginOperationResult("grant_access", resp.Status)
 	return &AllowedResponse{
 		Allowed: allowed,
 		Status:  resp.Status,
