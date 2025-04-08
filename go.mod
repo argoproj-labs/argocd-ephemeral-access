@@ -7,7 +7,7 @@ toolchain go1.22.3
 require (
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08
 	github.com/danielgtaylor/huma/v2 v2.22.1
-	github.com/expr-lang/expr v1.16.9
+	github.com/expr-lang/expr v1.17.2
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-logr/logr v1.4.1
 	github.com/go-logr/zapr v1.3.0
@@ -15,6 +15,8 @@ require (
 	github.com/hashicorp/go-plugin v1.6.1
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
+	github.com/prometheus/client_golang v1.16.0
+	github.com/prometheus/client_model v0.4.0
 	github.com/sethvargo/go-envconfig v1.1.0
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
@@ -63,8 +65,6 @@ require (
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.16.0 // indirect
-	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
