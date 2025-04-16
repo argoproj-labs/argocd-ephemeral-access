@@ -290,7 +290,17 @@ const EphemeralAccessDetails: React.FC<AccessDetailsComponentProps> = ({
                 <div className='columns small-3'>MESSAGE</div>
                 <div className='columns small-9' style={{ lineHeight: '1.75' }}>
                   <span style={{ display: 'flex', flexDirection: 'column', marginTop: '15px' }}>
-                    <ReactMarkdown>{message}</ReactMarkdown>
+                    <ReactMarkdown
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a {...props} target='_blank' rel='noopener noreferrer'>
+                            {props.children}
+                          </a>
+                        )
+                      }}
+                    >
+                      {message}
+                    </ReactMarkdown>
                     {status === AccessRequestResponseBodyStatus.REQUESTED && changeRequestUrl && (
                       <a
                         href={changeRequestUrl}
