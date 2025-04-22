@@ -284,15 +284,17 @@ func (s *Service) updateStatusWithRetry(ctx context.Context, ar *api.AccessReque
 
 // updateStatus will update the given AccessRequest status field with the
 // given status and details.
-func (s *Service) updateStatus(ctx context.Context, ar *api.AccessRequest, status api.Status, details string, rtHash string) error {
+func (s *Service) updateStatus(ctx context.Context, ar *api.AccessRequest, status api.Status, message string, rtHash string) error {
 	log := log.FromContext(ctx)
 	log.Debug("Updating AccessRequest status...")
+
+	curMessage := ar.GetLastStatusDetails(status)
 	// if it is already updated skip
-	if ar.Status.RequestState == status && ar.Status.RoleTemplateHash == rtHash {
+	if ar.Status.RequestState == status && ar.Status.RoleTemplateHash == rtHash && curMessage == message {
 		log.Debug("No need to update AccessRequest status")
 		return nil
 	}
-	ar.UpdateStatusHistory(status, details)
+	ar.UpdateStatusHistory(status, message)
 	ar.Status.RoleTemplateHash = rtHash
 	return s.k8sClient.Status().Update(ctx, ar)
 }

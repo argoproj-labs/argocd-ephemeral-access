@@ -173,6 +173,21 @@ func (ar *AccessRequest) UpdateStatusHistory(newStatus Status, details string) {
 	ar.Status = *status
 }
 
+// GetLastStatusDetails will return the last recorded details message in the
+// history associated with the given status.
+func (ar *AccessRequest) GetLastStatusDetails(status Status) string {
+	for i := len(ar.Status.History) - 1; i >= 0; i-- {
+		if ar.Status.History[i].RequestState == status {
+			msg := ""
+			if ar.Status.History[i].Details != nil {
+				msg = *ar.Status.History[i].Details
+			}
+			return msg
+		}
+	}
+	return ""
+}
+
 // IsExpiring will return true if this AccessRequest is expired by
 // verifying the .status.ExpiresAt field. Otherwise it returns false.
 func (ar *AccessRequest) IsExpiring() bool {

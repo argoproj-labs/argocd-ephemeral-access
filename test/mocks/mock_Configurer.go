@@ -426,6 +426,51 @@ func (_c *MockConfigurer_MetricsSecure_Call) RunAndReturn(run func() bool) *Mock
 	return _c
 }
 
+// PluginPath provides a mock function with given fields:
+func (_m *MockConfigurer) PluginPath() string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for PluginPath")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// MockConfigurer_PluginPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PluginPath'
+type MockConfigurer_PluginPath_Call struct {
+	*mock.Call
+}
+
+// PluginPath is a helper method to define mock.On call
+func (_e *MockConfigurer_Expecter) PluginPath() *MockConfigurer_PluginPath_Call {
+	return &MockConfigurer_PluginPath_Call{Call: _e.mock.On("PluginPath")}
+}
+
+func (_c *MockConfigurer_PluginPath_Call) Run(run func()) *MockConfigurer_PluginPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockConfigurer_PluginPath_Call) Return(_a0 string) *MockConfigurer_PluginPath_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockConfigurer_PluginPath_Call) RunAndReturn(run func() string) *MockConfigurer_PluginPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockConfigurer creates a new instance of MockConfigurer. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockConfigurer(t interface {
