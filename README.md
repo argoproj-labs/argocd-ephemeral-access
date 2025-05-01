@@ -69,7 +69,7 @@ well as the documentation:
 - [Controller configuration][4]
 
 > [!NOTE]
-> Check the provided configmaps (./config folder) for the backend and
+> Check the provided configmaps (`./config` folder) for the backend and
 > controller to see the available configuration options and their
 > default values.
 
