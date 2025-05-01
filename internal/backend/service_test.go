@@ -173,9 +173,24 @@ func TestServiceListAccessRequest(t *testing.T) {
 			ApplicationNamespace: "app-ns",
 			Username:             "some-user",
 		}
-		ar := newAccessRequest(key, "some-role")
+		ar1 := newAccessRequest(key, "some-role")
+		ar1.Status.RequestState = api.GrantedStatus
+
 		ar2 := newAccessRequest(key, "some-role")
-		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*ar2, *ar}}, nil)
+		ar2.Status.RequestState = api.RequestedStatus
+		ar2.Spec.Role.Ordinal = 2
+
+		ar3 := newAccessRequest(key, "some-role")
+		ar3.Status.RequestState = api.InitiatedStatus
+		ar3.Spec.Role.Ordinal = 1
+
+		ar4 := newAccessRequest(key, "some-role")
+		ar4.Status.RequestState = api.TimeoutStatus
+
+		ar5 := newAccessRequest(key, "some-role")
+		ar5.Status.RequestState = api.ExpiredStatus
+
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*ar5, *ar4, *ar3, *ar2, *ar1}}, nil)
 
 		// When
 		result, err := f.svc.ListAccessRequests(context.Background(), key, false)
@@ -186,12 +201,15 @@ func TestServiceListAccessRequest(t *testing.T) {
 		assert.NoError(t, errSorted)
 		assert.NotNil(t, result)
 		assert.NotNil(t, resultSorted)
-		assert.Equal(t, 2, len(result))
-		assert.Equal(t, 2, len(resultSorted))
-		assert.Equal(t, ar, result[1])
-		assert.Equal(t, ar2, result[0])
-		assert.Equal(t, ar, resultSorted[0])
-		assert.Equal(t, ar2, resultSorted[1])
+		assert.Equal(t, 5, len(result))
+		assert.Equal(t, 5, len(resultSorted))
+		assert.Equal(t, ar5, result[0])
+		assert.Equal(t, ar4, result[1])
+		assert.Equal(t, ar3.Status.RequestState, resultSorted[0].Status.RequestState)
+		assert.Equal(t, ar2.Status.RequestState, resultSorted[1].Status.RequestState)
+		assert.Equal(t, ar1.Status.RequestState, resultSorted[2].Status.RequestState)
+		assert.Equal(t, ar4.Status.RequestState, resultSorted[3].Status.RequestState)
+		assert.Equal(t, ar5.Status.RequestState, resultSorted[4].Status.RequestState)
 	})
 }
 
@@ -583,7 +601,7 @@ func TestServiceGetGrantingAccessBinding(t *testing.T) {
 		ab := newAccessBinding(namespace, roleName, subject)
 		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, namespace).Return(&api.AccessBindingList{Items: []api.AccessBinding{*ab}}, nil)
 		f.persister.EXPECT().ListAccessBindings(mock.Anything, roleName, ControllerNamespace).Return(&api.AccessBindingList{}, nil)
-		f.logger.EXPECT().Error(mock.Anything, mock.Anything).Run(func(err error, msg string, keysAndValues ...interface{}) {
+		f.logger.EXPECT().Error(mock.Anything, mock.Anything).Run(func(err error, msg string, keysAndValues ...any) {
 			errorMsg = msg
 		}).Once()
 
@@ -602,7 +620,7 @@ func TestServiceGetApplication(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
 		app := &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"hello": "world",
 			},
 		}
@@ -654,7 +672,7 @@ func TestServiceGetAppProject(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
 		project := &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"hello": "world",
 			},
 		}

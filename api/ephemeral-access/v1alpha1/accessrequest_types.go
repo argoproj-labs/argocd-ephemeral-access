@@ -25,7 +25,7 @@ import (
 
 // Status defines the different stages a given access request can be
 // at a given time.
-// +kubebuilder:validation:Enum=initiated;requested;granted;expired;denied;invalid
+// +kubebuilder:validation:Enum=initiated;requested;granted;expired;denied;invalid;timeout
 type Status string
 
 const (
@@ -46,6 +46,9 @@ const (
 
 	// InvalidStatus is the used to identify invalid access requests
 	InvalidStatus Status = "invalid"
+
+	// TimeoutStatus is the stage that defines the access request as timed out
+	TimeoutStatus Status = "timeout"
 )
 
 // AccessRequestSpec defines the desired state of AccessRequest

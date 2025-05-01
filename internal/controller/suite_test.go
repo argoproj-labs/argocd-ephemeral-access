@@ -22,9 +22,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
 
 	// "github.com/onsi/gomega/gexec"
 
@@ -40,7 +42,8 @@ import (
 
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
-	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin"
+	"github.com/argoproj-labs/argocd-ephemeral-access/test/mocks"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -53,8 +56,12 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 var cancel context.CancelFunc
 var ctx context.Context
+var controllerConfigMock *mocks.MockControllerConfigurer
+var accessRequesterMock *mocks.MockAccessRequester
 
 func TestControllers(t *testing.T) {
+	controllerConfigMock = mocks.NewMockControllerConfigurer(t)
+	accessRequesterMock = mocks.NewMockAccessRequester(t)
 	RegisterFailHandler(Fail)
 
 	RunSpecs(t, "Controller Suite")
@@ -106,15 +113,25 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	config, err := config.ReadEnvConfigs()
-	Expect(err).ToNot(HaveOccurred())
+	controllerConfigMock.EXPECT().ControllerPort().Return(8081).Maybe()
+	controllerConfigMock.EXPECT().ControllerHealthProbeAddr().Return(":8082").Maybe()
+	controllerConfigMock.EXPECT().ControllerEnableHTTP2().Return(false).Maybe()
+	controllerConfigMock.EXPECT().ControllerRequeueInterval().Return(time.Second * 1).Maybe()
+	controllerConfigMock.EXPECT().ControllerRequestTimeout().Return(time.Second * 5).Maybe()
+	controllerConfigMock.EXPECT().ControllerAccessRequestTTL().Return(time.Second * 10).Maybe()
 
-	service := NewService(k8sManager.GetClient(), config, nil)
+	pluginResponse := &plugin.GrantResponse{
+		Status: plugin.GrantStatusGranted,
+	}
+	accessRequesterMock.EXPECT().GrantAccess(mock.Anything, mock.Anything).Return(pluginResponse, nil).Maybe()
+	accessRequesterMock.EXPECT().RevokeAccess(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	service := NewService(k8sManager.GetClient(), controllerConfigMock, accessRequesterMock)
 	arReconciler := &AccessRequestReconciler{
 		Client:  k8sManager.GetClient(),
 		Scheme:  k8sManager.GetScheme(),
 		Service: service,
-		Config:  config,
+		Config:  controllerConfigMock,
 	}
 	err = arReconciler.SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())

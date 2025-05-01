@@ -70,6 +70,7 @@ func requestStateOrder() map[api.Status]int {
 		api.RequestedStatus: 0,
 		api.GrantedStatus:   1,
 		api.DeniedStatus:    2,
+		api.TimeoutStatus:   2,
 		api.InvalidStatus:   3,
 		api.ExpiredStatus:   4,
 	}
@@ -381,10 +382,10 @@ func accessBindingOrdinalSortDesc(a, b *api.AccessBinding) int {
 // 4. AccessRequest.CreationTimestamp field in descending order
 func defaultAccessRequestSort(a, b *api.AccessRequest) int {
 	requestStateOrder := requestStateOrder()
+	aOrder := requestStateOrder[a.Status.RequestState]
+	bOrder := requestStateOrder[b.Status.RequestState]
 	// sort by status
-	if a.Status.RequestState != b.Status.RequestState {
-		aOrder := requestStateOrder[a.Status.RequestState]
-		bOrder := requestStateOrder[b.Status.RequestState]
+	if a.Status.RequestState != b.Status.RequestState && aOrder != bOrder {
 		return aOrder - bOrder
 	}
 	// sort by ordinal ascending

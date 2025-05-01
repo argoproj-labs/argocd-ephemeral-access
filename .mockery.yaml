@@ -1,8 +1,8 @@
 # mockery configuration docs for the version used by this project
 # https://vektra.github.io/mockery/v2.45/configuration/
 with-expecter: true
-dir: "test/mocks"
-outpkg: "mocks"
+dir: 'test/mocks'
+outpkg: 'mocks'
 packages:
   github.com/argoproj-labs/argocd-ephemeral-access/internal/controller:
     interfaces:
@@ -10,6 +10,7 @@ packages:
   github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config:
     interfaces:
       Configurer:
+      ControllerConfigurer:
   github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin:
     interfaces:
       AccessRequester:

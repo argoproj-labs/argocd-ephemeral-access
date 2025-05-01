@@ -22,10 +22,12 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,6 +35,7 @@ import (
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/testdata"
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin"
 	"github.com/argoproj-labs/argocd-ephemeral-access/test/utils"
 )
 
@@ -50,8 +53,7 @@ var appResource = schema.GroupVersionResource{
 
 var _ = Describe("AccessRequest Controller", func() {
 	const (
-		timeout  = time.Second * 10
-		duration = time.Second * 10
+		timeout  = time.Second * 15
 		interval = time.Millisecond * 250
 	)
 
@@ -141,27 +143,27 @@ var _ = Describe("AccessRequest Controller", func() {
 	}
 
 	Context("Reconciling an AccessRequest", Ordered, func() {
-		const (
-			namespace             = "test-01"
-			arName                = "test-ar-01"
-			appprojectName        = "sample-test-project"
-			appName               = "some-application"
-			roleTemplateName      = "some-role-template"
-			roleTemplateNamespace = "test-01-rt"
-			roleName              = "super-user"
-			subject               = "some-user"
-		)
-
-		var f *fixture
-		var r resources
-		policies := []string{
-			"p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow",
-			"p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow",
-			"p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow",
-			"p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow",
-		}
-
 		When("The subject has the necessary access", func() {
+			const (
+				namespace             = "test-01"
+				arName                = "test-ar-01"
+				appprojectName        = "sample-test-project"
+				appName               = "some-application"
+				roleTemplateName      = "some-role-template"
+				roleTemplateNamespace = "test-01-rt"
+				roleName              = "super-user"
+				subject               = "some-user"
+			)
+
+			var f *fixture
+			var r resources
+			policies := []string{
+				"p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow",
+			}
+
 			AfterAll(func() {
 				deleteNamespace(f)
 			})
@@ -236,7 +238,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				expectedPolicy4 := fmt.Sprintf("p, proj:sample-test-project:ephemeral-super-user-%s-some-application, logs, get, sample-test-project/%s/some-application, allow", r.namespace, r.namespace)
 				Expect(appProj.Spec.Roles[2].Policies[3]).To(Equal(expectedPolicy4))
 			})
-			It("will validate if the final status is Expired", func() {
+			It("will validate if the final status is eventually Expired", func() {
 				ar := &api.AccessRequest{}
 				Eventually(func() api.Status {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
@@ -260,31 +262,36 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(appProj.Spec.Roles).To(HaveLen(3))
 				Expect(appProj.Spec.Roles[2].Groups).To(HaveLen(0))
 			})
+			It("will validate if the AccessRequest is deleted after TTL expiration", func() {
+				ar := &api.AccessRequest{}
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
+					return apierrors.IsNotFound(err) || ar.GetDeletionTimestamp() != nil
+					// return apierrors.IsNotFound(err)
+				}).WithTimeout(timeout).WithPolling(interval).Should(BeTrue())
+			})
 		})
-	})
-
-	Context("Reconciling an AccessRequest", Ordered, func() {
-		const (
-			namespace             = "test-02"
-			arName                = "test-ar-02"
-			appprojectName        = "sample-test-project-02"
-			appName               = "some-application"
-			roleTemplateName      = "some-role-template"
-			roleTemplateNamespace = "test-02-rt"
-			roleName              = "super-user"
-			subject               = "some-user"
-		)
-
-		var f *fixture
-		var r resources
-		policies := []string{
-			"p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow",
-			"p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow",
-			"p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow",
-			"p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow",
-		}
-
 		When("protected fields values change after applied", func() {
+			const (
+				namespace             = "test-02"
+				arName                = "test-ar-02"
+				appprojectName        = "sample-test-project-02"
+				appName               = "some-application"
+				roleTemplateName      = "some-role-template"
+				roleTemplateNamespace = "test-02-rt"
+				roleName              = "super-user"
+				subject               = "some-user"
+			)
+
+			var f *fixture
+			var r resources
+			policies := []string{
+				"p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow",
+			}
+
 			AfterAll(func() {
 				deleteNamespace(f)
 			})
@@ -365,12 +372,94 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(e.ErrStatus.Message).To(ContainSubstring("Value is immutable"))
 			})
 		})
+		When("when timeout is configured and the plugin takes too long to approve", func() {
+			const (
+				namespace             = "test-03-timeout"
+				arName                = "test-ar-03-timeout"
+				appprojectName        = "sample-test-project-02"
+				appName               = "some-application"
+				roleTemplateName      = "some-role-template"
+				roleTemplateNamespace = "test-03-rt-timeout"
+				roleName              = "super-user"
+				subject               = "some-user"
+			)
+
+			var f *fixture
+			var r resources
+			policies := []string{
+				"p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow",
+				"p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow",
+			}
+
+			accessRequesterMock.EXPECT().GrantAccess(mock.Anything, mock.Anything).
+				RunAndReturn(func(ar *api.AccessRequest, a *argocd.Application) (*plugin.GrantResponse, error) {
+					pluginResponse := &plugin.GrantResponse{
+						Status: plugin.GrantStatusGranted,
+					}
+					if ar.GetName() == arName {
+						pluginResponse.Status = plugin.GrantStatusPending
+					}
+					return pluginResponse, nil
+				})
+
+			AfterAll(func() {
+				deleteNamespace(f)
+			})
+			BeforeAll(func() {
+				r = resources{
+					arName:                arName,
+					appName:               appName,
+					namespace:             namespace,
+					appProjName:           appprojectName,
+					roleTemplateName:      roleTemplateName,
+					roleTemplateNamespace: roleTemplateNamespace,
+					roleName:              roleName,
+					subject:               subject,
+					policies:              policies,
+				}
+				f = setup(r)
+			})
+			It("will apply the roletemplate resource in k8s", func() {
+				err := k8sClient.Create(ctx, f.roletemplate)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will apply the access request resource in k8s", func() {
+				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 5}
+				err := k8sClient.Create(ctx, f.accessrequests[0])
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will verify if the access request is created", func() {
+				ar := &api.AccessRequest{}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
+					Expect(err).NotTo(HaveOccurred())
+					return ar.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+				Expect(ar.Status.History).NotTo(BeEmpty())
+				Expect(ar.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
+			})
+			It("will validate if the access will eventually timeout", func() {
+				ar := &api.AccessRequest{}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
+					Expect(err).NotTo(HaveOccurred())
+					return ar.Status.RequestState
+				}, timeout, interval).Should(Equal(api.TimeoutStatus))
+				Expect(ar.Status.ExpiresAt).To(BeNil())
+				Expect(ar.Status.History).Should(HaveLen(3))
+				Expect(ar.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
+				Expect(ar.Status.History[1].RequestState).To(Equal(api.RequestedStatus))
+				Expect(ar.Status.History[2].RequestState).To(Equal(api.TimeoutStatus))
+			})
+		})
 	})
 	Context("Changing a RoleTemplate", Ordered, func() {
 		const (
 			namespace             = "test-03-rt-watch"
-			arName01              = "test-ar-01"
-			arName02              = "test-ar-02"
+			arName01              = "test-ar-03"
+			arName02              = "test-ar-04"
 			appprojectName        = "sample-test-project"
 			appName               = "some-application"
 			roleTemplateName      = "role-template-watch-test"
@@ -477,7 +566,7 @@ var _ = Describe("AccessRequest Controller", func() {
 	Context("Changing a Project", Ordered, func() {
 		const (
 			namespace             = "test-04-project-watch"
-			arName01              = "test-ar-01"
+			arName01              = "test-ar-05"
 			appprojectName        = "sample-test-project"
 			appName               = "some-application"
 			roleTemplateName      = "role-template-watch-test"
@@ -569,7 +658,7 @@ var _ = Describe("AccessRequest Controller", func() {
 	Context("Validating AccessRequests", Ordered, func() {
 		const (
 			namespace             = "test-ar-validation"
-			arName01              = "test-ar-01"
+			arName01              = "test-ar-06"
 			appprojectName        = "sample-test-project"
 			appName               = "some-application"
 			roleTemplateName      = "role-template-watch-test"

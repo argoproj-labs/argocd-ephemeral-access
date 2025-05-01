@@ -81,6 +81,18 @@ spec:
                   name: controller-cm
                   key: controller.requeue.interval
                   optional: true
+            - name: EPHEMERAL_CONTROLLER_REQUEST_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: controller-cm
+                  key: controller.request.timeout
+                  optional: true
+            - name: EPHEMERAL_CONTROLLER_ACCESS_REQUEST_TTL
+              valueFrom:
+                configMapKeyRef:
+                  name: controller-cm
+                  key: controller.access.request.ttl
+                  optional: true
           image: argoproj-labs/argocd-ephemeral-access:latest
           imagePullPolicy: Always
           name: controller

@@ -146,6 +146,7 @@ spec:
                       - expired
                       - denied
                       - invalid
+                      - timeout
                       type: string
                     transitionTime:
                       description: TransitionTime is the time the transition is observed
@@ -167,6 +168,7 @@ spec:
                 - expired
                 - denied
                 - invalid
+                - timeout
                 type: string
               roleName:
                 type: string
