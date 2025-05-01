@@ -23,7 +23,6 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	// meta "k8s.io/apimachinery/pkg/apis/meta/v1" // Required for Watching
 	"k8s.io/apimachinery/pkg/fields" // Required for Watching
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types" // Required for Watching
