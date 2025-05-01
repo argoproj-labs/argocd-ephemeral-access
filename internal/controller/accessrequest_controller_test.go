@@ -267,7 +267,6 @@ var _ = Describe("AccessRequest Controller", func() {
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 					return apierrors.IsNotFound(err) || ar.GetDeletionTimestamp() != nil
-					// return apierrors.IsNotFound(err)
 				}).WithTimeout(timeout).WithPolling(interval).Should(BeTrue())
 			})
 		})

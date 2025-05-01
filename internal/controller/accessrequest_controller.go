@@ -421,10 +421,9 @@ func (r *AccessRequestReconciler) handleTimeout(ctx context.Context, ar *api.Acc
 	if ar.Status.RequestState != api.InitiatedStatus && ar.Status.RequestState != api.RequestedStatus {
 		return false, nil
 	}
-	timedout := false
 	// Check if the AccessRequest has exceeded its configured timeout duration.
-	if time.Now().After(ar.GetCreationTimestamp().Time.Add(r.Config.ControllerRequestTimeout())) {
-		timedout = true
+	timedout := time.Now().After(ar.GetCreationTimestamp().Time.Add(r.Config.ControllerRequestTimeout()))
+	if timedout {
 		updateStatusFn := func(ctx context.Context, ar *api.AccessRequest) error {
 			// Update the status history to indicate a timeout.
 			ar.UpdateStatusHistory(api.TimeoutStatus, "AccessRequest timed out")
