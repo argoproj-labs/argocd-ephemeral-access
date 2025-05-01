@@ -25,7 +25,7 @@ func TestConfiguration(t *testing.T) {
 		assert.Equal(t, false, config.ControllerEnableHTTP2())
 		assert.Equal(t, time.Minute*3, config.ControllerRequeueInterval())
 		assert.Equal(t, "", config.PluginPath())
-		assert.Equal(t, time.Nanosecond*0, config.ControllerRequestTimeout())
+		assert.Equal(t, time.Hour*4, config.ControllerRequestTimeout())
 		assert.Equal(t, time.Nanosecond*0, config.ControllerAccessRequestTTL())
 	})
 	t.Run("will validate if env vars are set properly", func(t *testing.T) {

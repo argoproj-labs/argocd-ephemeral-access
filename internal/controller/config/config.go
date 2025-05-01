@@ -154,7 +154,7 @@ type ControllerConfig struct {
 	// Default: 3 minutes
 	RequeueInterval time.Duration `env:"REQUEUE_INTERVAL, default=3m"`
 	// RequestTimeout specifies the maximum duration allowed for a reconciliation process.
-	RequestTimeout time.Duration `env:"REQUEST_TIMEOUT"`
+	RequestTimeout time.Duration `env:"REQUEST_TIMEOUT, default=4h"`
 	// AccessRequestTTL defines the time-to-live duration for access requests.
 	AccessRequestTTL time.Duration `env:"ACCESS_REQUEST_TTL"`
 }

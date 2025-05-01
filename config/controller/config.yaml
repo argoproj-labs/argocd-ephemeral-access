@@ -6,33 +6,35 @@ metadata:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
 # data:
-#   # Log configurations
+#   # Log level for the controller. (Default: info)
 #   controller.log.level: info
+
+#   # Log format for the controller. Possible values: 'text', 'json'. (Default: text)
 #   controller.log.format: json
 
-#   # The controler server port.
+#   # The controler server port. (Default: 8081)
 #   controller.port: '8081'
 
-#   Enable leader election for controller manager.
+#   Enable leader election for controller manager. (Default: false)
 #   controller.leader.election.enabled: 'true'
 
-#   # The address the probe endpoint binds to.
+#   # The address the probe endpoint binds to. (Default: :8082)
 #    controller.health.probe.address: :8082
 
-#   # If set, HTTP/2 will be enabled for the metrics and webhook servers.
+#   # If set, HTTP/2 will be enabled for the metrics and webhook servers. (Default: false)
 #   controller.http2.enabled: 'true'
 
-#   # Determines the interval the controller will requeue an AccessRequest.
+#   # Determines the interval the controller will requeue an AccessRequest. (Default: 3 minutes)
 #   controller.requeue.interval: 1s
 
-#   # The address the metric endpoint binds to.
+#   # The address the metric endpoint binds to. (Default: :8090)
 #   controller.metrics.address: :8090
 
-#   # If set the metrics endpoint is served securely.
+#   # If set the metrics endpoint is served securely. (Default: false)
 #   controller.metrics.secure: 'true'
 
-#   # The maximum duration allowed for an AccessRequest in RequestedStatus or InitiatedStatus.
+#   # The maximum duration allowed for an AccessRequest in RequestedStatus or InitiatedStatus. (Default: 4 hours)
 #   controller.request.timeout: 4h
 
-#   # The time-to-live duration for access requests.
+#   # The time-to-live duration for access requests. (Not set by default)
 #   controller.access.request.ttl: 120h

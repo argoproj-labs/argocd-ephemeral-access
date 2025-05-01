@@ -68,6 +68,11 @@ well as the documentation:
 - [Backend configuration][3]
 - [Controller configuration][4]
 
+> [!NOTE]
+> Check the provided configmaps (./config folder) for the backend and
+> controller to see the available configuration options and their
+> default values.
+
 ### Install UI extension
 
 The UI extension needs to be installed by mounting the React component
@@ -360,8 +365,8 @@ used to enhance its core functionality. A few examples are:
 Change Request in approved state before elevating the user's access.
 - Access company's internal services for last mile user access validation.
 
-To learn more about plugins and learn about how to implement one,
-check the `examples/plugin` folder in this repository.
+To learn more about plugins and how to implement one, check the
+`examples/plugin` folder in this repository.
 
 [1]: https://github.com/argoproj-labs/argocd-ephemeral-access/releases
 [2]: https://github.com/argoproj-labs/argocd-extension-installer
