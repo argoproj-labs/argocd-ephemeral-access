@@ -47,7 +47,7 @@ const (
 	// InvalidStatus is the used to identify invalid access requests
 	InvalidStatus Status = "invalid"
 
-	// TimeoutStatus is the stage that defines the access request as timed out
+	// TimeoutStatus is the stage that defines the access request has timed out
 	TimeoutStatus Status = "timeout"
 )
 

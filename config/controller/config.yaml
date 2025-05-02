@@ -33,8 +33,10 @@ metadata:
 #   # If set the metrics endpoint is served securely. (Default: false)
 #   controller.metrics.secure: 'true'
 
-#   # The maximum duration allowed for an AccessRequest in RequestedStatus or InitiatedStatus. (Default: 4 hours)
+#   # The maximum duration allowed for a request to be either granted or denied after it has been
+#   # requested. (Default: 4 hours)
 #   controller.request.timeout: 4h
 
-#   # The time-to-live duration for access requests. (Not set by default)
+#   # The duration for AccessRequest resources to remain in Kubernetes before they are deleted once
+#   # they have been concluded. (Not set by default)
 #   controller.access.request.ttl: 120h

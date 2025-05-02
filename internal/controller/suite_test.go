@@ -118,7 +118,7 @@ var _ = BeforeSuite(func() {
 	controllerConfigMock.EXPECT().ControllerEnableHTTP2().Return(false).Maybe()
 	controllerConfigMock.EXPECT().ControllerRequeueInterval().Return(time.Second * 1).Maybe()
 	controllerConfigMock.EXPECT().ControllerRequestTimeout().Return(time.Second * 5).Maybe()
-	controllerConfigMock.EXPECT().ControllerAccessRequestTTL().Return(time.Second * 10).Maybe()
+	controllerConfigMock.EXPECT().ControllerAccessRequestTTL().Return(time.Second * 3).Maybe()
 
 	pluginResponse := &plugin.GrantResponse{
 		Status: plugin.GrantStatusGranted,

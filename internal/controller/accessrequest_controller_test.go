@@ -53,7 +53,7 @@ var appResource = schema.GroupVersionResource{
 
 var _ = Describe("AccessRequest Controller", func() {
 	const (
-		timeout  = time.Second * 15
+		timeout  = time.Second * 10
 		interval = time.Millisecond * 250
 	)
 
@@ -267,7 +267,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Eventually(func() bool {
 					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), ar)
 					return apierrors.IsNotFound(err) || ar.GetDeletionTimestamp() != nil
-				}).WithTimeout(timeout).WithPolling(interval).Should(BeTrue())
+				}).WithTimeout(timeout + 10*time.Second).WithPolling(interval).Should(BeTrue())
 			})
 		})
 		When("protected fields values change after applied", func() {

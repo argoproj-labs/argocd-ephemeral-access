@@ -125,17 +125,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
-	timeout, err := r.handleTimeout(ctx, ar)
-	if err != nil {
-		logger.Error(err, "Error handling timeout")
-		return ctrl.Result{}, fmt.Errorf("error handling timeout: %w", err)
-	}
-	// stop the reconciliation if the timeout was exceeded
-	if timeout {
-		logger.Debug(fmt.Sprintf("AccessRequest timeout (%s) exceeded. Stopping reconciliation...", r.Config.ControllerRequestTimeout().String()))
-		return ctrl.Result{}, nil
-	}
-
 	logger.Debug("Validating AccessRequest")
 	err = r.Validate(ctx, ar)
 	if err != nil {
@@ -177,6 +166,16 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	// Record the metric for the current status of the Access Request
 	metrics.IncrementAccessRequestCounter(string(status))
+
+	timeout, err := r.handleRequestTimeout(ctx, ar)
+	if err != nil {
+		logger.Error(err, "Error handling timeout")
+		return ctrl.Result{}, fmt.Errorf("error handling timeout: %w", err)
+	}
+	if timeout {
+		logger.Info(fmt.Sprintf("AccessRequest timeout (%s) exceeded. Stopping reconciliation...", r.Config.ControllerRequestTimeout().String()))
+		status = api.TimeoutStatus
+	}
 
 	result := buildResult(status, ar, r.Config)
 	logger.Info("Reconciliation concluded", "status", status, "result", result)
@@ -258,6 +257,8 @@ func buildResult(status api.Status, ar *api.AccessRequest, config config.Control
 	case api.GrantedStatus:
 		result.Requeue = true
 		result.RequeueAfter = ar.Status.ExpiresAt.Sub(time.Now())
+	case api.TimeoutStatus:
+		result.Requeue = false
 	default:
 		if isConcluded(ar) && hasTTLConfig(config) {
 			result.Requeue = true
@@ -346,7 +347,11 @@ func (r *AccessRequestReconciler) handleTTL(ctx context.Context, ar *api.AccessR
 	}
 
 	// Check if the AccessRequest has exceeded its configured TTL (Time-To-Live) duration.
-	ttlExceeded := time.Now().After(getTTLTime(ar, r.Config))
+	ttl := getTTLTime(ar, r.Config)
+	if ttl == nil {
+		return false, nil
+	}
+	ttlExceeded := time.Now().After(*ttl)
 
 	if ttlExceeded {
 		// If TTL is exceeded, set the resource to be deleted.
@@ -358,18 +363,43 @@ func (r *AccessRequestReconciler) handleTTL(ctx context.Context, ar *api.AccessR
 	return ttlExceeded, nil
 }
 
-// getTTLTime calculates the expiration time for an AccessRequest.
-// It adds the TTL (Time-To-Live) duration, defined in the controller configuration,
-// to the creation timestamp of the AccessRequest.
+// getTTLTime calculates the TTL (Time-To-Live) for an AccessRequest object.
+// If the AccessRequest has concluded, it determines the TTL based on the last
+// status history transition time and the configured TTL duration.
+// Parameters:
+// - ar: Pointer to the AccessRequest object.
+// - config: ControllerConfigurer providing the TTL configuration.
+// Returns:
+// - A pointer to the calculated TTL time if the AccessRequest is concluded.
+// - nil if the AccessRequest is not concluded.
+func getTTLTime(ar *api.AccessRequest, config config.ControllerConfigurer) *time.Time {
+	if !isConcluded(ar) {
+		return nil
+	}
+	lastStatusHistory := ar.Status.History[len(ar.Status.History)-1]
+	ttl := lastStatusHistory.TransitionTime.Time.Add(config.ControllerAccessRequestTTL())
+	return &ttl
+}
+
+// getTimeoutTime calculates the timeout time for an AccessRequest object.
+// The timeout is determined based on the last status history transition time
+// and the configured request timeout duration. If the AccessRequest is not in
+// InitiatedStatus or RequestedStatus, it does not have a timeout.
 //
 // Parameters:
-// - ar: The AccessRequest object containing the creation timestamp.
-// - config: The controller configuration providing the TTL duration.
+// - ar: Pointer to the AccessRequest object.
+// - config: ControllerConfigurer providing the timeout configuration.
 //
 // Returns:
-// - The calculated expiration time as a time.Time object.
-func getTTLTime(ar *api.AccessRequest, config config.ControllerConfigurer) time.Time {
-	return ar.GetCreationTimestamp().Time.Add(config.ControllerAccessRequestTTL())
+// - A pointer to the calculated timeout time if applicable.
+// - nil if the AccessRequest does not have a timeout.
+func getTimeoutTime(ar *api.AccessRequest, config config.ControllerConfigurer) *time.Time {
+	if ar.Status.RequestState != api.InitiatedStatus && ar.Status.RequestState != api.RequestedStatus {
+		return nil
+	}
+	lastStatusHistory := ar.Status.History[len(ar.Status.History)-1]
+	timeout := lastStatusHistory.TransitionTime.Time.Add(config.ControllerRequestTimeout())
+	return &timeout
 }
 
 // doWithRetry attempts to execute the provided function `fn` with retries on conflict
@@ -399,7 +429,7 @@ func (r *AccessRequestReconciler) doWithRetry(ctx context.Context, ar *api.Acces
 	})
 }
 
-// handleTimeout checks if the AccessRequest resource has exceeded its configured timeout duration.
+// handleRequestTimeout checks if the AccessRequest resource has exceeded its configured timeout duration.
 // If the timeout is not configured, it returns false and does not update the status.
 // Should only process timeouts for AccessRequests in InitiatedStatus or in RequestedStatus.
 // If the timeout is exceeded, it updates the status to indicate a timeout.
@@ -411,17 +441,17 @@ func (r *AccessRequestReconciler) doWithRetry(ctx context.Context, ar *api.Acces
 // Returns:
 // - A boolean indicating whether the AccessRequest has timed out.
 // - An error if there is an issue updating the status.
-func (r *AccessRequestReconciler) handleTimeout(ctx context.Context, ar *api.AccessRequest) (bool, error) {
+func (r *AccessRequestReconciler) handleRequestTimeout(ctx context.Context, ar *api.AccessRequest) (bool, error) {
 	// If the timeout is not configured, return false and do not update the status.
 	if !hasTimeoutConfig(r.Config) {
 		return false, nil
 	}
-	// skip if not in InitiatedStatus or in RequestedStatus.
-	if ar.Status.RequestState != api.InitiatedStatus && ar.Status.RequestState != api.RequestedStatus {
+	timeoutAt := getTimeoutTime(ar, r.Config)
+	if timeoutAt == nil {
 		return false, nil
 	}
 	// Check if the AccessRequest has exceeded its configured timeout duration.
-	timedout := time.Now().After(ar.GetCreationTimestamp().Time.Add(r.Config.ControllerRequestTimeout()))
+	timedout := time.Now().After(*timeoutAt)
 	if timedout {
 		updateStatusFn := func(ctx context.Context, ar *api.AccessRequest) error {
 			// Update the status history to indicate a timeout.
