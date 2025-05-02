@@ -257,8 +257,6 @@ func buildResult(status api.Status, ar *api.AccessRequest, config config.Control
 	case api.GrantedStatus:
 		result.Requeue = true
 		result.RequeueAfter = ar.Status.ExpiresAt.Sub(time.Now())
-	case api.TimeoutStatus:
-		result.Requeue = false
 	default:
 		if isConcluded(ar) && hasTTLConfig(config) {
 			result.Requeue = true
