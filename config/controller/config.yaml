@@ -6,27 +6,37 @@ metadata:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
 # data:
-  ## Log configurations
-  # controller.log.level: info
-  # controller.log.format: json
+#   # Log level for the controller. (Default: info)
+#   controller.log.level: info
 
-  ## The controler server port.
-  # controller.port: '8081'
+#   # Log format for the controller. Possible values: 'text', 'json'. (Default: text)
+#   controller.log.format: json
 
-  ## Enable leader election for controller manager.
-  # controller.leader.election.enabled: 'true'
+#   # The controler server port. (Default: 8081)
+#   controller.port: '8081'
 
-  ## The address the probe endpoint binds to.
-  # controller.health.probe.address: :8082
+#   Enable leader election for controller manager. (Default: false)
+#   controller.leader.election.enabled: 'true'
 
-  ## If set, HTTP/2 will be enabled for the metrics and webhook servers.
-  # controller.http2.enabled: 'true'
+#   # The address the probe endpoint binds to. (Default: :8082)
+#    controller.health.probe.address: :8082
 
-  ## Determines the interval the controller will requeue an AccessRequest.
-  # controller.requeue.interval: 1s
+#   # If set, HTTP/2 will be enabled for the metrics and webhook servers. (Default: false)
+#   controller.http2.enabled: 'true'
 
-  ## The address the metric endpoint binds to.
-  # controller.metrics.address: :8090
+#   # Determines the interval the controller will requeue an AccessRequest. (Default: 3 minutes)
+#   controller.requeue.interval: 1s
 
-  ## If set the metrics endpoint is served securely.
-  # controller.metrics.secure: 'true'
+#   # The address the metric endpoint binds to. (Default: :8090)
+#   controller.metrics.address: :8090
+
+#   # If set the metrics endpoint is served securely. (Default: false)
+#   controller.metrics.secure: 'true'
+
+#   # The maximum duration allowed for a request to be either granted or denied after it has been
+#   # requested. (Default: 4 hours)
+#   controller.request.timeout: 4h
+
+#   # The duration for AccessRequest resources to remain in Kubernetes before they are deleted once
+#   # they have been concluded. (Not set by default)
+#   controller.access.request.ttl: 120h

@@ -35,8 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate" // Required for Watching
 	"sigs.k8s.io/controller-runtime/pkg/reconcile" // Required for Watching
 
-	// "sigs.k8s.io/controller-runtime/pkg/source"    // Required for Watching
-
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config"
@@ -110,6 +108,17 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
+	ttlExceeded, err := r.handleTTL(ctx, ar)
+	if err != nil {
+		logger.Error(err, "Error handling TTL")
+		return ctrl.Result{}, fmt.Errorf("error handling TTL: %w", err)
+	}
+	// stop the reconciliation if the TTL was exceeded
+	if ttlExceeded {
+		logger.Debug("AccessRequest TTL exceeded: cleaning up...")
+		return ctrl.Result{}, nil
+	}
+
 	// stop if the reconciliation was previously concluded
 	if isConcluded(ar) {
 		logger.Debug(fmt.Sprintf("Reconciliation concluded as the AccessRequest is %s: skipping...", string(ar.Status.RequestState)))
@@ -158,7 +167,17 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Record the metric for the current status of the Access Request
 	metrics.IncrementAccessRequestCounter(string(status))
 
-	result := buildResult(status, ar, r.Config.ControllerRequeueInterval())
+	timeout, err := r.handleRequestTimeout(ctx, ar)
+	if err != nil {
+		logger.Error(err, "Error handling timeout")
+		return ctrl.Result{}, fmt.Errorf("error handling timeout: %w", err)
+	}
+	if timeout {
+		logger.Info(fmt.Sprintf("AccessRequest timeout (%s) exceeded. Stopping reconciliation...", r.Config.ControllerRequestTimeout().String()))
+		status = api.TimeoutStatus
+	}
+
+	result := buildResult(status, ar, r.Config)
 	logger.Info("Reconciliation concluded", "status", status, "result", result)
 	return result, nil
 }
@@ -220,7 +239,7 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 // it is in Denied, Expired or Invalid status.
 func isConcluded(ar *api.AccessRequest) bool {
 	switch ar.Status.RequestState {
-	case api.DeniedStatus, api.ExpiredStatus, api.InvalidStatus:
+	case api.DeniedStatus, api.ExpiredStatus, api.InvalidStatus, api.TimeoutStatus:
 		return true
 	default:
 		return false
@@ -229,26 +248,51 @@ func isConcluded(ar *api.AccessRequest) bool {
 
 // buildResult will verify the given status and determine when this access
 // request should be requeued.
-func buildResult(status api.Status, ar *api.AccessRequest, requeueInterval time.Duration) ctrl.Result {
+func buildResult(status api.Status, ar *api.AccessRequest, config config.ControllerConfigurer) ctrl.Result {
 	result := ctrl.Result{}
 	switch status {
 	case api.RequestedStatus:
 		result.Requeue = true
-		result.RequeueAfter = requeueInterval
+		result.RequeueAfter = config.ControllerRequeueInterval()
 	case api.GrantedStatus:
 		result.Requeue = true
 		result.RequeueAfter = ar.Status.ExpiresAt.Sub(time.Now())
+	default:
+		if isConcluded(ar) && hasTTLConfig(config) {
+			result.Requeue = true
+			result.RequeueAfter = getTTLTime(ar, config).Sub(time.Now())
+		}
 	}
 	return result
 }
 
-// roleTemplateUpdated will return true if the RoleTemplate previously associated with
-// the given AccessRequest is different than the given what is defined in the given rt.
-// Will return false otherwise.
-func roleTemplateUpdated(ar *api.AccessRequest, rt *api.RoleTemplate) bool {
-	return ar.Status.RoleTemplateHash != RoleTemplateHash(rt)
+// hasTTLConfig checks if a TTL (Time-To-Live) configuration is set for the controller.
+// It determines this by verifying if the TTL value is not equal to zero.
+//
+// Parameters:
+// - c: An implementation of the ControllerConfigurer interface.
+//
+// Returns:
+// - A boolean indicating whether a TTL configuration is set.
+func hasTTLConfig(c config.ControllerConfigurer) bool {
+	return c.ControllerAccessRequestTTL() != time.Nanosecond*0
 }
 
+// hasTimeoutConfig checks if the controller configuration has a non-zero timeout value
+// for handling requests.
+//
+// Parameters:
+// - c: The controller configuration implementing the ControllerConfigurer interface.
+//
+// Returns:
+// - A boolean indicating whether the timeout is configured (true) or not (false).
+func hasTimeoutConfig(c config.ControllerConfigurer) bool {
+	return c.ControllerRequestTimeout() != time.Nanosecond*0
+}
+
+// getApplication retrieves the ArgoCD Application resource associated with the given AccessRequest.
+// It uses the namespace and name specified in the ar spec to locate the Application.
+// Returns the Application object if found, or an error if the retrieval fails.
 func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.AccessRequest) (*argocd.Application, error) {
 	application := &argocd.Application{}
 	objKey := client.ObjectKey{
@@ -262,6 +306,9 @@ func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.Ac
 	return application, nil
 }
 
+// getRoleTemplate retrieves the RoleTemplate resource associated with the given AccessRequest.
+// It uses the name and namespace specified in the ar spec to locate the RoleTemplate.
+// Returns the RoleTemplate object if found, or an error if the retrieval fails.
 func (r *AccessRequestReconciler) getRoleTemplate(ctx context.Context, ar *api.AccessRequest) (*api.RoleTemplate, error) {
 	roleTemplate := &api.RoleTemplate{}
 	objKey := client.ObjectKey{
@@ -273,6 +320,149 @@ func (r *AccessRequestReconciler) getRoleTemplate(ctx context.Context, ar *api.A
 		return nil, err
 	}
 	return roleTemplate, nil
+}
+
+// handleTTL checks whether the AccessRequest has exceeded its configured TTL (Time-To-Live) duration.
+// If the TTL is not configured, it returns false and does not mark the resource for deletion.
+// If the TTL is exceeded, it marks the resource for deletion by adding a deletion timestamp.
+// TTL is only applied for concluded AccessRequests (i.e., those in Denied, Expired, etc. See isConcluded()).
+//
+// Parameters:
+// - ctx: The context for the operation, used for cancellation and deadlines.
+// - ar: The AccessRequest object to check and potentially mark for deletion.
+//
+// Returns:
+// - A boolean indicating whether the TTL was exceeded.
+// - An error if adding the deletion timestamp fails, or nil if successful.
+func (r *AccessRequestReconciler) handleTTL(ctx context.Context, ar *api.AccessRequest) (bool, error) {
+	// Skip if the TTL is not configured.
+	if !hasTTLConfig(r.Config) {
+		return false, nil
+	}
+	// Skip if the AccessRequest is not concluded.
+	if !isConcluded(ar) {
+		return false, nil
+	}
+
+	// Check if the AccessRequest has exceeded its configured TTL (Time-To-Live) duration.
+	ttl := getTTLTime(ar, r.Config)
+	if ttl == nil {
+		return false, nil
+	}
+	ttlExceeded := time.Now().After(*ttl)
+
+	if ttlExceeded {
+		// If TTL is exceeded, set the resource to be deleted.
+		err := r.Delete(ctx, ar)
+		if err != nil {
+			return ttlExceeded, fmt.Errorf("error adding deletion timestamp: %w", err)
+		}
+	}
+	return ttlExceeded, nil
+}
+
+// getTTLTime calculates the TTL (Time-To-Live) for an AccessRequest object.
+// If the AccessRequest has concluded, it determines the TTL based on the last
+// status history transition time and the configured TTL duration.
+// Parameters:
+// - ar: Pointer to the AccessRequest object.
+// - config: ControllerConfigurer providing the TTL configuration.
+// Returns:
+// - A pointer to the calculated TTL time if the AccessRequest is concluded.
+// - nil if the AccessRequest is not concluded.
+func getTTLTime(ar *api.AccessRequest, config config.ControllerConfigurer) *time.Time {
+	if !isConcluded(ar) {
+		return nil
+	}
+	lastStatusHistory := ar.Status.History[len(ar.Status.History)-1]
+	ttl := lastStatusHistory.TransitionTime.Time.Add(config.ControllerAccessRequestTTL())
+	return &ttl
+}
+
+// getTimeoutTime calculates the timeout time for an AccessRequest object.
+// The timeout is determined based on the last status history transition time
+// and the configured request timeout duration. If the AccessRequest is not in
+// InitiatedStatus or RequestedStatus, it does not have a timeout.
+//
+// Parameters:
+// - ar: Pointer to the AccessRequest object.
+// - config: ControllerConfigurer providing the timeout configuration.
+//
+// Returns:
+// - A pointer to the calculated timeout time if applicable.
+// - nil if the AccessRequest does not have a timeout.
+func getTimeoutTime(ar *api.AccessRequest, config config.ControllerConfigurer) *time.Time {
+	if ar.Status.RequestState != api.InitiatedStatus && ar.Status.RequestState != api.RequestedStatus {
+		return nil
+	}
+	lastStatusHistory := ar.Status.History[len(ar.Status.History)-1]
+	timeout := lastStatusHistory.TransitionTime.Time.Add(config.ControllerRequestTimeout())
+	return &timeout
+}
+
+// doWithRetry attempts to execute the provided function `fn` with retries on conflict
+// errors. It ensures that the AccessRequest object is re-fetched on subsequent attempts
+// after the first failure.
+//
+// Parameters:
+// - ctx: The context for managing request deadlines and cancellations.
+// - ar: The AccessRequest object to operate on.
+// - fn: A function that performs the desired operation on the AccessRequest object.
+//
+// Returns:
+// - An error if the operation fails after exhausting all retries.
+func (r *AccessRequestReconciler) doWithRetry(ctx context.Context, ar *api.AccessRequest, fn func(ctx context.Context, ar *api.AccessRequest) error) error {
+	firstAttempt := true
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if !firstAttempt {
+			// Re-fetch the AccessRequest object to ensure the latest state is used.
+			err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
+			if err != nil {
+				return fmt.Errorf("error getting the AccessRequest: %s", err)
+			}
+		}
+		firstAttempt = false
+		// Execute the provided function with the AccessRequest object.
+		return fn(ctx, ar)
+	})
+}
+
+// handleRequestTimeout checks if the AccessRequest resource has exceeded its configured timeout duration.
+// If the timeout is not configured, it returns false and does not update the status.
+// Should only process timeouts for AccessRequests in InitiatedStatus or in RequestedStatus.
+// If the timeout is exceeded, it updates the status to indicate a timeout.
+//
+// Parameters:
+// - ctx: The context for managing request deadlines and cancellations.
+// - ar: The AccessRequest object to evaluate.
+//
+// Returns:
+// - A boolean indicating whether the AccessRequest has timed out.
+// - An error if there is an issue updating the status.
+func (r *AccessRequestReconciler) handleRequestTimeout(ctx context.Context, ar *api.AccessRequest) (bool, error) {
+	// If the timeout is not configured, return false and do not update the status.
+	if !hasTimeoutConfig(r.Config) {
+		return false, nil
+	}
+	timeoutAt := getTimeoutTime(ar, r.Config)
+	if timeoutAt == nil {
+		return false, nil
+	}
+	// Check if the AccessRequest has exceeded its configured timeout duration.
+	timedout := time.Now().After(*timeoutAt)
+	if timedout {
+		updateStatusFn := func(ctx context.Context, ar *api.AccessRequest) error {
+			// Update the status history to indicate a timeout.
+			ar.UpdateStatusHistory(api.TimeoutStatus, "AccessRequest timed out")
+			return r.Status().Update(ctx, ar)
+		}
+		// Attempt to update the status with retries on conflict errors.
+		err := r.doWithRetry(ctx, ar, updateStatusFn)
+		if err != nil {
+			return timedout, fmt.Errorf("error updating status to timeout: %w", err)
+		}
+	}
+	return timedout, nil
 }
 
 // handleFinalizer will check if the AccessRequest is being deleted and

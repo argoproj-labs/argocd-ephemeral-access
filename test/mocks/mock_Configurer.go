@@ -21,6 +21,51 @@ func (_m *MockConfigurer) EXPECT() *MockConfigurer_Expecter {
 	return &MockConfigurer_Expecter{mock: &_m.Mock}
 }
 
+// ControllerAccessRequestTTL provides a mock function with given fields:
+func (_m *MockConfigurer) ControllerAccessRequestTTL() time.Duration {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for ControllerAccessRequestTTL")
+	}
+
+	var r0 time.Duration
+	if rf, ok := ret.Get(0).(func() time.Duration); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(time.Duration)
+	}
+
+	return r0
+}
+
+// MockConfigurer_ControllerAccessRequestTTL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ControllerAccessRequestTTL'
+type MockConfigurer_ControllerAccessRequestTTL_Call struct {
+	*mock.Call
+}
+
+// ControllerAccessRequestTTL is a helper method to define mock.On call
+func (_e *MockConfigurer_Expecter) ControllerAccessRequestTTL() *MockConfigurer_ControllerAccessRequestTTL_Call {
+	return &MockConfigurer_ControllerAccessRequestTTL_Call{Call: _e.mock.On("ControllerAccessRequestTTL")}
+}
+
+func (_c *MockConfigurer_ControllerAccessRequestTTL_Call) Run(run func()) *MockConfigurer_ControllerAccessRequestTTL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockConfigurer_ControllerAccessRequestTTL_Call) Return(_a0 time.Duration) *MockConfigurer_ControllerAccessRequestTTL_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockConfigurer_ControllerAccessRequestTTL_Call) RunAndReturn(run func() time.Duration) *MockConfigurer_ControllerAccessRequestTTL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ControllerEnableHTTP2 provides a mock function with given fields:
 func (_m *MockConfigurer) ControllerEnableHTTP2() bool {
 	ret := _m.Called()
@@ -152,6 +197,51 @@ func (_c *MockConfigurer_ControllerPort_Call) Return(_a0 int) *MockConfigurer_Co
 }
 
 func (_c *MockConfigurer_ControllerPort_Call) RunAndReturn(run func() int) *MockConfigurer_ControllerPort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ControllerRequestTimeout provides a mock function with given fields:
+func (_m *MockConfigurer) ControllerRequestTimeout() time.Duration {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for ControllerRequestTimeout")
+	}
+
+	var r0 time.Duration
+	if rf, ok := ret.Get(0).(func() time.Duration); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(time.Duration)
+	}
+
+	return r0
+}
+
+// MockConfigurer_ControllerRequestTimeout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ControllerRequestTimeout'
+type MockConfigurer_ControllerRequestTimeout_Call struct {
+	*mock.Call
+}
+
+// ControllerRequestTimeout is a helper method to define mock.On call
+func (_e *MockConfigurer_Expecter) ControllerRequestTimeout() *MockConfigurer_ControllerRequestTimeout_Call {
+	return &MockConfigurer_ControllerRequestTimeout_Call{Call: _e.mock.On("ControllerRequestTimeout")}
+}
+
+func (_c *MockConfigurer_ControllerRequestTimeout_Call) Run(run func()) *MockConfigurer_ControllerRequestTimeout_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockConfigurer_ControllerRequestTimeout_Call) Return(_a0 time.Duration) *MockConfigurer_ControllerRequestTimeout_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockConfigurer_ControllerRequestTimeout_Call) RunAndReturn(run func() time.Duration) *MockConfigurer_ControllerRequestTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
