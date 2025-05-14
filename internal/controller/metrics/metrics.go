@@ -1,19 +1,33 @@
 package metrics
 
 import (
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin"
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
+)
+
+const (
+	accessRequestsUpdateMaxFrequency = 15 * time.Second
 )
 
 var (
-	accessRequestStatusTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "access_request_status_total",
-			Help: "Total number of AccessRequests by status",
+	accessRequestResources = newThrottledGauge(accessRequestsUpdateMaxFrequency, prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "access_request_resources",
+			Help: "Current number of AccessRequests",
 		},
-		[]string{"accessRequestStatus"},
-	)
+		[]string{"status", "roleNamespace", "roleName"},
+	))
 
 	// PluginOperationsTotal counts the total number of plugin operations. The plugin operation can be either
 	// revoke_access or grant_access.
@@ -27,13 +41,42 @@ var (
 )
 
 func init() {
-	metrics.Registry.MustRegister(accessRequestStatusTotal)
+	metrics.Registry.MustRegister(accessRequestResources)
 	metrics.Registry.MustRegister(pluginOperationsTotal)
 }
 
 // IncrementAccessRequestCounter increments the counter for a given AccessRequest status
-func IncrementAccessRequestCounter(status string) {
-	accessRequestStatusTotal.WithLabelValues(status).Inc()
+func UpdateAccessRequests(reader client.Reader) {
+	accessRequestResources.run(func(m *prometheus.GaugeVec) {
+		ctx := context.Background()
+		logger := log.FromContext(ctx)
+		logger.Debug("Updating access_request_resources")
+
+		list := &api.AccessRequestList{}
+		err := reader.List(ctx, list)
+		if err != nil {
+			logger.Error(err, "could not list access request for metrics")
+		}
+
+		countByKey := map[string]int{}
+		for _, ar := range list.Items {
+			roleName := ar.Spec.Role.TemplateRef.Name
+			roleNamespace := ar.Spec.Role.TemplateRef.Namespace
+			status := string(ar.Status.RequestState)
+			if status == "" {
+				continue
+			}
+
+			key := fmt.Sprintf("%s/%s/%s", status, roleNamespace, roleName)
+			countByKey[key] += 1
+		}
+
+		for key, count := range countByKey {
+			labels := strings.Split(key, "/")
+			m.WithLabelValues(labels...).Set(float64(count))
+		}
+
+	}, false)
 }
 
 // RecordPluginOperationResult records the result of a plugin operation
@@ -50,4 +93,38 @@ func RecordPluginOperationResult(operation string, result interface{}) {
 		resultString = "unknown"
 	}
 	pluginOperationsTotal.WithLabelValues(operation, resultString).Inc()
+}
+
+type throttledGauge struct {
+	*prometheus.GaugeVec
+
+	delay time.Duration
+
+	lastCallTime time.Time
+	callAfter    bool
+	mutex        *sync.Mutex
+}
+
+func newThrottledGauge(delay time.Duration, gauge *prometheus.GaugeVec) *throttledGauge {
+	return &throttledGauge{
+		GaugeVec: gauge,
+		delay:    delay,
+		mutex:    &sync.Mutex{},
+	}
+}
+
+func (c throttledGauge) run(fn func(*prometheus.GaugeVec), throttled bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if time.Since(c.lastCallTime) > c.delay {
+		go fn(c.GaugeVec)
+		c.lastCallTime = time.Now()
+		c.callAfter = false
+	} else if !c.callAfter && !throttled {
+		// Queue the operation after the delay has expired in case no more event comes in
+		// If there is already an item queued, then we can drop the subsequent events
+		c.callAfter = true
+		time.AfterFunc(time.Until(c.lastCallTime.Add(c.delay).Add(time.Millisecond)), func() { c.run(fn, true) })
+	}
 }
