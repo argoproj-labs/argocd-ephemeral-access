@@ -45,7 +45,7 @@ func init() {
 	metrics.Registry.MustRegister(pluginOperationsTotal)
 }
 
-// IncrementAccessRequestCounter increments the counter for a given AccessRequest status
+// UpdateAccessRequests increments the gauge based on the Access Requests
 func UpdateAccessRequests(reader client.Reader) {
 	accessRequestResources.run(func(m *prometheus.GaugeVec) {
 		ctx := context.Background()
