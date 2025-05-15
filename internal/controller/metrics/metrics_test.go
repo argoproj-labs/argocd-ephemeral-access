@@ -1,18 +1,80 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin"
+	"github.com/argoproj-labs/argocd-ephemeral-access/test/mocks"
+	"github.com/argoproj-labs/argocd-ephemeral-access/test/utils"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 )
 
-func TestIncrementAccessRequestCounter(t *testing.T) {
+func TestUpdateAccessRequests(t *testing.T) {
+	readerMock := mocks.MockReader{}
+
+	expected := `
+	# HELP access_request_resources Current number of AccessRequests
+	# TYPE access_request_resources gauge
+	access_request_resources{roleName="role1",roleNamespace="roleNs",status="expired"} 1
+	access_request_resources{roleName="role1",roleNamespace="roleNs",status="invalid"} 3
+	access_request_resources{roleName="role2",roleNamespace="roleNs",status="invalid"} 1
+	`
+
+	ar1 := utils.NewAccessRequest("ar1", "ns", "app", "appNs", "role1", "roleNs", "subject")
+	ar2 := ar1.DeepCopy()
+	utils.WithName("ar2")(ar2)
+	utils.ToExpiredState()(ar2)
+	ar3 := ar1.DeepCopy()
+	utils.WithName("ar3")(ar3)
+	utils.ToInvalidState()(ar3)
+	ar4 := ar1.DeepCopy()
+	utils.WithName("ar4")(ar4)
+	utils.ToInvalidState()(ar4)
+	ar5 := ar1.DeepCopy()
+	utils.WithName("ar5")(ar5)
+	utils.ToInvalidState()(ar5)
+	ar6 := ar1.DeepCopy()
+	utils.WithName("ar6")(ar6)
+	utils.ToInvalidState()(ar6)
+	ar6.Spec.Role.TemplateRef.Name = "role2"
+
+	readerMock.EXPECT().List(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+		arg := ol.(*api.AccessRequestList)
+		arg.Items = []api.AccessRequest{
+			*ar1, *ar2, *ar3, *ar4, *ar5, *ar6,
+		}
+		return nil
+	}).Once()
+
+	// add a serie to the existing metric that should be removed
 	accessRequestResources.Reset()
-	//TODO
+	accessRequestResources.WithLabelValues("test", "removed", "label").Set(1)
+
+	// call twice to make sure it is throttled
+	UpdateAccessRequests(&readerMock)
+	UpdateAccessRequests(&readerMock)
+
+	err := utils.Eventually(func() (bool, error) {
+		count := testutil.CollectAndCount(accessRequestResources, accessRequestResourcesMetricName)
+		return count == 3, nil
+	}, 5*time.Second, time.Second)
+	require.NoError(t, err)
+
+	if err := testutil.CollectAndCompare(accessRequestResources, strings.NewReader(expected), accessRequestResourcesMetricName); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+
 }
 
 func TestRecordPluginOperationResult(t *testing.T) {

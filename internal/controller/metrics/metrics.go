@@ -18,12 +18,13 @@ import (
 
 const (
 	accessRequestsUpdateMaxFrequency = 15 * time.Second
+	accessRequestResourcesMetricName = "access_request_resources"
 )
 
 var (
 	accessRequestResources = newThrottledGauge(accessRequestsUpdateMaxFrequency, prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "access_request_resources",
+			Name: accessRequestResourcesMetricName,
 			Help: "Current number of AccessRequests",
 		},
 		[]string{"status", "roleNamespace", "roleName"},
@@ -71,6 +72,7 @@ func UpdateAccessRequests(reader client.Reader) {
 			countByKey[key] += 1
 		}
 
+		m.Reset()
 		for key, count := range countByKey {
 			labels := strings.Split(key, "/")
 			m.WithLabelValues(labels...).Set(float64(count))
@@ -113,7 +115,7 @@ func newThrottledGauge(delay time.Duration, gauge *prometheus.GaugeVec) *throttl
 	}
 }
 
-func (c throttledGauge) run(fn func(*prometheus.GaugeVec), throttled bool) {
+func (c *throttledGauge) run(fn func(*prometheus.GaugeVec), throttled bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
