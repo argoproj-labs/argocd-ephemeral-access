@@ -230,11 +230,11 @@ GOREMAN ?= $(LOCALBIN)/goreman-$(GOREMAN_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.5.0
-CONTROLLER_TOOLS_VERSION ?= v0.15.0
-ENVTEST_VERSION ?= release-0.18
-GOLANGCI_LINT_VERSION ?= v1.57.2
-MOCKERY_VERSION ?= v2.45.0
-GORELEASER_VERSION ?= v2.3.2
+CONTROLLER_TOOLS_VERSION ?= v0.16.3
+ENVTEST_VERSION ?= release-0.19
+GOLANGCI_LINT_VERSION ?= v2.1.0
+MOCKERY_VERSION ?= v2.53.3
+GORELEASER_VERSION ?= v2.6.1
 GOREMAN_VERSION ?= v0.3.15
 
 .PHONY: kustomize
@@ -263,7 +263,7 @@ mockery: $(MOCKERY) ## Download mockery locally if necessary.
 $(MOCKERY): $(LOCALBIN)
 	$(call go-install-tool,$(MOCKERY),github.com/vektra/mockery/v2,$(MOCKERY_VERSION))
 
-.PHONY: goreleaser 
+.PHONY: goreleaser
 goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
 $(GORELEASER): $(LOCALBIN)
 	$(call go-install-tool,$(GORELEASER),github.com/goreleaser/goreleaser/v2,$(GORELEASER_VERSION))
