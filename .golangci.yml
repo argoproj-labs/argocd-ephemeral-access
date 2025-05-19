@@ -1,41 +1,80 @@
+version: '2'
 run:
   timeout: 5m
   allow-parallel-runners: true
 
 issues:
-  # don't skip warning about doc comments
-  # don't exclude the default set of lint
-  exclude-use-default: false
-  # restore some of the defaults
-  # (fill in the rest as needed)
-  exclude-rules:
-    - path: "api/*"
-      linters:
-        - lll
-    - path: "internal/*"
-      linters:
-        - dupl
-        - lll
+  max-issues-per-linter: 0
+  max-same-issues: 0
 linters:
-  disable-all: true
   enable:
+    - bodyclose
+    - canonicalheader
+    - containedctx
+    - contextcheck
+    - copyloopvar
     - dupl
-    - errcheck
-    - exportloopref
-    - ginkgolinter
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - fatcontext
+    - forcetypeassert
+    - gocheckcompilerdirectives
     - goconst
+    - gocritic
     - gocyclo
-    - gofmt
-    - goimports
-    - gosimple
-    - govet
-    - ineffassign
     - lll
+    - loggercheck
+    - makezero
     - misspell
+    - musttag
     - nakedret
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
     - prealloc
-    - staticcheck
-    - typecheck
+    - promlinter
+    - testifylint
+    - thelper
+    - tparallel
     - unconvert
     - unparam
-    - unused
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+    - wrapcheck
+  settings:
+    copyloopvar:
+      check-alias: true
+    gocritic:
+      disabled-checks:
+        - assignOp
+        - ifElseChain
+  exclusions:
+    rules:
+      - linters:
+          - lll
+        path: api/.*
+      - linters:
+          - lll
+        path: internal/.*
+      - linters:
+          - dupl
+        path: .*_test.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

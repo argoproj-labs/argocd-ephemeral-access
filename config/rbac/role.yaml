@@ -38,12 +38,14 @@ rules:
   - ephemeral-access.argoproj-labs.io
   resources:
   - accessrequests/finalizers
+  - roletemplates/finalizers
   verbs:
   - update
 - apiGroups:
   - ephemeral-access.argoproj-labs.io
   resources:
   - accessrequests/status
+  - roletemplates/status
   verbs:
   - get
   - patch
@@ -56,17 +58,3 @@ rules:
   - get
   - list
   - watch
-- apiGroups:
-  - ephemeral-access.argoproj-labs.io
-  resources:
-  - roletemplates/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - ephemeral-access.argoproj-labs.io
-  resources:
-  - roletemplates/status
-  verbs:
-  - get
-  - patch
-  - update
