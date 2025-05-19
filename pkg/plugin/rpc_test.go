@@ -2,6 +2,7 @@ package plugin_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -159,7 +160,7 @@ func TestAccessRequesterRPC(t *testing.T) {
 		defer f.cancel()
 		expectedErr := "grant access error"
 		f.accessRequesterMock.EXPECT().GrantAccess(mock.Anything, mock.Anything).
-			Return(nil, fmt.Errorf("%s", expectedErr))
+			Return(nil, errors.New(expectedErr))
 
 		// When
 		resp, err := f.client.GrantAccess(nil, nil)
@@ -213,7 +214,7 @@ func TestAccessRequesterRPC(t *testing.T) {
 		defer f.cancel()
 		expectedErr := "revoke access error"
 		f.accessRequesterMock.EXPECT().RevokeAccess(mock.Anything, mock.Anything).
-			Return(nil, fmt.Errorf("%s", expectedErr))
+			Return(nil, errors.New(expectedErr))
 
 		// When
 		resp, err := f.client.RevokeAccess(nil, nil)
