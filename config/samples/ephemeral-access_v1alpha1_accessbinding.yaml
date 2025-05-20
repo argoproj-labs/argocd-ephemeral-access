@@ -5,11 +5,12 @@ metadata:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
   name: some-access-binding
+  namespace: argocd-ephemeral-access
 spec:
   roleTemplateRef:
-    name: devops
-  subjects: 
+    name: write-template
+  subjects:
     - group1
-  if: "true"
+  if: 'true'
   ordinal: 1
-  friendlyName: "Devops (Write)"
+  friendlyName: 'Devops (Write)'

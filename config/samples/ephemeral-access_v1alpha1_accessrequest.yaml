@@ -5,12 +5,17 @@ metadata:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
   name: some-application-username
-  namespace: ephemeral
+  namespace: argocd-ephemeral-access
 spec:
   duration: '1m'
-  targetRoleName: ephemeral-write-access
-  appProject: 
-    name: some-argocd-appproject
-    namespace: some-namespace
+  role:
+    friendlyName: Write Access
+    ordinal: 0
+    templateRef:
+      namespace: argocd-ephemeral-access
+      name: write-template
+  application:
+    name: some-argocd-app
+    namespace: the-app-ns
   subject:
     username: some_user@fakedomain.com

@@ -141,6 +141,12 @@ func (h AccessRequestHistory) String() string {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=areq;areqs
+// +kubebuilder:printcolumn:name="Subject",type=string,JSONPath=`.spec.subject.username`
+// +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.status.targetProject`,priority=1
+// +kubebuilder:printcolumn:name="Application",type=string,JSONPath=`.spec.application.name`,priority=1
+// +kubebuilder:printcolumn:name="Role",type=string,JSONPath=`.spec.role.friendlyName`
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.requestState`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=`.metadata.creationTimestamp`
 type AccessRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
