@@ -733,12 +733,13 @@ func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&api.AccessRequest{}).
+		For(&api.AccessRequest{},
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&api.RoleTemplate{},
 			handler.EnqueueRequestsFromMapFunc(r.callReconcileForRoleTemplate),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&argocd.AppProject{},
 			handler.EnqueueRequestsFromMapFunc(r.callReconcileForProject),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }

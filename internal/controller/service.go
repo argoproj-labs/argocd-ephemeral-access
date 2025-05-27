@@ -77,7 +77,10 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 		logger.Debug("Initializing status")
 		ar.Status.TargetProject = app.Spec.Project
 		ar.Status.RoleName = rt.AppProjectRoleName(app.GetName(), app.GetNamespace())
-		s.updateStatus(ctx, ar, api.InitiatedStatus, "", RoleTemplateHash(rt))
+		err := s.updateStatus(ctx, ar, api.InitiatedStatus, "", RoleTemplateHash(rt))
+		if err != nil {
+			return "", fmt.Errorf("error initializing access request status: %w", err)
+		}
 	}
 
 	// if accessRequest is already granted but not yet expired there is no
