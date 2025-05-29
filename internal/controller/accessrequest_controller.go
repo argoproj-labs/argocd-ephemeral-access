@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,6 +37,7 @@ import (
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 )
 
@@ -85,6 +85,8 @@ const (
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Reconciliation started")
+
+	metrics.UpdateAccessRequests(r)
 
 	ar := &api.AccessRequest{}
 	if err := r.Get(ctx, req.NamespacedName, ar); err != nil {
@@ -164,8 +166,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Error(err, "HandlePermission error")
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
-	// Record the metric for the current status of the Access Request
-	metrics.IncrementAccessRequestCounter(string(status))
 
 	timeout, err := r.handleRequestTimeout(ctx, ar)
 	if err != nil {
