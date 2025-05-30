@@ -1,3 +1,5 @@
+# mockery configuration docs for the version used by this project
+# https://vektra.github.io/mockery/v3.3/configuration/
 dir: 'test/mocks'
 pkgname: 'mocks'
 template: testify
