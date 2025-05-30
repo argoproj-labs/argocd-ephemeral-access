@@ -81,11 +81,16 @@ func New(opts ...Opts) (*LogWrapper, error) {
 
 // FromContext will return a new log wrapper with the extracted logger
 // from the given context.
-func FromContext(ctx context.Context, keysAndValues ...interface{}) *LogWrapper {
+func FromContext(ctx context.Context, keysAndValues ...any) *LogWrapper {
 	l := k8slog.FromContext(ctx, keysAndValues...)
 	return &LogWrapper{
 		Logger: &l,
 	}
+}
+
+// IntoContext takes a context and sets the logger as one of its values.
+func IntoContext(ctx context.Context, logger *LogWrapper) context.Context {
+	return k8slog.IntoContext(ctx, *logger.Logger)
 }
 
 // Logger defines the main logger contract used by this project.
@@ -93,6 +98,7 @@ type Logger interface {
 	Info(msg string, keysAndValues ...any)
 	Debug(msg string, keysAndValues ...any)
 	Error(err error, msg string, keysAndValues ...any)
+	WithValues(keysAndValues ...any) *LogWrapper
 }
 
 // Info logs a non-error message with info level. If provided, the given
@@ -111,6 +117,15 @@ func (l *LogWrapper) Debug(msg string, keysAndValues ...any) {
 // in the log entry context.
 func (l *LogWrapper) Error(err error, msg string, keysAndValues ...any) {
 	l.Logger.Error(err, msg, keysAndValues...)
+}
+
+// WithValues returns a new LogWrapper instance with additional key/value pairs.
+// keysAndValues should be provided as alternating keys and values.
+func (l *LogWrapper) WithValues(keysAndValues ...any) *LogWrapper {
+	logger := l.Logger.WithValues(keysAndValues...)
+	return &LogWrapper{
+		Logger: &logger,
+	}
 }
 
 // Fake logger implementation to be used in tests

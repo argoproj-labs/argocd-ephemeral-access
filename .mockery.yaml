@@ -1,26 +1,42 @@
-# mockery configuration docs for the version used by this project
-# https://vektra.github.io/mockery/v2.45/configuration/
-with-expecter: true
 dir: 'test/mocks'
-outpkg: 'mocks'
+pkgname: 'mocks'
+template: testify
+template-data:
+  unroll-variadic: true
 packages:
+  github.com/argoproj-labs/argocd-ephemeral-access/internal/backend:
+    interfaces:
+      Persister:
+        config:
+          filename: 'mock_{{.InterfaceName}}.go'
+      Service:
+        config:
+          filename: 'mock_{{.InterfaceName}}.go'
   github.com/argoproj-labs/argocd-ephemeral-access/internal/controller:
     interfaces:
       K8sClient:
+        config:
+          filename: 'mock_{{.InterfaceName}}.go'
   github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config:
     interfaces:
       Configurer:
+        config:
+          filename: 'mock_{{.InterfaceName}}.go'
       ControllerConfigurer:
-  github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin:
-    interfaces:
-      AccessRequester:
+        config:
+          filename: 'mock_{{.InterfaceName}}.go'
   github.com/argoproj-labs/argocd-ephemeral-access/pkg/log:
     interfaces:
       Logger:
-  github.com/argoproj-labs/argocd-ephemeral-access/internal/backend:
+        config:
+          filename: 'mock_{{.InterfaceName}}.go'
+  github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin:
     interfaces:
-      Service:
-      Persister:
+      AccessRequester:
+        config:
+          filename: 'mock_{{.InterfaceName}}.go'
   sigs.k8s.io/controller-runtime/pkg/client:
     interfaces:
       SubResourceWriter:
+        config:
+          filename: 'mock_{{.InterfaceName}}.go'
