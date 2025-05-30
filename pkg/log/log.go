@@ -143,6 +143,11 @@ func (l *Fake) Debug(msg string, keysAndValues ...any) {
 func (l *Fake) Error(err error, msg string, keysAndValues ...any) {
 }
 
+// WithValues noop
+func (l *Fake) WithValues(keysAndValues ...any) *LogWrapper {
+	return nil
+}
+
 // NewFake will instantiate a new fake logger to be used in tests
 func NewFake() *Fake {
 	return &Fake{}
