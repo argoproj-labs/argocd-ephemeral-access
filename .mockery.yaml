@@ -5,40 +5,25 @@ pkgname: 'mocks'
 template: testify
 template-data:
   unroll-variadic: true
+filename: 'mock_{{.InterfaceName}}.go'
 packages:
   github.com/argoproj-labs/argocd-ephemeral-access/internal/backend:
     interfaces:
-      Persister:
-        config:
-          filename: 'mock_{{.InterfaceName}}.go'
-      Service:
-        config:
-          filename: 'mock_{{.InterfaceName}}.go'
+      Persister: {}
+      Service: {}
   github.com/argoproj-labs/argocd-ephemeral-access/internal/controller:
     interfaces:
-      K8sClient:
-        config:
-          filename: 'mock_{{.InterfaceName}}.go'
+      K8sClient: {}
   github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config:
     interfaces:
-      Configurer:
-        config:
-          filename: 'mock_{{.InterfaceName}}.go'
-      ControllerConfigurer:
-        config:
-          filename: 'mock_{{.InterfaceName}}.go'
+      Configurer: {}
+      ControllerConfigurer: {}
   github.com/argoproj-labs/argocd-ephemeral-access/pkg/log:
     interfaces:
-      Logger:
-        config:
-          filename: 'mock_{{.InterfaceName}}.go'
+      Logger: {}
   github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin:
     interfaces:
-      AccessRequester:
-        config:
-          filename: 'mock_{{.InterfaceName}}.go'
+      AccessRequester: {}
   sigs.k8s.io/controller-runtime/pkg/client:
     interfaces:
-      SubResourceWriter:
-        config:
-          filename: 'mock_{{.InterfaceName}}.go'
+      SubResourceWriter: {}
