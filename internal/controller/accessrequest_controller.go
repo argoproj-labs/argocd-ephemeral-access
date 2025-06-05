@@ -95,6 +95,14 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Error(err, "Error retrieving AccessRequest from k8s")
 		return ctrl.Result{}, err
 	}
+	values := []interface{}{
+		"subject", ar.Spec.Subject.Username,
+		"role", ar.Spec.Role.FriendlyName,
+		"duration", ar.Spec.Duration.String(),
+		"application.name", ar.Spec.Application.Name,
+		"application.namespace", ar.Spec.Application.Namespace,
+	}
+	logger = logger.WithValues(values...)
 
 	// check if the object is being deleted and properly handle it
 	logger.Debug("Handling finalizer")

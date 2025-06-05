@@ -224,7 +224,6 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
-MOCKERY ?= $(LOCALBIN)/mockery-$(MOCKERY_VERSION)
 GORELEASER ?= $(LOCALBIN)/goreleaser-$(GORELEASER_VERSION)
 GOREMAN ?= $(LOCALBIN)/goreman-$(GOREMAN_VERSION)
 
@@ -233,7 +232,6 @@ KUSTOMIZE_VERSION ?= v5.5.0
 CONTROLLER_TOOLS_VERSION ?= v0.16.3
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v2.1.0
-MOCKERY_VERSION ?= v2.53.3
 GORELEASER_VERSION ?= v2.6.1
 GOREMAN_VERSION ?= v0.3.15
 
@@ -258,11 +256,6 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
 
 
-.PHONY: mockery
-mockery: $(MOCKERY) ## Download mockery locally if necessary.
-$(MOCKERY): $(LOCALBIN)
-	$(call go-install-tool,$(MOCKERY),github.com/vektra/mockery/v2,$(MOCKERY_VERSION))
-
 .PHONY: goreleaser
 goreleaser: $(GORELEASER) ## Download goreleaser locally if necessary.
 $(GORELEASER): $(LOCALBIN)
@@ -274,8 +267,8 @@ $(GOREMAN): $(LOCALBIN)
 	$(call go-install-tool,$(GOREMAN),github.com/mattn/goreman,$(GOREMAN_VERSION))
 
 .PHONY: generate-mocks
-generate-mocks: mockery ## Generate the mocks for the project as configured in .mockery.yaml
-	$(MOCKERY)
+generate-mocks: ## Generate the mocks for the project as configured in .mockery.yaml
+	go tool mockery
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
