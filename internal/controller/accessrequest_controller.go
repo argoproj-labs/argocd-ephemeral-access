@@ -84,7 +84,6 @@ const (
 //  9. Update the accessrequest status to "granted"
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	logger.Info("Reconciliation started")
 
 	ar := &api.AccessRequest{}
 	if err := r.Get(ctx, req.NamespacedName, ar); err != nil {
@@ -103,6 +102,8 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		"application.namespace", ar.Spec.Application.Namespace,
 	}
 	logger = logger.WithValues(values...)
+	ctx = log.IntoContext(ctx, logger)
+	logger.Info("Reconciliation started")
 
 	// check if the object is being deleted and properly handle it
 	logger.Debug("Handling finalizer")
