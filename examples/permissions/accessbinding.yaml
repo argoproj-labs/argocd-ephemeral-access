@@ -1,0 +1,35 @@
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: AccessBinding
+metadata:
+  name: access-binding-administrator
+spec:
+  ordinal: 0
+  friendlyName: "Admin (Write)"
+  subjects:
+    - xforce-admins
+  roleTemplateRef:
+    name: administrator
+---
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: AccessBinding
+metadata:
+  name: access-binding-devops
+spec:
+  ordinal: 1
+  friendlyName: "Devops (Write)"
+  subjects:
+    - xforce-admins
+  roleTemplateRef:
+    name: devops
+---
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: AccessBinding
+metadata:
+  name: access-binding-readonly
+spec:
+  ordinal: 2
+  friendlyName: "ReadOnly"
+  subjects:
+    - xforce-admins
+  roleTemplateRef:
+    name: readonly
