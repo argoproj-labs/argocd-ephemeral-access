@@ -260,11 +260,13 @@ func buildResult(status api.Status, ar *api.AccessRequest, config config.Control
 		result.RequeueAfter = config.ControllerRequeueInterval()
 	case api.GrantedStatus:
 		result.Requeue = true
-		result.RequeueAfter = time.Until(ar.Status.ExpiresAt)
+		result.RequeueAfter = time.Until(ar.Status.ExpiresAt.Time)
 	default:
 		if isConcluded(ar) && hasTTLConfig(config) {
-			result.Requeue = true
-			result.RequeueAfter = time.Until(getTTLTime(ar, config))
+			if ttl := getTTLTime(ar, config); ttl != nil {
+				result.Requeue = true
+				result.RequeueAfter = time.Until(*ttl)
+			}
 		}
 	}
 	return result
