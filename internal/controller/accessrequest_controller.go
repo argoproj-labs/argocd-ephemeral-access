@@ -87,8 +87,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger := log.FromContext(ctx)
 	logger.Info("Reconciliation started")
 
-	metrics.UpdateAccessRequests(r)
-
 	ar := &api.AccessRequest{}
 	if err := r.Get(ctx, req.NamespacedName, ar); err != nil {
 		if apierrors.IsNotFound(err) {
