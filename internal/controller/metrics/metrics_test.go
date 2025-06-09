@@ -2,7 +2,7 @@ package metrics
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +19,34 @@ import (
 
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 )
+
+func TestIncrementAccessRequestCounter(t *testing.T) {
+	accessRequestStatusTotal.Reset()
+
+	expected := `
+	# HELP access_request_status_total Total number of AccessRequests transitions by status
+	# TYPE access_request_status_total counter
+	access_request_status_total{status="denied"} 1
+	access_request_status_total{status="expired"} 1
+	access_request_status_total{status="granted"} 2
+	access_request_status_total{status="requested"} 1
+	`
+
+	// Test different access request status values
+	statuses := []api.Status{api.RequestedStatus, api.GrantedStatus, api.ExpiredStatus, api.DeniedStatus}
+
+	// Increment each status once
+	for _, status := range statuses {
+		IncrementAccessRequestCounter(status)
+	}
+
+	// Increment "Granted" a second time
+	IncrementAccessRequestCounter(api.GrantedStatus)
+
+	if err := testutil.CollectAndCompare(accessRequestStatusTotal, strings.NewReader(expected), accessRequestStatusTotalMetricName); err != nil {
+		t.Errorf("unexpected collecting result:\n%s", err)
+	}
+}
 
 func TestUpdateAccessRequests(t *testing.T) {
 	readerMock := mocks.MockReader{}
@@ -74,7 +102,6 @@ func TestUpdateAccessRequests(t *testing.T) {
 	if err := testutil.CollectAndCompare(accessRequestResources, strings.NewReader(expected), accessRequestResourcesMetricName); err != nil {
 		t.Errorf("unexpected collecting result:\n%s", err)
 	}
-
 }
 
 func TestRecordPluginOperationResult(t *testing.T) {
@@ -120,7 +147,7 @@ func TestRecordPluginOperationResult(t *testing.T) {
 		{
 			name:           "error result",
 			operation:      "grant_access",
-			result:         fmt.Errorf("test error"),
+			result:         errors.New("test error"),
 			expectedResult: "error",
 		},
 		{

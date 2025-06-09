@@ -167,6 +167,9 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
 
+	// Record the metric for the current status of the Access Request
+	metrics.IncrementAccessRequestCounter(status)
+
 	timeout, err := r.handleRequestTimeout(ctx, ar)
 	if err != nil {
 		logger.Error(err, "Error handling timeout")

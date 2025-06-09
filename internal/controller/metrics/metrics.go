@@ -17,11 +17,20 @@ import (
 )
 
 const (
-	accessRequestsUpdateMaxFrequency = 15 * time.Second
-	accessRequestResourcesMetricName = "access_request_resources"
+	accessRequestsUpdateMaxFrequency   = 15 * time.Second
+	accessRequestResourcesMetricName   = "access_request_resources"
+	accessRequestStatusTotalMetricName = "access_request_status_total"
 )
 
 var (
+	accessRequestStatusTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: accessRequestStatusTotalMetricName,
+			Help: "Total number of AccessRequests transitions by status",
+		},
+		[]string{"status"},
+	)
+
 	accessRequestResources = newThrottledGauge(accessRequestsUpdateMaxFrequency, prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: accessRequestResourcesMetricName,
@@ -42,8 +51,14 @@ var (
 )
 
 func init() {
+	metrics.Registry.MustRegister(accessRequestStatusTotal)
 	metrics.Registry.MustRegister(accessRequestResources)
 	metrics.Registry.MustRegister(pluginOperationsTotal)
+}
+
+// IncrementAccessRequestCounter increments the counter for a given AccessRequest status
+func IncrementAccessRequestCounter(status api.Status) {
+	accessRequestStatusTotal.WithLabelValues(string(status)).Inc()
 }
 
 // UpdateAccessRequests increments the gauge based on the Access Requests
@@ -77,7 +92,6 @@ func UpdateAccessRequests(reader client.Reader) {
 			labels := strings.Split(key, "/")
 			m.WithLabelValues(labels...).Set(float64(count))
 		}
-
 	}, false)
 }
 
