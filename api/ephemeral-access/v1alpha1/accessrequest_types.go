@@ -86,7 +86,8 @@ type TargetRole struct {
 	// +kubebuilder:validation:Required
 	TemplateRef TargetRoleTemplate `json:"templateRef"`
 	// Ordinal defines an ordering number of this role compared to others
-	Ordinal int `json:"ordinal,omitempty"`
+	// +kubebuilder:default:=0
+	Ordinal int `json:"ordinal"`
 	// FriendlyName defines a name for this role
 	// +kubebuilder:validation:MaxLength=512
 	FriendlyName *string `json:"friendlyName,omitempty"`

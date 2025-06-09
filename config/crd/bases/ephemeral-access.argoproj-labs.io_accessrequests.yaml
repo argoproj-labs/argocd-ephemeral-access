@@ -97,6 +97,7 @@ spec:
                     maxLength: 512
                     type: string
                   ordinal:
+                    default: 0
                     description: Ordinal defines an ordering number of this role compared
                       to others
                     type: integer
@@ -117,6 +118,7 @@ spec:
                     - namespace
                     type: object
                 required:
+                - ordinal
                 - templateRef
                 type: object
                 x-kubernetes-validations:
