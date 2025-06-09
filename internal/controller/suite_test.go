@@ -56,6 +56,7 @@ var (
 	k8sClient            client.Client
 	testEnv              *envtest.Environment
 	cancel               context.CancelFunc
+	ctx                  context.Context
 	controllerConfigMock *mocks.MockControllerConfigurer
 	accessRequesterMock  *mocks.MockAccessRequester
 )
@@ -100,8 +101,8 @@ var _ = BeforeSuite(func() {
 	err = argocd.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	ctx, c := context.WithCancel(context.Background())
-	cancel = c
+	//nolint:fatcontext
+	ctx, cancel = context.WithCancel(context.Background())
 
 	k8sClient, err = client.New(restConfig, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
