@@ -4,13 +4,14 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
-  name: devops
+  name: write-template
+  namespace: argocd-ephemeral-access
 spec:
   description: write permission in application {{.application}}
   name: devops
   policies:
-  - p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow
-  - p, {{.role}}, applications, get, {{.project}}/{{.application}}, deny
-  - p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow
-  - p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow
-  - p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow
+    - p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, get, {{.project}}/{{.application}}, deny
+    - p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, logs, get, {{.project}}/{{.namespace}}/{{.application}}, allow

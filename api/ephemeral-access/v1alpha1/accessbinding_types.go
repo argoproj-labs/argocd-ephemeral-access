@@ -29,6 +29,10 @@ import (
 
 // AccessBinding is the Schema for the accessbindings API
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Role",type=string,JSONPath=`.spec.friendlyName`
+// +kubebuilder:printcolumn:name="Ordinal",type=integer,JSONPath=`.spec.ordinal`
+// +kubebuilder:printcolumn:name="Template",type=string,JSONPath=`.spec.roleTemplateRef.name`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=`.metadata.creationTimestamp`
 type AccessBinding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -1,27 +1,30 @@
 # mockery configuration docs for the version used by this project
-# https://vektra.github.io/mockery/v2.45/configuration/
-with-expecter: true
+# https://vektra.github.io/mockery/v3.3/configuration/
 dir: 'test/mocks'
-outpkg: 'mocks'
+pkgname: 'mocks'
+template: testify
+template-data:
+  unroll-variadic: true
+filename: 'mock_{{.InterfaceName}}.go'
 packages:
-  github.com/argoproj-labs/argocd-ephemeral-access/internal/controller:
-    interfaces:
-      K8sClient:
-  github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config:
-    interfaces:
-      Configurer:
-      ControllerConfigurer:
-  github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin:
-    interfaces:
-      AccessRequester:
-  github.com/argoproj-labs/argocd-ephemeral-access/pkg/log:
-    interfaces:
-      Logger:
   github.com/argoproj-labs/argocd-ephemeral-access/internal/backend:
     interfaces:
-      Service:
-      Persister:
+      Persister: {}
+      Service: {}
+  github.com/argoproj-labs/argocd-ephemeral-access/internal/controller:
+    interfaces:
+      K8sClient: {}
+  github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config:
+    interfaces:
+      Configurer: {}
+      ControllerConfigurer: {}
+  github.com/argoproj-labs/argocd-ephemeral-access/pkg/log:
+    interfaces:
+      Logger: {}
+  github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin:
+    interfaces:
+      AccessRequester: {}
   sigs.k8s.io/controller-runtime/pkg/client:
     interfaces:
-      SubResourceWriter:
-      Reader:
+      SubResourceWriter: {}
+      Reader: {}

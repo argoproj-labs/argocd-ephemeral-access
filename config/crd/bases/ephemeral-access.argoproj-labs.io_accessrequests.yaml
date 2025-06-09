@@ -17,7 +17,28 @@ spec:
     singular: accessrequest
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.subject.username
+      name: Subject
+      type: string
+    - jsonPath: .status.targetProject
+      name: Project
+      priority: 1
+      type: string
+    - jsonPath: .spec.application.name
+      name: Application
+      priority: 1
+      type: string
+    - jsonPath: .spec.role.friendlyName
+      name: Role
+      type: string
+    - jsonPath: .status.requestState
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: AccessRequest is the Schema for the accessrequests API
