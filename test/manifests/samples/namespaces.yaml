@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ephemeral
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
