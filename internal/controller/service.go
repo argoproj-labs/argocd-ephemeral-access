@@ -100,14 +100,14 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 		rtHash := RoleTemplateHash(rt)
 		switch resp.Status {
 		case plugin.GrantStatusDenied:
-			logger.Info("AccessRequest denied", "message", resp.Message)
+			logger.Info("AccessRequest denied", "message", resp.Message, "status", api.DeniedStatus)
 			err = s.updateStatus(ctx, ar, api.DeniedStatus, resp.Message, rtHash)
 			if err != nil {
 				return "", fmt.Errorf("error updating access request status to denied: %w", err)
 			}
 			return api.DeniedStatus, nil
 		case plugin.GrantStatusPending:
-			logger.Info("AccessRequest pending...", "message", resp.Message)
+			logger.Info("AccessRequest pending...", "message", resp.Message, "status", api.RequestedStatus)
 			err = s.updateStatus(ctx, ar, api.RequestedStatus, resp.Message, rtHash)
 			if err != nil {
 				return "", fmt.Errorf("error updating access request status to requested: %w", err)
@@ -123,6 +123,7 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, a
 	}
 	// only update status if the current state is different
 	if ar.Status.RequestState != status {
+		logger.Info(fmt.Sprintf("AccessRequest %s", status), "message", resp.Message, "status", status)
 		rtHash := RoleTemplateHash(rt)
 		err = s.updateStatus(ctx, ar, status, details, rtHash)
 		if err != nil {
