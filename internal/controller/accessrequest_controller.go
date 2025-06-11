@@ -97,7 +97,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	values := []interface{}{
 		"subject", ar.Spec.Subject.Username,
 		"role", ar.Spec.Role.FriendlyName,
-		"duration", ar.Spec.Duration.String(),
+		"duration", ar.Spec.Duration.Duration.String(),
 		"application.name", ar.Spec.Application.Name,
 		"application.namespace", ar.Spec.Application.Namespace,
 	}
