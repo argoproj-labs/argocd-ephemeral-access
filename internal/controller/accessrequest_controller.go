@@ -269,9 +269,11 @@ func buildResult(status api.Status, ar *api.AccessRequest, config config.Control
 		result.Requeue = true
 		result.RequeueAfter = time.Until(ar.Status.ExpiresAt.Time)
 	default:
-		if ttl := getTTLTime(ar, config); ttl != nil && hasTTLConfig(config) {
-			result.Requeue = true
-			result.RequeueAfter = time.Until(*ttl)
+		if isConcluded(ar) && hasTTLConfig(config) {
+			if ttl := getTTLTime(ar, config); ttl != nil {
+				result.Requeue = true
+				result.RequeueAfter = time.Until(*ttl)
+			}
 		}
 	}
 	return result
