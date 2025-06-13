@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -77,7 +77,8 @@ var _ = Describe("AccessRequest Controller", func() {
 		ns := utils.NewNamespace(r.namespace)
 		err := k8sClient.Create(ctx, ns)
 		if err != nil {
-			statusErr, ok := err.(*errors.StatusError)
+			statusErr := &apierrors.StatusError{}
+			ok := errors.As(err, &statusErr)
 			Expect(ok).To(BeTrue())
 			Expect(statusErr.ErrStatus.Code).NotTo(Equal(409))
 		}
@@ -86,7 +87,8 @@ var _ = Describe("AccessRequest Controller", func() {
 		rtNs := utils.NewNamespace(r.roleTemplateNamespace)
 		err = k8sClient.Create(ctx, rtNs)
 		if err != nil {
-			statusErr, ok := err.(*errors.StatusError)
+			statusErr := &apierrors.StatusError{}
+			ok := errors.As(err, &statusErr)
 			Expect(ok).To(BeTrue())
 			Expect(statusErr.ErrStatus.Code).NotTo(Equal(409))
 		}
@@ -336,7 +338,8 @@ var _ = Describe("AccessRequest Controller", func() {
 				err = k8sClient.Update(ctx, ar)
 
 				Expect(err).ToNot(BeNil())
-				e, ok := err.(*errors.StatusError)
+				e := &apierrors.StatusError{}
+				ok := errors.As(err, &e)
 				Expect(ok).To(BeTrue(), "returned error type is not errors.StatusError")
 				Expect(string(e.ErrStatus.Reason)).To(Equal("Invalid"))
 				Expect(e.ErrStatus.Message).To(ContainSubstring("Value is immutable"))
@@ -351,7 +354,8 @@ var _ = Describe("AccessRequest Controller", func() {
 				err = k8sClient.Update(ctx, ar)
 
 				Expect(err).ToNot(BeNil())
-				e, ok := err.(*errors.StatusError)
+				e := &apierrors.StatusError{}
+				ok := errors.As(err, &e)
 				Expect(ok).To(BeTrue(), "returned error type is not errors.StatusError")
 				Expect(string(e.ErrStatus.Reason)).To(Equal("Invalid"))
 				Expect(e.ErrStatus.Message).To(ContainSubstring("Value is immutable"))
@@ -365,7 +369,8 @@ var _ = Describe("AccessRequest Controller", func() {
 				err = k8sClient.Update(ctx, ar)
 
 				Expect(err).ToNot(BeNil())
-				e, ok := err.(*errors.StatusError)
+				e := &apierrors.StatusError{}
+				ok := errors.As(err, &e)
 				Expect(ok).To(BeTrue(), "returned error type is not errors.StatusError")
 				Expect(string(e.ErrStatus.Reason)).To(Equal("Invalid"))
 				Expect(e.ErrStatus.Message).To(ContainSubstring("Value is immutable"))
@@ -821,7 +826,6 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(totalValid).To(Equal(1), "totalValid mismatch")
 			})
 		})
-
 	})
 	Context("Deleting RoleTemplate used by multiple AccessRequests", Ordered, func() {
 	})

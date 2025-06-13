@@ -3,7 +3,9 @@ package controller
 import (
 	"context"
 	"crypto/sha1"
+	"errors"
 	"fmt"
+
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
@@ -412,13 +414,11 @@ func (s *Service) Allowed(ctx context.Context, ar *api.AccessRequest, app *argoc
 		return nil, fmt.Errorf("error invoking plugin GrantAccess function: %w", err)
 	}
 	if resp == nil {
-		metrics.RecordPluginOperationResult("grant_access", fmt.Errorf("null response"))
-		return nil, fmt.Errorf("plugin GrantAccess call returned null response")
+		metrics.RecordPluginOperationResult("grant_access", errors.New("null response"))
+		return nil, errors.New("plugin GrantAccess call returned null response")
 	}
-	allowed := false
-	if resp.Status == plugin.GrantStatusGranted {
-		allowed = true
-	}
+	allowed := resp.Status == plugin.GrantStatusGranted
+
 	metrics.RecordPluginOperationResult("grant_access", resp.Status)
 	return &AllowedResponse{
 		Allowed: allowed,

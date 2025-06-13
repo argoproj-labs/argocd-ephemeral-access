@@ -402,3 +402,19 @@ func NewNamespace(name string) *corev1.Namespace {
 		},
 	}
 }
+
+// Eventually runs f until it returns true, an error or the timeout expires
+func Eventually(f func() (bool, error), timeout time.Duration, interval time.Duration) error {
+	start := time.Now()
+	for {
+		if ok, err := f(); ok {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		if time.Since(start) > timeout {
+			return fmt.Errorf("timed out waiting for eventual success")
+		}
+		time.Sleep(interval)
+	}
+}

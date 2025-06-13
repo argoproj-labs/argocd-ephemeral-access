@@ -27,3 +27,4 @@ packages:
   sigs.k8s.io/controller-runtime/pkg/client:
     interfaces:
       SubResourceWriter: {}
+      Reader: {}

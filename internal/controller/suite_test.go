@@ -50,14 +50,16 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var dynClient *dynamic.DynamicClient
-var restConfig *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-var cancel context.CancelFunc
-var ctx context.Context
-var controllerConfigMock *mocks.MockControllerConfigurer
-var accessRequesterMock *mocks.MockAccessRequester
+var (
+	dynClient            *dynamic.DynamicClient
+	restConfig           *rest.Config
+	k8sClient            client.Client
+	testEnv              *envtest.Environment
+	cancel               context.CancelFunc
+	ctx                  context.Context
+	controllerConfigMock *mocks.MockControllerConfigurer
+	accessRequesterMock  *mocks.MockAccessRequester
+)
 
 func TestControllers(t *testing.T) {
 	controllerConfigMock = mocks.NewMockControllerConfigurer(t)
@@ -99,6 +101,7 @@ var _ = BeforeSuite(func() {
 	err = argocd.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
+	//nolint:fatcontext
 	ctx, cancel = context.WithCancel(context.Background())
 
 	k8sClient, err = client.New(restConfig, client.Options{Scheme: scheme.Scheme})

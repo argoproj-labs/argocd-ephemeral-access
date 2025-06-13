@@ -18,8 +18,8 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,6 +38,7 @@ import (
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 )
 
@@ -137,13 +138,15 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger.Debug("Validating AccessRequest")
 	err = r.Validate(ctx, ar)
 	if err != nil {
-		if _, ok := err.(*AccessRequestConflictError); ok {
+		accessRequestConflictError := &AccessRequestConflictError{}
+		if errors.As(err, &accessRequestConflictError) {
 			logger.Error(err, "AccessRequest conflict error")
 			ar.UpdateStatusHistory(api.InvalidStatus, err.Error())
 			err = r.Status().Update(ctx, ar)
 			if err != nil {
-				return reconcile.Result{}, fmt.Errorf("error updating status to invalid: %s", err)
+				return reconcile.Result{}, fmt.Errorf("error updating status to invalid: %w", err)
 			}
+			metrics.IncrementAccessRequestCounter(api.InvalidStatus)
 			return ctrl.Result{}, nil
 		}
 		logger.Info(fmt.Sprintf("Validation error: %s", err))
@@ -173,8 +176,6 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Error(err, "HandlePermission error")
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
 	}
-	// Record the metric for the current status of the Access Request
-	metrics.IncrementAccessRequestCounter(string(status))
 
 	timeout, err := r.handleRequestTimeout(ctx, ar)
 	if err != nil {
@@ -187,6 +188,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	result := buildResult(status, ar, r.Config)
+	metrics.IncrementAccessRequestCounter(status)
 	logger.Info("Reconciliation concluded", "status", status, "result", result)
 	return result, nil
 }
@@ -265,11 +267,13 @@ func buildResult(status api.Status, ar *api.AccessRequest, config config.Control
 		result.RequeueAfter = config.ControllerRequeueInterval()
 	case api.GrantedStatus:
 		result.Requeue = true
-		result.RequeueAfter = ar.Status.ExpiresAt.Sub(time.Now())
+		result.RequeueAfter = time.Until(ar.Status.ExpiresAt.Time)
 	default:
 		if isConcluded(ar) && hasTTLConfig(config) {
-			result.Requeue = true
-			result.RequeueAfter = getTTLTime(ar, config).Sub(time.Now())
+			if ttl := getTTLTime(ar, config); ttl != nil {
+				result.Requeue = true
+				result.RequeueAfter = time.Until(*ttl)
+			}
 		}
 	}
 	return result
@@ -384,7 +388,7 @@ func getTTLTime(ar *api.AccessRequest, config config.ControllerConfigurer) *time
 		return nil
 	}
 	lastStatusHistory := ar.Status.History[len(ar.Status.History)-1]
-	ttl := lastStatusHistory.TransitionTime.Time.Add(config.ControllerAccessRequestTTL())
+	ttl := lastStatusHistory.TransitionTime.Add(config.ControllerAccessRequestTTL())
 	return &ttl
 }
 
@@ -405,7 +409,7 @@ func getTimeoutTime(ar *api.AccessRequest, config config.ControllerConfigurer) *
 		return nil
 	}
 	lastStatusHistory := ar.Status.History[len(ar.Status.History)-1]
-	timeout := lastStatusHistory.TransitionTime.Time.Add(config.ControllerRequestTimeout())
+	timeout := lastStatusHistory.TransitionTime.Add(config.ControllerRequestTimeout())
 	return &timeout
 }
 
@@ -427,7 +431,7 @@ func (r *AccessRequestReconciler) doWithRetry(ctx context.Context, ar *api.Acces
 			// Re-fetch the AccessRequest object to ensure the latest state is used.
 			err := r.Get(ctx, client.ObjectKeyFromObject(ar), ar)
 			if err != nil {
-				return fmt.Errorf("error getting the AccessRequest: %s", err)
+				return fmt.Errorf("error getting the AccessRequest: %w", err)
 			}
 		}
 		firstAttempt = false
@@ -480,9 +484,8 @@ func (r *AccessRequestReconciler) handleRequestTimeout(ctx context.Context, ar *
 // state. The function will return a boolean value to determine if the object
 // was deleted.
 func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.AccessRequest) (bool, error) {
-
 	// examine DeletionTimestamp to determine if object is under deletion
-	if ar.ObjectMeta.DeletionTimestamp.IsZero() {
+	if ar.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, so if it does not have the
 		// finalizer, then we register it.
 		if !controllerutil.ContainsFinalizer(ar, AccessRequestFinalizerName) {
@@ -493,7 +496,6 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 				}
 				controllerutil.AddFinalizer(ar, AccessRequestFinalizerName)
 				return r.Update(ctx, ar)
-
 			})
 			if err != nil {
 				return false, fmt.Errorf("error adding finalizer: %w", err)
@@ -526,7 +528,6 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 			}
 			controllerutil.RemoveFinalizer(ar, AccessRequestFinalizerName)
 			return r.Update(ctx, ar)
-
 		})
 		if err != nil {
 			return false, fmt.Errorf("error removing finalizer: %w", err)

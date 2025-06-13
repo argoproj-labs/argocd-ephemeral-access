@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 
@@ -37,6 +38,7 @@ import (
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/config"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin"
 	"github.com/spf13/cobra"
@@ -143,15 +145,18 @@ func run(cmd *cobra.Command, args []string) error {
 
 	service := controller.NewService(mgr.GetClient(), config, accessRequester)
 
-	if err = (&controller.AccessRequestReconciler{
+	reconciler := &controller.AccessRequestReconciler{
 		Client:  mgr.GetClient(),
 		Scheme:  mgr.GetScheme(),
 		Service: service,
 		Config:  config,
-	}).SetupWithManager(mgr); err != nil {
+	}
+	if err = reconciler.SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create controller AccessRequest controller: %w", err)
 	}
 	// +kubebuilder:scaffold:builder
+
+	metrics.Register(context.Background(), mgr.GetCache())
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		return fmt.Errorf("unable to set up health check: %w", err)

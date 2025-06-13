@@ -41,10 +41,10 @@ func TestHandlePermission(t *testing.T) {
 			status, err := svc.HandlePermission(context.Background(), ar, app, nil)
 
 			// Then
-			assert.NotNil(t, err)
+			assert.Error(t, err)
 			assert.Contains(t, err.Error(), expectedError.Error())
 			assert.NotNil(t, status, "status is nil")
-			assert.Equal(t, "", string(status))
+			assert.Empty(t, string(status))
 		})
 		t.Run("will return error if fails to remove argocd access", func(t *testing.T) {
 			// Given
@@ -81,10 +81,10 @@ func TestHandlePermission(t *testing.T) {
 			status, err := svc.HandlePermission(context.Background(), ar, app, rt)
 
 			// Then
-			assert.NotNil(t, err)
+			assert.Error(t, err)
 			assert.Contains(t, err.Error(), expectedError.Error())
 			assert.NotNil(t, status, "status is nil")
-			assert.Equal(t, "", string(status))
+			assert.Empty(t, string(status))
 		})
 	})
 	t.Run("will handle plugins", func(t *testing.T) {

@@ -28,22 +28,6 @@ const (
 	accessRequestKind = "AccessRequest"
 )
 
-// eventually runs f until it returns true, an error or the timeout expires
-func eventually(f func() (bool, error), timeout time.Duration, interval time.Duration) error {
-	start := time.Now()
-	for {
-		if ok, err := f(); ok {
-			return nil
-		} else if err != nil {
-			return err
-		}
-		if time.Since(start) > timeout {
-			return fmt.Errorf("timed out waiting for eventual success")
-		}
-		time.Sleep(interval)
-	}
-}
-
 // TestK8sPersister This is an integration test and requires EnvTest to be
 // available and properly configured. Run `make setup-envtest` to automatically
 // download and configure envtest in the bin/k8s folder in this repo. Alternatively
@@ -144,7 +128,7 @@ func TestK8sPersister(t *testing.T) {
 
 		// When
 		expectedItems := 1
-		eventually(func() (bool, error) {
+		utils.Eventually(func() (bool, error) {
 			result, err := p.ListAccessRequests(ctx, key)
 			return result != nil && len(result.Items) == expectedItems, err
 		}, 5*time.Second, time.Second)
@@ -231,7 +215,7 @@ func TestK8sPersister(t *testing.T) {
 
 		// When
 		expectedItems := 1
-		eventually(func() (bool, error) {
+		utils.Eventually(func() (bool, error) {
 			result, err := p.ListAccessRequests(ctx, key)
 			return result != nil && len(result.Items) == expectedItems, err
 		}, 5*time.Second, time.Second)
@@ -289,7 +273,7 @@ func TestK8sPersister(t *testing.T) {
 
 		// When
 		expectedItems := 1
-		eventually(func() (bool, error) {
+		utils.Eventually(func() (bool, error) {
 			result, err := p.ListAccessBindings(ctx, roleName, nsName)
 			return result != nil && len(result.Items) == expectedItems, err
 		}, 5*time.Second, time.Second)
@@ -328,7 +312,7 @@ func TestK8sPersister(t *testing.T) {
 		// When
 		expectedItems := 3
 		var result *api.AccessBindingList
-		eventually(func() (bool, error) {
+		utils.Eventually(func() (bool, error) {
 			result, err = p.ListAllAccessBindings(ctx, nsName)
 			return result != nil && len(result.Items) == expectedItems, err
 		}, 5*time.Second, time.Second)
@@ -376,7 +360,7 @@ func TestK8sPersister(t *testing.T) {
 
 		// When
 		expectedItems := 1
-		eventually(func() (bool, error) {
+		utils.Eventually(func() (bool, error) {
 			result, err := p.ListAccessBindings(ctx, roleName, nsName)
 			return result != nil && len(result.Items) == expectedItems, err
 		}, 5*time.Second, time.Second)
