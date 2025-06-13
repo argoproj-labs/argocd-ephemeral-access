@@ -16,100 +16,30 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest"
 )
 
 func TestLoggerConfiguration(t *testing.T) {
 	t.Run("will validate if default configurations are applied", func(t *testing.T) {
 		// When
-		logger, err := log.NewLogger()
+		zl := zaptest.NewLogger(t)
+		logger, err := log.NewAppLogger(zl)
 
 		// Then
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
-	})
-	t.Run("will validate if configs are applied without error", func(t *testing.T) {
-		// When
-		logger, err := log.NewLogger(
-			log.WithLevel(log.DebugLevel),
-			log.WithFormat(log.JsonFormat),
-		)
-
-		// Then
-		assert.NoError(t, err)
-		assert.NotNil(t, logger)
-	})
-	t.Run("will return error if provided invalid log level", func(t *testing.T) {
-
-		// When
-		_, err := log.NewLogger(log.WithLevel(log.LogLevel("invalid_log_level")))
-
-		// Then
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid_log_level")
-	})
-	t.Run("will return error if provided invalid log format", func(t *testing.T) {
-		// When
-		_, err := log.NewLogger(log.WithFormat(log.LogFormat("invalid_log_format")))
-
-		// Then
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid_log_format")
 	})
 }
 
 func TestPluginLogger(t *testing.T) {
-	t.Run("will validate if configs are applied without error", func(t *testing.T) {
+	t.Run("will validate if named correctly", func(t *testing.T) {
 		// When
-		logger, err := log.NewPluginLogger(
-			log.WithLevel(log.DebugLevel),
-			log.WithFormat(log.JsonFormat),
-		)
+		zl := zaptest.NewLogger(t)
+		logger, err := log.NewPluginLogger(zl)
 
 		// Then
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
-		assert.True(t, logger.IsDebug())
-		assert.Equal(t, "plugin", logger.Name())
-	})
-	t.Run("will validate if default configurations are applied", func(t *testing.T) {
-		// When
-		logger, err := log.NewPluginLogger()
-
-		// Then
-		assert.NoError(t, err)
-		assert.NotNil(t, logger)
-		assert.True(t, logger.IsInfo())
-		assert.Equal(t, "plugin", logger.Name())
-	})
-	t.Run("will validate if env var are applied automatically", func(t *testing.T) {
-		// Given
-		t.Setenv(log.EphemeralLogLevel, "debug")
-		t.Setenv(log.EphemeralLogFormat, "json")
-
-		// When
-		logger, err := log.NewPluginLogger()
-
-		// Then
-		assert.NoError(t, err)
-		assert.NotNil(t, logger)
-		assert.True(t, logger.IsDebug())
-		assert.Equal(t, "plugin", logger.Name())
-	})
-	t.Run("will validate if provided configs takes precedence", func(t *testing.T) {
-		// Given
-		t.Setenv(log.EphemeralLogLevel, "info")
-		t.Setenv(log.EphemeralLogFormat, "text")
-
-		// When
-		logger, err := log.NewPluginLogger(
-			log.WithLevel(log.DebugLevel),
-			log.WithFormat(log.JsonFormat),
-		)
-
-		// Then
-		assert.NoError(t, err)
-		assert.NotNil(t, logger)
-		assert.True(t, logger.IsDebug())
 		assert.Equal(t, "plugin", logger.Name())
 	})
 }

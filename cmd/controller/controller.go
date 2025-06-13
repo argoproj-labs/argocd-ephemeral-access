@@ -22,6 +22,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"go.uber.org/zap"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	goPlugin "github.com/hashicorp/go-plugin"
@@ -74,7 +75,11 @@ func run(cmd *cobra.Command, args []string) error {
 
 	level := log.LogLevel(config.LogLevel())
 	format := log.LogFormat(config.LogFormat())
-	logger, err := log.NewLogger(log.WithLevel(level), log.WithFormat(format))
+	zaplogger, err := log.NewZapLogger(log.WithLevel(level), log.WithFormat(format))
+	if err != nil {
+		return fmt.Errorf("error creating zap logger: %s", err)
+	}
+	logger, err := log.NewAppLogger(zaplogger)
 	if err != nil {
 		return fmt.Errorf("error creating logger: %s", err)
 	}
@@ -134,7 +139,7 @@ func run(cmd *cobra.Command, args []string) error {
 	var accessRequester plugin.AccessRequester
 	// register the plugin when the path is provided
 	if config.PluginPath() != "" {
-		accessRequester, err = initPlugin(config.PluginPath())
+		accessRequester, err = initPlugin(config.PluginPath(), zaplogger)
 		if err != nil {
 			return fmt.Errorf("plugin initialization error: %w", err)
 		}
@@ -169,9 +174,10 @@ func run(cmd *cobra.Command, args []string) error {
 
 // initPlugin will initialize the AccessRequester plugin from the binary
 // provided in the given path.
-func initPlugin(path string) (plugin.AccessRequester, error) {
+func initPlugin(path string, logger *zap.Logger) (plugin.AccessRequester, error) {
 	setupLog.Info("Initializing AccessRequester plugin...", "path", path)
-	pluginLog, err := log.NewPluginLogger()
+
+	pluginLog, err := log.NewPluginLogger(logger)
 	if err != nil {
 		return nil, fmt.Errorf("error building plugin logger: %w", err)
 	}
