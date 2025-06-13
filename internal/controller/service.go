@@ -147,7 +147,7 @@ func (s *Service) handleAccessExpired(ctx context.Context, ar *api.AccessRequest
 			return fmt.Errorf("error invoking plugin RevokeAccess function: %w", err)
 		}
 		if resp != nil {
-			log.Info("Plugin RevokeAccess called", "status", resp.Status, "message", resp.Message)
+			log.Info("Plugin RevokeAccess called", "plugin.status", resp.Status, "message", resp.Message)
 			statusDetails = resp.Message
 			metrics.RecordPluginOperationResult("revoke_access", resp.Status)
 		}

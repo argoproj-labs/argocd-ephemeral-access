@@ -27,7 +27,7 @@ func main() {
 
 	if err := command.Execute(); err != nil {
 		msg := "ephemeral-access execution error"
-		logger, logerr := log.NewLogger()
+		logger, logerr := log.New()
 		if logerr != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s", msg, err)
 			os.Exit(1)

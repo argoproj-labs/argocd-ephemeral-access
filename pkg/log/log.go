@@ -3,12 +3,12 @@ package log
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	hclog "github.com/hashicorp/go-hclog"
 
+	zaptohclog "github.com/zaffka/zap-to-hclog"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	k8slog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -68,9 +68,14 @@ type LogWrapper struct {
 	Logger *logr.Logger
 }
 
-// New will initialize a new log wrapper with the provided logger.
+// New will initialize a new log wrapper with the provided opts.
 func New(opts ...Opts) (*LogWrapper, error) {
-	logger, err := NewLogger(opts...)
+
+	zaplogger, err := NewZapLogger(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("error creating zap logger: %s", err)
+	}
+	logger, err := NewAppLogger(zaplogger)
 	if err != nil {
 		return nil, fmt.Errorf("error creating logger: %s", err)
 	}
@@ -208,38 +213,34 @@ const (
 	EphemeralLogFormat = "EPHEMERAL_LOG_FORMAT"
 )
 
-// NewPluginLogger will initialize a logger to be used in ephemeral-access plugins.
-func NewPluginLogger(opts ...Opts) (hclog.Logger, error) {
-	envOpts := []Opts{}
-	logFormat := os.Getenv(EphemeralLogFormat)
-	if logFormat != "" {
-		envOpts = append(envOpts, WithFormat(LogFormat(logFormat)))
+// NewPluginLogger creates a new hclog.Logger instance wrapped around the provided zap.Logger.
+// It returns an error if the provided logger is nil.
+//
+// Parameters:
+//   - logger: A *zap.Logger instance to be wrapped.
+//
+// Returns:
+//   - hclog.Logger: The wrapped logger instance.
+//   - error: An error if the logger is nil.
+func NewPluginLogger(logger *zap.Logger) (hclog.Logger, error) {
+	if logger == nil {
+		return nil, fmt.Errorf("No logger provided to NewPluginLogger")
 	}
-	logLevel := os.Getenv(EphemeralLogLevel)
-	if logLevel != "" {
-		envOpts = append(envOpts, WithLevel(LogLevel(logLevel)))
-	}
-	options := append(envOpts, opts...)
-	cfg := logConfig(options...)
-	jsonFormat := false
-	if cfg.logFormat == JsonFormat {
-		jsonFormat = true
-	}
-	return hclog.New(&hclog.LoggerOptions{
-		Name:            "plugin",
-		Level:           hclog.LevelFromString(string(cfg.logLevel)),
-		JSONFormat:      jsonFormat,
-		IncludeLocation: false,
-	}), nil
+	return zaptohclog.Wrap(logger).Named("plugin"), nil
 }
 
-// NewLogger will use the given opts to build a new logr.Logger instance.
-// It will use zap and the underlying Logger implementation.
-// This function should be called only during the service initialization.
-func NewLogger(opts ...Opts) (logr.Logger, error) {
-	zapLogger, err := NewZapLogger(opts...)
-	if err != nil {
-		return logr.Logger{}, fmt.Errorf("error creating zap logger: %s", err)
+// NewAppLogger creates a new logr.Logger instance using the provided zap.Logger.
+// It returns an error if the provided logger is nil.
+//
+// Parameters:
+//   - logger: A *zap.Logger instance to be wrapped.
+//
+// Returns:
+//   - logr.Logger: The wrapped logger instance.
+//   - error: An error if the logger is nil.
+func NewAppLogger(logger *zap.Logger) (logr.Logger, error) {
+	if logger == nil {
+		return logr.Logger{}, fmt.Errorf("No logger provided to NewAppLogger")
 	}
-	return zapr.NewLogger(zapLogger), nil
+	return zapr.NewLogger(logger), nil
 }

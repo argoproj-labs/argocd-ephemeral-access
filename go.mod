@@ -18,6 +18,7 @@ require (
 	github.com/sethvargo/go-envconfig v1.3.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
+	github.com/zaffka/zap-to-hclog v0.10.6
 	go.uber.org/zap v1.27.0
 	k8s.io/api v0.33.0
 	k8s.io/apimachinery v0.33.0
