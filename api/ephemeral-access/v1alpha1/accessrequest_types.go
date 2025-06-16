@@ -208,6 +208,18 @@ func (ar *AccessRequest) IsExpiring() bool {
 	return false
 }
 
+// IsConcluded will check the status of this AccessRequest to determine
+// if it is concluded. Concluded AccessRequest means it is in Denied,
+// Expired, Invalid or Timeout status.
+func (ar *AccessRequest) IsConcluded() bool {
+	switch ar.Status.RequestState {
+	case DeniedStatus, ExpiredStatus, InvalidStatus, TimeoutStatus:
+		return true
+	default:
+		return false
+	}
+}
+
 // AccessRequestList contains a list of AccessRequest
 // +kubebuilder:object:root=true
 type AccessRequestList struct {

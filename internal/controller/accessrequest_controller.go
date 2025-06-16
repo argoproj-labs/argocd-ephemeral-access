@@ -130,7 +130,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// stop if the reconciliation was previously concluded
-	if isConcluded(ar) {
+	if ar.IsConcluded() {
 		logger.Debug(fmt.Sprintf("Reconciliation concluded as the AccessRequest is %s: skipping...", string(ar.Status.RequestState)))
 		return ctrl.Result{}, nil
 	}
@@ -245,18 +245,6 @@ func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRe
 	return nil
 }
 
-// isConcluded will check the status of the given AccessRequest
-// to determine if it is concluded. Concluded AccessRequest means
-// it is in Denied, Expired or Invalid status.
-func isConcluded(ar *api.AccessRequest) bool {
-	switch ar.Status.RequestState {
-	case api.DeniedStatus, api.ExpiredStatus, api.InvalidStatus, api.TimeoutStatus:
-		return true
-	default:
-		return false
-	}
-}
-
 // buildResult will verify the given status and determine when this access
 // request should be requeued.
 func buildResult(status api.Status, ar *api.AccessRequest, config config.ControllerConfigurer) ctrl.Result {
@@ -269,7 +257,7 @@ func buildResult(status api.Status, ar *api.AccessRequest, config config.Control
 		result.Requeue = true
 		result.RequeueAfter = time.Until(ar.Status.ExpiresAt.Time)
 	default:
-		if isConcluded(ar) && hasTTLConfig(config) {
+		if ar.IsConcluded() && hasTTLConfig(config) {
 			if ttl := getTTLTime(ar, config); ttl != nil {
 				result.Requeue = true
 				result.RequeueAfter = time.Until(*ttl)
@@ -353,7 +341,7 @@ func (r *AccessRequestReconciler) handleTTL(ctx context.Context, ar *api.AccessR
 		return false, nil
 	}
 	// Skip if the AccessRequest is not concluded.
-	if !isConcluded(ar) {
+	if !ar.IsConcluded() {
 		return false, nil
 	}
 
@@ -384,7 +372,7 @@ func (r *AccessRequestReconciler) handleTTL(ctx context.Context, ar *api.AccessR
 // - A pointer to the calculated TTL time if the AccessRequest is concluded.
 // - nil if the AccessRequest is not concluded.
 func getTTLTime(ar *api.AccessRequest, config config.ControllerConfigurer) *time.Time {
-	if !isConcluded(ar) {
+	if !ar.IsConcluded() {
 		return nil
 	}
 	lastStatusHistory := ar.Status.History[len(ar.Status.History)-1]
@@ -559,12 +547,12 @@ func (r *AccessRequestReconciler) callReconcileForRoleTemplate(ctx context.Conte
 	}
 
 	requests := []reconcile.Request{}
-	for _, item := range attachedAccessRequests.Items {
-		if !isConcluded(&item) {
+	for _, ar := range attachedAccessRequests.Items {
+		if !ar.IsConcluded() {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
-					Name:      item.GetName(),
-					Namespace: item.GetNamespace(),
+					Name:      ar.GetName(),
+					Namespace: ar.GetNamespace(),
 				},
 			})
 		}
@@ -621,12 +609,12 @@ func (r *AccessRequestReconciler) callReconcileForProject(ctx context.Context, p
 	}
 
 	requests := []reconcile.Request{}
-	for _, item := range associatedAccessRequests.Items {
-		if !isConcluded(&item) {
+	for _, ar := range associatedAccessRequests.Items {
+		if !ar.IsConcluded() {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: types.NamespacedName{
-					Name:      item.GetName(),
-					Namespace: item.GetNamespace(),
+					Name:      ar.GetName(),
+					Namespace: ar.GetNamespace(),
 				},
 			})
 		}

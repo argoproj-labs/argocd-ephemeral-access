@@ -94,7 +94,7 @@ func NewDefaultService(c Persister, l log.Logger, namespace string, arDuration t
 }
 
 // GetAccessRequestByRole will find the AccessRequest based on the given key and roleName.
-// Result will discard Expired and Denied AccessRequests.
+// Result will discard concluded AccessRequests.
 func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *AccessRequestKey, roleName string) (*api.AccessRequest, error) {
 	logKeys := []interface{}{
 		"namespace", key.Namespace, "app", key.ApplicationName, "username", key.Username, "appNamespace", key.ApplicationNamespace,
@@ -108,9 +108,7 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 
 	// find the first access request matching the requested role
 	for _, ar := range accessRequests {
-		if ar.Spec.Role.TemplateRef.Name == roleName &&
-			ar.Status.RequestState != api.DeniedStatus &&
-			ar.Status.RequestState != api.ExpiredStatus {
+		if !ar.IsConcluded() {
 			return ar, nil
 		}
 	}

@@ -224,8 +224,16 @@ func TestServiceGetAccessRequestByRole(t *testing.T) {
 			Username:             "some-user",
 		}
 		roleName := "some-role"
+		timeoutAR := newAccessRequest(key, roleName)
+		timeoutAR.Status.RequestState = api.TimeoutStatus
+		deniedAR := newAccessRequest(key, roleName)
+		deniedAR.Status.RequestState = api.DeniedStatus
+		expiredAR := newAccessRequest(key, roleName)
+		expiredAR.Status.RequestState = api.ExpiredStatus
+		invalidAR := newAccessRequest(key, roleName)
+		invalidAR.Status.RequestState = api.InvalidStatus
 		ar := newAccessRequest(key, roleName)
-		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*ar}}, nil)
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*deniedAR, *expiredAR, *invalidAR, *timeoutAR, *ar}}, nil)
 
 		// When
 		result, err := f.svc.GetAccessRequestByRole(context.Background(), key, roleName)
