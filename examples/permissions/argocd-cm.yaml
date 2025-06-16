@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  extension.config.ephemeral: |-
+    services:
+    - url: http://backend.argocd-ephemeral-access.svc.cluster.local
+  oidc.config: |
+    name: cognito
+    issuer: https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_1AbcDeFGH
+    clientID: ab1cdefghijklmnop234qrstu
+    clientSecret: 1ab23c45d6ef7ghijkl89m0n1opq23rstuvwxy4za5b6cde7fg8h
+    requestedScopes: ["email", "openid"]
+    requestedIDTokenClaims: {"groups": {"essential": true}}
+    redirectURI: https://argocd.sandbox1.prutsforce.nl/auth/callback
+    getUserInfo: true
+  url: https://argocd.sandbox1.prutsforce.nl
