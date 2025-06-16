@@ -68,7 +68,7 @@ func (rt *RoleTemplate) Render(projName, appName, appNs string) (*RoleTemplate, 
 	if err != nil {
 		return nil, fmt.Errorf("error parsing RoleTemplate description: %w", err)
 	}
-	desc, err := rt.execTemplate(descTmpl, projName, appName, appNs)
+	desc, err := rendered.execTemplate(descTmpl, projName, appName, appNs)
 	if err != nil {
 		return nil, fmt.Errorf("error rendering RoleTemplate description: %w", err)
 	}
@@ -79,7 +79,7 @@ func (rt *RoleTemplate) Render(projName, appName, appNs string) (*RoleTemplate, 
 	if err != nil {
 		return nil, fmt.Errorf("error parsing RoleTemplate policies: %w", err)
 	}
-	p, err := rt.execTemplate(policiesTmpl, projName, appName, appNs)
+	p, err := rendered.execTemplate(policiesTmpl, projName, appName, appNs)
 	if err != nil {
 		return nil, fmt.Errorf("error rendering RoleTemplate policies: %w", err)
 	}

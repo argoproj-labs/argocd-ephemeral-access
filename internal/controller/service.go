@@ -65,6 +65,11 @@ func NewService(c K8sClient, cfg config.ControllerConfigurer, accessRequester pl
 func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, app *argocd.Application, rt *api.RoleTemplate) (api.Status, error) {
 	logger := log.FromContext(ctx)
 
+	if app.Spec.Project == "" {
+		// update to invalid status
+		api.InvalidStatus
+	}
+
 	if ar.IsExpiring() {
 		logger.Info("AccessRequest is expired")
 		err := s.handleAccessExpired(ctx, ar, app, rt)
