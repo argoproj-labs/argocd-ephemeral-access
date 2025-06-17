@@ -35,10 +35,10 @@ func TestHandlePermission(t *testing.T) {
 			}
 			ar.Status.ExpiresAt = past
 			ar.Status.TargetProject = "someProject"
-			app := &argocd.Application{}
+			// app := &argocd.Application{}
 
 			// When
-			status, err := svc.HandlePermission(context.Background(), ar, app, nil)
+			status, err := svc.HandlePermission(context.Background(), ar)
 
 			// Then
 			assert.Error(t, err)
@@ -68,17 +68,17 @@ func TestHandlePermission(t *testing.T) {
 			}
 			ar.Status.ExpiresAt = past
 			ar.Status.TargetProject = "someProject"
-			app := &argocd.Application{}
-			rt := &api.RoleTemplate{
-				Spec: api.RoleTemplateSpec{
-					Name:        "some-role",
-					Description: "some-role-description",
-					Policies:    []string{"some-policy"},
-				},
-			}
+			// app := &argocd.Application{}
+			// rt := &api.RoleTemplate{
+			// 	Spec: api.RoleTemplateSpec{
+			// 		Name:        "some-role",
+			// 		Description: "some-role-description",
+			// 		Policies:    []string{"some-policy"},
+			// 	},
+			// }
 
 			// When
-			status, err := svc.HandlePermission(context.Background(), ar, app, rt)
+			status, err := svc.HandlePermission(context.Background(), ar)
 
 			// Then
 			assert.Error(t, err)
@@ -135,20 +135,20 @@ func TestHandlePermission(t *testing.T) {
 
 			svc := controller.NewService(k8sMock, nil, pluginMock)
 			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
-			app := &argocd.Application{}
-			rt := &api.RoleTemplate{
-				Spec: api.RoleTemplateSpec{
-					Name:        "some-role",
-					Description: "some-role-description",
-					Policies:    []string{"some-policy"},
-				},
-			}
+			// app := &argocd.Application{}
+			// rt := &api.RoleTemplate{
+			// 	Spec: api.RoleTemplateSpec{
+			// 		Name:        "some-role",
+			// 		Description: "some-role-description",
+			// 		Policies:    []string{"some-policy"},
+			// 	},
+			// }
 
 			// When
-			svc.HandlePermission(context.Background(), ar, app, rt)
-			svc.HandlePermission(context.Background(), ar, app, rt)
-			svc.HandlePermission(context.Background(), ar, app, rt)
-			status, err := svc.HandlePermission(context.Background(), ar, app, rt)
+			svc.HandlePermission(context.Background(), ar)
+			svc.HandlePermission(context.Background(), ar)
+			svc.HandlePermission(context.Background(), ar)
+			status, err := svc.HandlePermission(context.Background(), ar)
 
 			// Then
 			assert.NoError(t, err)

@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/plugin"
 	"github.com/cnf/structhash"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,6 +53,23 @@ func NewService(c K8sClient, cfg config.ControllerConfigurer, accessRequester pl
 	}
 }
 
+// getRenderedRole retrieves and renders a RoleTemplate for the given AccessRequest.
+// It first fetches the RoleTemplate associated with the AccessRequest and then renders it
+// using the target project, application name, and application namespace.
+// Returns the rendered RoleTemplate or an error if the retrieval or rendering fails.
+func (s *Service) getRenderedRole(ctx context.Context, ar *api.AccessRequest) (*api.RoleTemplate, error) {
+	roleTemplate, err := s.getRoleTemplate(ctx, ar)
+	if err != nil {
+		return nil, fmt.Errorf("error getting RoleTemplate %s/%s: %w", ar.Spec.Role.TemplateRef.Namespace, ar.Spec.Role.TemplateRef.Name, err)
+	}
+
+	rt, err := roleTemplate.Render(ar.Status.TargetProject, ar.Spec.Application.Name, ar.Spec.Application.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("roleTemplate render error: %w", err)
+	}
+	return rt, nil
+}
+
 // handlePermission will analyse the given ar and proceed with granting
 // or removing Argo CD access for the subject listed in the AccessRequest.
 // The following validations will be executed:
@@ -62,12 +80,38 @@ func NewService(c K8sClient, cfg config.ControllerConfigurer, accessRequester pl
 //     it will return DeniedStatus.
 //
 // It will update the AccessRequest status accordingly with the situation.
-func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest, app *argocd.Application, rt *api.RoleTemplate) (api.Status, error) {
+func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest) (api.Status, error) {
 	logger := log.FromContext(ctx)
+
+	app, err := s.getApplication(ctx, ar)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			role, err := s.getRenderedRole(ctx, ar)
+			if err != nil {
+				return "", fmt.Errorf("error getting rendered RoleTemplate: %w", err)
+			}
+			err = s.RemoveArgoCDAccess(ctx, ar, role)
+			if err != nil {
+				return "", fmt.Errorf("error removing access for not found application: %w", err)
+			}
+			return api.InvalidStatus, fmt.Errorf("Argo CD Application %s/%s not found", ar.Spec.Application.Namespace, ar.Spec.Application.Name)
+		}
+		// TODO send an event to explain why the access request is failing
+		return "", fmt.Errorf("error getting Argo CD Application: %w", err)
+	}
 
 	if app.Spec.Project == "" {
 		// update to invalid status
-		api.InvalidStatus
+		err := s.updateStatus(ctx, ar, api.InvalidStatus, "Application does not have a project defined", "")
+		if err != nil {
+			return "", fmt.Errorf("error updating status to invalid: %w", err)
+		}
+		return api.InvalidStatus, fmt.Errorf("Application does not have a project defined")
+	}
+
+	rt, err := s.getRenderedRole(ctx, ar)
+	if err != nil {
+		return "", fmt.Errorf("error getting rendered RoleTemplate: %w", err)
 	}
 
 	if ar.IsExpiring() {
@@ -184,6 +228,7 @@ func (s *Service) RemoveArgoCDAccess(ctx context.Context, ar *api.AccessRequest,
 		project, err := s.getProject(ctx, projName, projNamespace)
 		if err != nil {
 			e := fmt.Errorf("error getting Argo CD Project %s/%s: %w", projNamespace, projName, err)
+			// If project not found, there is nothing to be done
 			return client.IgnoreNotFound(e)
 		}
 		patch := client.MergeFromWithOptions(project.DeepCopy(), client.MergeFromWithOptimisticLock{})
@@ -276,6 +321,38 @@ func (s *Service) getProject(ctx context.Context, name, ns string) (*argocd.AppP
 		return nil, err
 	}
 	return project, nil
+}
+
+// getApplication retrieves the ArgoCD Application resource associated with the given AccessRequest.
+// It uses the namespace and name specified in the ar spec to locate the Application.
+// Returns the Application object if found, or an error if the retrieval fails.
+func (s *Service) getApplication(ctx context.Context, ar *api.AccessRequest) (*argocd.Application, error) {
+	application := &argocd.Application{}
+	objKey := client.ObjectKey{
+		Namespace: ar.Spec.Application.Namespace,
+		Name:      ar.Spec.Application.Name,
+	}
+	err := s.k8sClient.Get(ctx, objKey, application)
+	if err != nil {
+		return nil, err
+	}
+	return application, nil
+}
+
+// getRoleTemplate retrieves the RoleTemplate resource associated with the given AccessRequest.
+// It uses the name and namespace specified in the ar spec to locate the RoleTemplate.
+// Returns the RoleTemplate object if found, or an error if the retrieval fails.
+func (s *Service) getRoleTemplate(ctx context.Context, ar *api.AccessRequest) (*api.RoleTemplate, error) {
+	roleTemplate := &api.RoleTemplate{}
+	objKey := client.ObjectKey{
+		Name:      ar.Spec.Role.TemplateRef.Name,
+		Namespace: ar.Spec.Role.TemplateRef.Namespace,
+	}
+	err := s.k8sClient.Get(ctx, objKey, roleTemplate)
+	if err != nil {
+		return nil, err
+	}
+	return roleTemplate, nil
 }
 
 // updateStatusWithRetry will retrieve the latest AccessRequest state before

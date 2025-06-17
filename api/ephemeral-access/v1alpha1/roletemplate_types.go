@@ -63,6 +63,15 @@ type RoleTemplateStatus struct {
 // the given projName, appName and appNs. The RoleTemplate fields that accept
 // templated values are 'rt.Spec.Description' and 'rt.Spec.Policies'.
 func (rt *RoleTemplate) Render(projName, appName, appNs string) (*RoleTemplate, error) {
+	if projName == "" {
+		return nil, fmt.Errorf("project name cannot be empty")
+	}
+	if appName == "" {
+		return nil, fmt.Errorf("application name cannot be empty")
+	}
+	if appNs == "" {
+		return nil, fmt.Errorf("application namespace cannot be empty")
+	}
 	rendered := rt.DeepCopy()
 	descTmpl, err := template.New("description").Parse(rt.Spec.Description)
 	if err != nil {
