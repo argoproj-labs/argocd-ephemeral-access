@@ -464,7 +464,7 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 			// this is a best effort to update policies that eventually changed
 			// in the project. Errors are ignored as it is more important to
 			// remove the user from the role.
-			rt, _ := r.Service.getRenderedRole(ctx, ar)
+			rt, _ := r.Service.getRenderedRole(ctx, ar, ar.Status.TargetProject)
 			if err := r.Service.RemoveArgoCDAccess(ctx, ar, rt); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried.

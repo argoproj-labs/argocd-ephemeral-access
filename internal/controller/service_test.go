@@ -28,6 +28,20 @@ func TestHandlePermission(t *testing.T) {
 			clientMock.EXPECT().
 				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.AppProject")).
 				Return(expectedError)
+			clientMock.EXPECT().
+				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.Application")).
+				RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					app := obj.(*argocd.Application)
+					app.Spec.Project = "some-project"
+					return nil
+				})
+			clientMock.EXPECT().
+				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.RoleTemplate")).
+				RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					rt := obj.(*api.RoleTemplate)
+					rt.Spec.Name = "some-role"
+					return nil
+				})
 			svc := controller.NewService(clientMock, nil, nil)
 			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
 			past := &metav1.Time{
@@ -35,7 +49,6 @@ func TestHandlePermission(t *testing.T) {
 			}
 			ar.Status.ExpiresAt = past
 			ar.Status.TargetProject = "someProject"
-			// app := &argocd.Application{}
 
 			// When
 			status, err := svc.HandlePermission(context.Background(), ar)
@@ -58,6 +71,22 @@ func TestHandlePermission(t *testing.T) {
 				}).
 				Once()
 			clientMock.EXPECT().
+				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.Application")).
+				RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					app := obj.(*argocd.Application)
+					app.Spec.Project = "some-project"
+					return nil
+				})
+			clientMock.EXPECT().
+				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.RoleTemplate")).
+				RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					rt := obj.(*api.RoleTemplate)
+					rt.Spec.Name = "some-role"
+					rt.Spec.Description = "some-role-description"
+					rt.Spec.Policies = []string{"some-policy"}
+					return nil
+				})
+			clientMock.EXPECT().
 				Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.AppProject"), mock.Anything, mock.Anything).
 				Return(expectedError).
 				Once()
@@ -68,14 +97,6 @@ func TestHandlePermission(t *testing.T) {
 			}
 			ar.Status.ExpiresAt = past
 			ar.Status.TargetProject = "someProject"
-			// app := &argocd.Application{}
-			// rt := &api.RoleTemplate{
-			// 	Spec: api.RoleTemplateSpec{
-			// 		Name:        "some-role",
-			// 		Description: "some-role-description",
-			// 		Policies:    []string{"some-policy"},
-			// 	},
-			// }
 
 			// When
 			status, err := svc.HandlePermission(context.Background(), ar)
@@ -92,8 +113,25 @@ func TestHandlePermission(t *testing.T) {
 			// Given
 			resourceWriterMock := mocks.NewMockSubResourceWriter(t)
 			resourceWriterMock.EXPECT().Update(mock.Anything, mock.AnythingOfType("*v1alpha1.AccessRequest")).Return(nil)
-			k8sMock := mocks.NewMockK8sClient(t)
-			k8sMock.EXPECT().Status().Return(resourceWriterMock)
+			clientMock := mocks.NewMockK8sClient(t)
+			clientMock.EXPECT().Status().Return(resourceWriterMock)
+			clientMock.EXPECT().
+				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.Application")).
+				RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					app := obj.(*argocd.Application)
+					app.Spec.Project = "some-project"
+					return nil
+				})
+			clientMock.EXPECT().
+				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.RoleTemplate")).
+				RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					rt := obj.(*api.RoleTemplate)
+					rt.Spec.Name = "some-role"
+					rt.Spec.Description = "some-role-description"
+					rt.Spec.Policies = []string{"some-policy"}
+					return nil
+				})
+
 			pluginMock := mocks.NewMockAccessRequester(t)
 			response1 := &plugin.GrantResponse{
 				Status:  plugin.GrantStatusPending,
@@ -121,28 +159,21 @@ func TestHandlePermission(t *testing.T) {
 				GrantAccess(mock.AnythingOfType("*v1alpha1.AccessRequest"), mock.AnythingOfType("*v1alpha1.Application")).
 				Return(response3, nil)
 
-			k8sMock.EXPECT().
+			clientMock.EXPECT().
 				Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v1alpha1.AppProject")).
 				RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
 					obj = &argocd.AppProject{}
 					return nil
 				}).
 				Once()
-			k8sMock.EXPECT().
+			clientMock.EXPECT().
 				Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.AppProject"), mock.Anything, mock.Anything).
 				Return(nil).
 				Once()
 
-			svc := controller.NewService(k8sMock, nil, pluginMock)
+			svc := controller.NewService(clientMock, nil, pluginMock)
 			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
-			// app := &argocd.Application{}
-			// rt := &api.RoleTemplate{
-			// 	Spec: api.RoleTemplateSpec{
-			// 		Name:        "some-role",
-			// 		Description: "some-role-description",
-			// 		Policies:    []string{"some-policy"},
-			// 	},
-			// }
+			ar.Status.TargetProject = "some-project"
 
 			// When
 			svc.HandlePermission(context.Background(), ar)
