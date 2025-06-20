@@ -491,7 +491,6 @@ func removeSubjectFromRole(project *argocd.AppProject, ar *api.AccessRequest, rt
 				remove := false
 				if group == ar.Spec.Subject.Username {
 					remove = true
-					break
 				}
 				if !remove {
 					groups = append(groups, group)
