@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demoapp
+  namespace: argocd
+  labels:
+    environment: production
+spec:
+  project: demoproject
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+  source:
+    path: demo-dir
+    repoURL: https://github.com/FrederiqueRetsema/kubernetes-test-repo.git
+    targetRevision: HEAD
+  destination:
+    namespace: demonamespace
+    server: https://kubernetes.default.svc
