@@ -135,43 +135,14 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
-	logger.Debug("Validating AccessRequest")
-	err = r.Validate(ctx, ar)
+	// check if the AccessRequest is in conflict with existing requests
+	err = r.HandleConflict(ctx, ar)
 	if err != nil {
-		accessRequestConflictError := &AccessRequestConflictError{}
-		if errors.As(err, &accessRequestConflictError) {
-			logger.Error(err, "AccessRequest conflict error")
-			ar.UpdateStatusHistory(api.InvalidStatus, err.Error())
-			err = r.Status().Update(ctx, ar)
-			if err != nil {
-				return reconcile.Result{}, fmt.Errorf("error updating status to invalid: %w", err)
-			}
-			metrics.IncrementAccessRequestCounter(api.InvalidStatus)
-			return ctrl.Result{}, nil
-		}
-		logger.Info(fmt.Sprintf("Validation error: %s", err))
-		return ctrl.Result{}, fmt.Errorf("error validating the AccessRequest: %w", err)
-	}
-
-	application, err := r.getApplication(ctx, ar)
-	if err != nil {
-		// TODO send an event to explain why the access request is failing
-		return ctrl.Result{}, fmt.Errorf("error getting Argo CD Application: %w", err)
-	}
-
-	roleTemplate, err := r.getRoleTemplate(ctx, ar)
-	if err != nil {
-		// TODO send an event to explain why the access request is failing
-		return ctrl.Result{}, fmt.Errorf("error getting RoleTemplate %s/%s: %w", ar.Spec.Role.TemplateRef.Namespace, ar.Spec.Role.TemplateRef.Name, err)
-	}
-
-	renderedRt, err := roleTemplate.Render(application.Spec.Project, application.GetName(), application.GetNamespace())
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("roleTemplate error: %w", err)
+		return ctrl.Result{}, fmt.Errorf("error handling conflict: %w", err)
 	}
 
 	logger.Debug("Handling permission")
-	status, err := r.Service.HandlePermission(ctx, ar, application, renderedRt)
+	status, err := r.Service.HandlePermission(ctx, ar)
 	if err != nil {
 		logger.Error(err, "HandlePermission error")
 		return ctrl.Result{}, fmt.Errorf("error handling permission: %w", err)
@@ -193,6 +164,31 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return result, nil
 }
 
+// HandleConflict processes AccessRequest objects to handle validation conflicts.
+// If a conflict is detected, it updates the AccessRequest status to invalid.
+// Returns an AccessRequestConflictError if a conflict scenario is identified.
+func (r *AccessRequestReconciler) HandleConflict(ctx context.Context, ar *api.AccessRequest) error {
+	logger := log.FromContext(ctx)
+	logger.Debug("Validating AccessRequest")
+	err := r.ValidateConflict(ctx, ar)
+	if err != nil {
+		accessRequestConflictError := &AccessRequestConflictError{}
+		if errors.As(err, &accessRequestConflictError) {
+			logger.Error(err, "AccessRequest conflict error")
+			ar.UpdateStatusHistory(api.InvalidStatus, err.Error())
+			err = r.Status().Update(ctx, ar)
+			if err != nil {
+				return fmt.Errorf("error updating status to invalid: %w", err)
+			}
+			metrics.IncrementAccessRequestCounter(api.InvalidStatus)
+			return nil
+		}
+		logger.Info(fmt.Sprintf("ValidateConflict error: %s", err))
+		return fmt.Errorf("error validating AccessRequest conflicts: %w", err)
+	}
+	return nil
+}
+
 type AccessRequestConflictError struct {
 	message string
 }
@@ -207,9 +203,9 @@ func NewAccessRequestConflictError(msg string) *AccessRequestConflictError {
 	}
 }
 
-// Validate will verify if there are existing AccessRequests for the same
+// ValidateConflict will verify if there are existing AccessRequests for the same
 // user/app/role already in progress.
-func (r *AccessRequestReconciler) Validate(ctx context.Context, ar *api.AccessRequest) error {
+func (r *AccessRequestReconciler) ValidateConflict(ctx context.Context, ar *api.AccessRequest) error {
 	arList, err := r.findAccessRequestsByUserAndApp(ctx,
 		ar.GetNamespace(),
 		ar.Spec.Subject.Username,
@@ -289,38 +285,6 @@ func hasTTLConfig(c config.ControllerConfigurer) bool {
 // - A boolean indicating whether the timeout is configured (true) or not (false).
 func hasTimeoutConfig(c config.ControllerConfigurer) bool {
 	return c.ControllerRequestTimeout() != time.Nanosecond*0
-}
-
-// getApplication retrieves the ArgoCD Application resource associated with the given AccessRequest.
-// It uses the namespace and name specified in the ar spec to locate the Application.
-// Returns the Application object if found, or an error if the retrieval fails.
-func (r *AccessRequestReconciler) getApplication(ctx context.Context, ar *api.AccessRequest) (*argocd.Application, error) {
-	application := &argocd.Application{}
-	objKey := client.ObjectKey{
-		Namespace: ar.Spec.Application.Namespace,
-		Name:      ar.Spec.Application.Name,
-	}
-	err := r.Get(ctx, objKey, application)
-	if err != nil {
-		return nil, err
-	}
-	return application, nil
-}
-
-// getRoleTemplate retrieves the RoleTemplate resource associated with the given AccessRequest.
-// It uses the name and namespace specified in the ar spec to locate the RoleTemplate.
-// Returns the RoleTemplate object if found, or an error if the retrieval fails.
-func (r *AccessRequestReconciler) getRoleTemplate(ctx context.Context, ar *api.AccessRequest) (*api.RoleTemplate, error) {
-	roleTemplate := &api.RoleTemplate{}
-	objKey := client.ObjectKey{
-		Name:      ar.Spec.Role.TemplateRef.Name,
-		Namespace: ar.Spec.Role.TemplateRef.Namespace,
-	}
-	err := r.Get(ctx, objKey, roleTemplate)
-	if err != nil {
-		return nil, err
-	}
-	return roleTemplate, nil
 }
 
 // handleTTL checks whether the AccessRequest has exceeded its configured TTL (Time-To-Live) duration.
@@ -500,7 +464,7 @@ func (r *AccessRequestReconciler) handleFinalizer(ctx context.Context, ar *api.A
 			// this is a best effort to update policies that eventually changed
 			// in the project. Errors are ignored as it is more important to
 			// remove the user from the role.
-			rt, _ := r.getRoleTemplate(ctx, ar)
+			rt, _ := r.Service.getRenderedRole(ctx, ar, ar.Status.TargetProject)
 			if err := r.Service.RemoveArgoCDAccess(ctx, ar, rt); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried.
