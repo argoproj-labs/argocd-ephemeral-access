@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder" // Required for Watching
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"   // Required for Watching
 	"sigs.k8s.io/controller-runtime/pkg/predicate" // Required for Watching
 	"sigs.k8s.io/controller-runtime/pkg/reconcile" // Required for Watching
@@ -591,6 +593,56 @@ func (r *AccessRequestReconciler) callReconcileForProject(ctx context.Context, p
 	return requests
 }
 
+// callReconcileForApplication finds all AccessRequest resources associated with the given Application object
+// and returns a list of reconcile.Requests for those that are not yet concluded. This is typically used to
+// trigger reconciliation of AccessRequests when their associated Application is updated.
+//
+// Parameters:
+//
+//	ctx - The context for the request, used for logging and cancellation.
+//	app - The Application object for which to find associated AccessRequests.
+//
+// Returns:
+//
+//	A slice of reconcile.Requests for each associated AccessRequest that is not concluded.
+//	Returns nil if no such AccessRequests are found or if an error occurs during listing.
+func (r *AccessRequestReconciler) callReconcileForApplication(ctx context.Context, app client.Object) []reconcile.Request {
+	logger := log.FromContext(ctx)
+	logger.Debug(fmt.Sprintf("Application %s/%s updated: searching for associated AccessRequests...", app.GetNamespace(), app.GetName()))
+	associatedAccessRequests := &api.AccessRequestList{}
+	selector := fields.SelectorFromSet(
+		fields.Set{
+			appField:          app.GetName(),
+			appNamespaceField: app.GetNamespace(),
+		})
+	listOps := &client.ListOptions{
+		FieldSelector: selector,
+	}
+	err := r.List(ctx, associatedAccessRequests, listOps)
+	if err != nil {
+		logger.Error(err, "findObjectsForProject error: list k8s resources error")
+		return []reconcile.Request{}
+	}
+
+	requests := []reconcile.Request{}
+	for _, ar := range associatedAccessRequests.Items {
+		if !ar.IsConcluded() {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      ar.GetName(),
+					Namespace: ar.GetNamespace(),
+				},
+			})
+		}
+	}
+	totalRequests := len(requests)
+	if totalRequests == 0 {
+		return nil
+	}
+	logger.Debug(fmt.Sprintf("Found %d associated AccessRequests with Application %s/%s. Reconciling...", totalRequests, app.GetNamespace(), app.GetName()))
+	return requests
+}
+
 // createProjectIndex will create an AccessRequest index by project to allow
 // fetching all objects referencing a given AppProject.
 func createProjectIndex(mgr ctrl.Manager) error {
@@ -679,6 +731,108 @@ func createUserAppIndex(mgr ctrl.Manager) error {
 	return nil
 }
 
+// ProjectChangedPredicate returns a predicate that triggers reconciliation
+// only when an ArgoCD AppProject has changed in a way that should trigger
+// a reconcile, as determined by ProjectChangeShouldTriggerReconcile.
+// It ignores create, delete, and generic events.
+func ProjectChangedPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			newProj := e.ObjectNew.(*argocd.AppProject)
+			oldProj := e.ObjectOld.(*argocd.AppProject)
+
+			return ProjectChangeShouldTriggerReconcile(newProj, oldProj)
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
+// ProjectChangeShouldTriggerReconcile determines whether a change between two AppProject
+// objects should trigger a reconcile. It compares the roles, policies, JWT tokens, and groups
+// between the new and old project specifications. If there are any differences in the number
+// of roles, policies, JWT tokens, groups, or in the role names or descriptions, it returns true.
+// If either project is nil, it also returns true.
+func ProjectChangeShouldTriggerReconcile(newProj, oldProj *argocd.AppProject) bool {
+	if newProj == nil || oldProj == nil {
+		return true
+	}
+	if len(newProj.Spec.Roles) != len(oldProj.Spec.Roles) {
+		return true
+	}
+
+	for _, newRole := range newProj.Spec.Roles {
+		if !slices.ContainsFunc(oldProj.Spec.Roles, func(oldRole argocd.ProjectRole) bool {
+			if len(newRole.Policies) != len(oldRole.Policies) {
+				return false
+			}
+			if len(newRole.JWTTokens) != len(oldRole.JWTTokens) {
+				return false
+			}
+			if len(newRole.Groups) != len(oldRole.Groups) {
+				return false
+			}
+			for _, policy := range newRole.Policies {
+				if !slices.Contains(oldRole.Policies, policy) {
+					return false
+				}
+			}
+			for _, jwtToken := range newRole.JWTTokens {
+				if !slices.Contains(oldRole.JWTTokens, jwtToken) {
+					return false
+				}
+			}
+			for _, group := range newRole.Groups {
+				if !slices.Contains(oldRole.Groups, group) {
+					return false
+				}
+			}
+			return newRole.Name == oldRole.Name &&
+				newRole.Description == oldRole.Description
+		}) {
+			return true
+		}
+	}
+	return false
+}
+
+// ApplicationChangedPredicate returns a predicate that triggers reconciliation
+// when an ArgoCD Application's project changes, or when the Application is deleted.
+// It ignores create and generic events.
+func ApplicationChangedPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			newApp := e.ObjectNew.(*argocd.Application)
+			oldApp := e.ObjectOld.(*argocd.Application)
+
+			if newApp == nil || oldApp == nil {
+				return true
+			}
+
+			if newApp.Spec.Project != oldApp.Spec.Project {
+				return true
+			}
+			return false
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	err := createProjectIndex(mgr)
@@ -702,6 +856,9 @@ func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&argocd.AppProject{},
 			handler.EnqueueRequestsFromMapFunc(r.callReconcileForProject),
-			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+			builder.WithPredicates(ProjectChangedPredicate())).
+		Watches(&argocd.Application{},
+			handler.EnqueueRequestsFromMapFunc(r.callReconcileForApplication),
+			builder.WithPredicates(ApplicationChangedPredicate())).
 		Complete(r)
 }

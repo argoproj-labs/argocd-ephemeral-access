@@ -19,6 +19,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -832,3 +833,163 @@ var _ = Describe("AccessRequest Controller", func() {
 	Context("Deleting Project used by multiple AccessRequests", Ordered, func() {
 	})
 })
+
+func TestProjectChangeShouldTriggerReconcile(t *testing.T) {
+	role1 := argocd.ProjectRole{
+		Name:        "role1",
+		Description: "desc1",
+		Policies:    []string{"policy1", "policy2"},
+		JWTTokens: []argocd.JWTToken{
+			{ID: "token1"},
+		},
+		Groups: []string{"group1"},
+	}
+	role2 := argocd.ProjectRole{
+		Name:        "role2",
+		Description: "desc2",
+		Policies:    []string{"policy3"},
+		JWTTokens: []argocd.JWTToken{
+			{ID: "token2"},
+		},
+		Groups: []string{"group2"},
+	}
+
+	tests := []struct {
+		name    string
+		oldProj func() *argocd.AppProject
+		newProj func() *argocd.AppProject
+		want    bool
+	}{
+		{
+			name: "tokens length changed",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				r := role1.DeepCopy()
+				r.JWTTokens = []argocd.JWTToken{}
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{*r}}}
+			},
+			want: true,
+		},
+		{
+			name: "tokens changed",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				r := role1.DeepCopy()
+				r.JWTTokens = []argocd.JWTToken{{ID: "token1-changed"}}
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{*r}}}
+			},
+			want: true,
+		},
+		{
+			name: "groups length changed",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				r := role1.DeepCopy()
+				r.Groups = append(r.Groups, "group3")
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{*r}}}
+			},
+			want: true,
+		},
+		{
+			name: "groups changed",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				r := role1.DeepCopy()
+				r.Groups[0] = "group1-changed"
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{*r}}}
+			},
+			want: true,
+		},
+		{
+			name: "roles length changed",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1, role2}}}
+			},
+			want: true,
+		},
+		{
+			name: "role name changed",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{
+					{Name: "role1-changed", Description: "desc1", Policies: []string{"policy1", "policy2"}},
+				},
+				}}
+			},
+			want: true,
+		},
+		{
+			name: "role description changed",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{
+					{Name: "role1", Description: "desc1-changed", Policies: []string{"policy1", "policy2"}}},
+				}}
+			},
+			want: true,
+		},
+		{
+			name: "role policies changed",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{
+					{Name: "role1", Description: "desc1", Policies: []string{"policy1"}},
+				}}}
+			},
+			want: true,
+		},
+		{
+			name: "no change",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role2, role1}}}
+			},
+			newProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1, role2}}}
+			},
+			want: false,
+		},
+		{
+			name:    "old project nil",
+			oldProj: func() *argocd.AppProject { return nil },
+			newProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1, role2}}}
+			},
+			want: true,
+		},
+		{
+			name: "new project nil",
+			oldProj: func() *argocd.AppProject {
+				return &argocd.AppProject{Spec: argocd.AppProjectSpec{Roles: []argocd.ProjectRole{role1, role2}}}
+			},
+			newProj: func() *argocd.AppProject { return nil },
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt // capture range variable
+		t.Run(tt.name, func(t *testing.T) {
+			got := ProjectChangeShouldTriggerReconcile(tt.newProj(), tt.oldProj())
+			if got != tt.want {
+				t.Errorf("ProjectChangeShouldTriggerReconcile() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

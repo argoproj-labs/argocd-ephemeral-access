@@ -131,6 +131,25 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest) (
 		}
 	}
 
+	if ar.Status.TargetProject != app.Spec.Project {
+		logger.Info("Application project changed", "old", ar.Status.TargetProject, "new", app.Spec.Project)
+		oldRole, err := s.getRenderedRole(ctx, ar, ar.Status.TargetProject)
+		if err != nil {
+			return "", fmt.Errorf("error getting rendered RoleTemplate for old project: %w", err)
+		}
+
+		// if the target project changed, we need to remove the access from the old project
+		err = s.RemoveArgoCDAccess(ctx, ar, oldRole)
+		if err != nil {
+			return "", fmt.Errorf("error removing access for changed target project: %w", err)
+		}
+		msg := fmt.Sprintf("The application project changed from %s to %s.", ar.Status.TargetProject, app.Spec.Project)
+		err = s.updateStatus(ctx, ar, api.InvalidStatus, msg, RoleTemplateHash(oldRole))
+		if err != nil {
+			return "", fmt.Errorf("error updating access request status after target project change: %w", err)
+		}
+	}
+
 	// if accessRequest is already granted but not yet expired there is no
 	// permission to be modified but it is still necessary to ensure that
 	// the AppProject role is synced.
