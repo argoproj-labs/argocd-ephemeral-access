@@ -106,6 +106,31 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest) (
 		return api.InvalidStatus, nil
 	}
 
+	// If the AccessRequest status is initialized and the target project is different from the
+	// application project, it means that the AccessRequest was created for a different project.
+	// In this case, we need to remove the access from the old project and update the status.
+	if ar.Status.TargetProject != "" && ar.Status.TargetProject != app.Spec.Project {
+		logger.Info("Application project changed", "old", ar.Status.TargetProject, "new", app.Spec.Project)
+		oldRole, err := s.getRenderedRole(ctx, ar, ar.Status.TargetProject)
+		if err != nil {
+			return "", fmt.Errorf("error getting rendered RoleTemplate for old project: %w", err)
+		}
+
+		// Only need to remove existing access if the AccessRequest is in a granted state.
+		if ar.Status.RequestState == api.GrantedStatus {
+			err = s.RemoveArgoCDAccess(ctx, ar, oldRole)
+			if err != nil {
+				return "", fmt.Errorf("error removing access for changed target project: %w", err)
+			}
+		}
+		msg := fmt.Sprintf("The application project changed from %s to %s.", ar.Status.TargetProject, app.Spec.Project)
+		err = s.updateStatus(ctx, ar, api.InvalidStatus, msg, RoleTemplateHash(oldRole))
+		if err != nil {
+			return "", fmt.Errorf("error updating access request status after target project change: %w", err)
+		}
+		return api.InvalidStatus, nil
+	}
+
 	role, err := s.getRenderedRole(ctx, ar, app.Spec.Project)
 	if err != nil {
 		return "", fmt.Errorf("error getting rendered RoleTemplate: %w", err)
@@ -128,25 +153,6 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest) (
 		err := s.updateStatus(ctx, ar, api.InitiatedStatus, "", RoleTemplateHash(role))
 		if err != nil {
 			return "", fmt.Errorf("error initializing access request status: %w", err)
-		}
-	}
-
-	if ar.Status.TargetProject != app.Spec.Project {
-		logger.Info("Application project changed", "old", ar.Status.TargetProject, "new", app.Spec.Project)
-		oldRole, err := s.getRenderedRole(ctx, ar, ar.Status.TargetProject)
-		if err != nil {
-			return "", fmt.Errorf("error getting rendered RoleTemplate for old project: %w", err)
-		}
-
-		// if the target project changed, we need to remove the access from the old project
-		err = s.RemoveArgoCDAccess(ctx, ar, oldRole)
-		if err != nil {
-			return "", fmt.Errorf("error removing access for changed target project: %w", err)
-		}
-		msg := fmt.Sprintf("The application project changed from %s to %s.", ar.Status.TargetProject, app.Spec.Project)
-		err = s.updateStatus(ctx, ar, api.InvalidStatus, msg, RoleTemplateHash(oldRole))
-		if err != nil {
-			return "", fmt.Errorf("error updating access request status after target project change: %w", err)
 		}
 	}
 
