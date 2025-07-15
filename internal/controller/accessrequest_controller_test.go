@@ -660,6 +660,96 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 	})
 
+	Context("Changing an Application", Ordered, func() {
+		const (
+			namespace             = "test-application-watch"
+			arName01              = "test-ar-app-watch"
+			appprojectName        = "sample-test-project"
+			appName               = "some-application"
+			roleTemplateName      = "role-template-watch-test"
+			roleTemplateNamespace = "test-application-watch-rt"
+			roleName              = "super-user"
+			subject01             = "some-user"
+			expectedPolicy        = "original-policy"
+		)
+
+		var f *fixture
+		var r resources
+		policies := []string{expectedPolicy}
+
+		When("used by an active AccessRequests", func() {
+			AfterAll(func() {
+				deleteNamespace(f)
+			})
+			BeforeAll(func() {
+				r = resources{
+					arName:                arName01,
+					appName:               appName,
+					namespace:             namespace,
+					appProjName:           appprojectName,
+					roleTemplateName:      roleTemplateName,
+					roleTemplateNamespace: roleTemplateNamespace,
+					roleName:              roleName,
+					subject:               subject01,
+					policies:              policies,
+				}
+				f = setup(r)
+			})
+			It("will apply the roletemplate resource in k8s", func() {
+				err := k8sClient.Create(ctx, f.roletemplate)
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("will apply the AccessRequests resources in k8s", func() {
+				f.accessrequests[0].Spec.Duration = metav1.Duration{Duration: time.Second * 5}
+				for _, ar := range f.accessrequests {
+					err := k8sClient.Create(ctx, ar)
+					Expect(err).NotTo(HaveOccurred())
+				}
+			})
+			It("will verify if the AccessRequest is created", func() {
+				returnedAR := &api.AccessRequest{}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), returnedAR)
+					Expect(err).NotTo(HaveOccurred())
+					return returnedAR.Status.RequestState
+				}, timeout, interval).ShouldNot(BeEmpty())
+				Expect(returnedAR.Status.History).NotTo(BeEmpty())
+				Expect(returnedAR.Status.History[0].RequestState).To(Equal(api.InitiatedStatus))
+			})
+			It("will invalidate the AccessRequest when the target project is changed in the app", func() {
+
+				By("modifying the Application project")
+				appYaml := testdata.ApplicationYaml
+				app, err := utils.YamlToUnstructured(appYaml)
+				Expect(err).NotTo(HaveOccurred())
+				app.SetName(appName)
+				app.SetNamespace(namespace)
+				unstructured.SetNestedField(app.Object, "another-project", "spec", "project")
+				// The dynamic client is used to create the resource with all fields
+				// defined in the official Argo CD CRD
+				_, err = dynClient.Resource(appResource).
+					Namespace(r.namespace).
+					Apply(ctx, r.appName, app, metav1.ApplyOptions{
+						FieldManager: "argocd-controller",
+					})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("checking if AccessRequest is invalidated")
+				returnedAR := &api.AccessRequest{}
+				Eventually(func() api.Status {
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(f.accessrequests[0]), returnedAR)
+					Expect(err).NotTo(HaveOccurred())
+					return returnedAR.Status.RequestState
+				}, timeout, interval).Should(Equal(api.InvalidStatus))
+				Expect(returnedAR.Status.RequestState).NotTo(BeEmpty())
+				lastHistory := returnedAR.Status.History[len(returnedAR.Status.History)-1]
+				Expect(lastHistory.RequestState).To(Equal(api.InvalidStatus))
+				Expect(lastHistory.Details).NotTo(BeNil())
+				Expect(*lastHistory.Details).To(ContainSubstring("project changed"))
+			})
+		})
+	})
+
 	Context("Validating AccessRequests", Ordered, func() {
 		const (
 			namespace             = "test-ar-validation"
