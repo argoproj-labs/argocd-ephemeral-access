@@ -918,10 +918,6 @@ var _ = Describe("AccessRequest Controller", func() {
 			})
 		})
 	})
-	Context("Deleting RoleTemplate used by multiple AccessRequests", Ordered, func() {
-	})
-	Context("Deleting Project used by multiple AccessRequests", Ordered, func() {
-	})
 })
 
 func TestProjectChangeShouldTriggerReconcile(t *testing.T) {
