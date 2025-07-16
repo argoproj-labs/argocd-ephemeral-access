@@ -95,7 +95,7 @@ func (s *Service) ValidateProject(ctx context.Context, app *argocd.Application, 
 	// If the AccessRequest status is initialized and the target project is different from the
 	// application project, it means that the AccessRequest was created for a different project.
 	// In this case, we need to remove the access from the old project and update the status.
-	if ar.Status.TargetProject != "" && ar.Status.TargetProject != app.Spec.Project {
+	if ar.IsInitialized() && ar.Status.TargetProject != app.Spec.Project {
 		logger.Info("Application project changed", "old", ar.Status.TargetProject, "new", app.Spec.Project)
 		oldRole, err := s.getRenderedRole(ctx, ar, ar.Status.TargetProject)
 		if err != nil {
@@ -184,7 +184,7 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest) (
 	}
 
 	// initialize the status if not done yet
-	if ar.Status.RequestState == "" {
+	if !ar.IsInitialized() {
 		logger.Debug("Initializing status")
 		ar.Status.TargetProject = app.Spec.Project
 		ar.Status.RoleName = role.AppProjectRoleName(app.GetName(), app.GetNamespace())

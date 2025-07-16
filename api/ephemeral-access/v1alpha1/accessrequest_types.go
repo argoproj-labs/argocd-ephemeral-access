@@ -220,6 +220,12 @@ func (ar *AccessRequest) IsConcluded() bool {
 	}
 }
 
+// IsInitialized returns true if the AccessRequest has a non-empty RequestState
+// in its Status, indicating that it has been initialized.
+func (ar *AccessRequest) IsInitialized() bool {
+	return ar.Status.RequestState != ""
+}
+
 // AccessRequestList contains a list of AccessRequest
 // +kubebuilder:object:root=true
 type AccessRequestList struct {

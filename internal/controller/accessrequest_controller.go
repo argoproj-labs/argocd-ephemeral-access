@@ -770,6 +770,10 @@ func ProjectChangeShouldTriggerReconcile(newProj, oldProj *argocd.AppProject) bo
 
 	for _, newRole := range newProj.Spec.Roles {
 		if !slices.ContainsFunc(oldProj.Spec.Roles, func(oldRole argocd.ProjectRole) bool {
+			if newRole.Name != oldRole.Name ||
+				newRole.Description != oldRole.Description {
+				return false
+			}
 			if len(newRole.Policies) != len(oldRole.Policies) {
 				return false
 			}
@@ -794,8 +798,7 @@ func ProjectChangeShouldTriggerReconcile(newProj, oldProj *argocd.AppProject) bo
 					return false
 				}
 			}
-			return newRole.Name == oldRole.Name &&
-				newRole.Description == oldRole.Description
+			return true
 		}) {
 			return true
 		}

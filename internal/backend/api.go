@@ -280,7 +280,7 @@ func toAccessRequestResponseBody(ar *api.AccessRequest) AccessRequestResponseBod
 	}
 	// This is to keep backwards compatibility as old AccessRequests wont have the InitiatedStatus
 	// in the history
-	if requestedAt == "" && ar.Status.RequestState != api.InvalidStatus && ar.Status.RequestState != "" {
+	if requestedAt == "" && ar.Status.RequestState != api.InvalidStatus && ar.IsInitialized() {
 		requestedAt = ar.GetCreationTimestamp().Format(time.RFC3339)
 	}
 
