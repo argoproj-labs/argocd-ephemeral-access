@@ -70,6 +70,71 @@ func (s *Service) getRenderedRole(ctx context.Context, ar *api.AccessRequest, pr
 	return rt, nil
 }
 
+// ValidateProject validates that the Argo CD Application is associated with a valid project
+// and that the AccessRequest matches the current project. It updates the AccessRequest status
+// to invalid in the following cases:
+// - The Application project isn't set.
+// - The Application project changed.
+// - The Application project does not exist.
+//
+// Returns true if the project is valid and exists, false otherwise. Returns an error if any
+// status update or project retrieval fails.
+func (s *Service) ValidateProject(ctx context.Context, app *argocd.Application, ar *api.AccessRequest) (bool, error) {
+	logger := log.FromContext(ctx)
+
+	// The Argo CD Application must be associated with a project. If not, the AccessRequest
+	// is updated with invalid status.
+	if app.Spec.Project == "" {
+		err := s.updateStatus(ctx, ar, api.InvalidStatus, "Application does not have a project defined", "")
+		if err != nil {
+			return false, fmt.Errorf("error updating status to invalid when app project is not set: %w", err)
+		}
+		return false, nil
+	}
+
+	// If the AccessRequest status is initialized and the target project is different from the
+	// application project, it means that the AccessRequest was created for a different project.
+	// In this case, we need to remove the access from the old project and update the status.
+	if ar.Status.TargetProject != "" && ar.Status.TargetProject != app.Spec.Project {
+		logger.Info("Application project changed", "old", ar.Status.TargetProject, "new", app.Spec.Project)
+		oldRole, err := s.getRenderedRole(ctx, ar, ar.Status.TargetProject)
+		if err != nil {
+			return false, fmt.Errorf("error getting rendered RoleTemplate for old project: %w", err)
+		}
+
+		// Only need to remove existing access if the AccessRequest is in a granted state.
+		if ar.Status.RequestState == api.GrantedStatus {
+			err = s.RemoveArgoCDAccess(ctx, ar, oldRole)
+			if err != nil {
+				return false, fmt.Errorf("error removing access for changed target project: %w", err)
+			}
+		}
+		msg := fmt.Sprintf("The application project changed from %s to %s.", ar.Status.TargetProject, app.Spec.Project)
+		err = s.updateStatus(ctx, ar, api.InvalidStatus, msg, RoleTemplateHash(oldRole))
+		if err != nil {
+			return false, fmt.Errorf("error updating access request status after target project change: %w", err)
+		}
+		return false, nil
+	}
+
+	// If the project does not exist, the AccessRequest status is updated to invalid.
+	projName := app.Spec.Project
+	projNamespace := ar.GetNamespace()
+	_, err := s.getProject(ctx, projName, projNamespace)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			msg := fmt.Sprintf("Argo CD Project %s/%s not found", projNamespace, projName)
+			err := s.updateStatus(ctx, ar, api.InvalidStatus, msg, "")
+			if err != nil {
+				return false, fmt.Errorf("error updating status to invalid when project not found: %w", err)
+			}
+			return false, nil
+		}
+		return false, fmt.Errorf("error getting Argo CD Project %s/%s: %w", projNamespace, projName, err)
+	}
+	return true, nil
+}
+
 // handlePermission will analyse the given ar and proceed with granting
 // or removing Argo CD access for the subject listed in the AccessRequest.
 // The following validations will be executed:
@@ -96,38 +161,11 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest) (
 		return "", fmt.Errorf("error getting Argo CD Application: %w", err)
 	}
 
-	// The Argo CD Application must be associated with a project. If not, the AccessRequest
-	// is updated with invalid status.
-	if app.Spec.Project == "" {
-		err := s.updateStatus(ctx, ar, api.InvalidStatus, "Application does not have a project defined", "")
-		if err != nil {
-			return "", fmt.Errorf("error updating status to invalid: %w", err)
-		}
-		return api.InvalidStatus, nil
+	validProject, err := s.ValidateProject(ctx, app, ar)
+	if err != nil {
+		return "", fmt.Errorf("error validating project: %w", err)
 	}
-
-	// If the AccessRequest status is initialized and the target project is different from the
-	// application project, it means that the AccessRequest was created for a different project.
-	// In this case, we need to remove the access from the old project and update the status.
-	if ar.Status.TargetProject != "" && ar.Status.TargetProject != app.Spec.Project {
-		logger.Info("Application project changed", "old", ar.Status.TargetProject, "new", app.Spec.Project)
-		oldRole, err := s.getRenderedRole(ctx, ar, ar.Status.TargetProject)
-		if err != nil {
-			return "", fmt.Errorf("error getting rendered RoleTemplate for old project: %w", err)
-		}
-
-		// Only need to remove existing access if the AccessRequest is in a granted state.
-		if ar.Status.RequestState == api.GrantedStatus {
-			err = s.RemoveArgoCDAccess(ctx, ar, oldRole)
-			if err != nil {
-				return "", fmt.Errorf("error removing access for changed target project: %w", err)
-			}
-		}
-		msg := fmt.Sprintf("The application project changed from %s to %s.", ar.Status.TargetProject, app.Spec.Project)
-		err = s.updateStatus(ctx, ar, api.InvalidStatus, msg, RoleTemplateHash(oldRole))
-		if err != nil {
-			return "", fmt.Errorf("error updating access request status after target project change: %w", err)
-		}
+	if !validProject {
 		return api.InvalidStatus, nil
 	}
 
