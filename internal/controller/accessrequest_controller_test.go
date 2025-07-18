@@ -922,7 +922,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 func TestProjectChangeShouldTriggerReconcile(t *testing.T) {
 	role1 := argocd.ProjectRole{
-		Name:        "role1",
+		Name:        fmt.Sprintf("%srole1", api.RoleNamePrefix),
 		Description: "desc1",
 		Policies:    []string{"policy1", "policy2"},
 		JWTTokens: []argocd.JWTToken{
@@ -931,7 +931,7 @@ func TestProjectChangeShouldTriggerReconcile(t *testing.T) {
 		Groups: []string{"group1"},
 	}
 	role2 := argocd.ProjectRole{
-		Name:        "role2",
+		Name:        fmt.Sprintf("%srole2", api.RoleNamePrefix),
 		Description: "desc2",
 		Policies:    []string{"policy3"},
 		JWTTokens: []argocd.JWTToken{

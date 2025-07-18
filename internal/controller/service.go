@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/controller/metrics"
 
@@ -367,10 +368,17 @@ func (s *Service) RemoveArgoCDAccess(ctx context.Context, ar *api.AccessRequest,
 // - error: An error if the synchronization fails, otherwise nil.
 func (s *Service) ensureRoleIsSynced(ctx context.Context, ar *api.AccessRequest, rt *api.RoleTemplate) error {
 	logger := log.FromContext(ctx)
-	logger.Info("Syncing role")
 
 	projName := ar.Status.TargetProject
 	projNamespace := ar.GetNamespace()
+	values := []interface{}{
+		"project.name", projName,
+		"project.namespace", projNamespace,
+		"project.role", rt.AppProjectRoleName(ar.Spec.Application.Name, ar.Spec.Application.Namespace),
+	}
+
+	logger = logger.WithValues(values...)
+	logger.Info("Ensuring role is synced")
 
 	// Retry the synchronization process on conflict errors.
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -380,9 +388,17 @@ func (s *Service) ensureRoleIsSynced(ctx context.Context, ar *api.AccessRequest,
 			return fmt.Errorf("error getting Argo CD Project %s/%s: %w", projNamespace, projName, err)
 		}
 
+		if roleInSync(project, ar, rt) {
+			logger.Debug("Project role is already in sync")
+			return nil
+		}
+
 		// Prepare a patch for updating the project policies.
 		patch := client.MergeFromWithOptions(project.DeepCopy(), client.MergeFromWithOptimisticLock{})
 		updateProjectPolicies(project, ar, rt)
+		if ar.Status.RequestState == api.GrantedStatus {
+			addSubjectInRole(project, ar, rt)
+		}
 
 		logger.Debug("Patching AppProject")
 		opts := []client.PatchOption{client.FieldOwner("ephemeral-access-controller")}
@@ -562,6 +578,31 @@ func removeSubjectFromRole(project *argocd.AppProject, ar *api.AccessRequest, rt
 			project.Spec.Roles[idx].Groups = groups
 		}
 	}
+}
+
+// roleInSync checks if the given AppProject's role corresponding to the AccessRequest and RoleTemplate
+// is synchronized. It verifies that the role exists, its description matches, the subject is present
+// in the role's groups if the request is granted, and the role's policies and tokens match the template.
+// Returns true if the role is in sync, false otherwise.
+func roleInSync(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) bool {
+	// This variable is used to track if the role was deleted.
+	inSync := false
+	roleName := rt.AppProjectRoleName(ar.Spec.Application.Name, ar.Spec.Application.Namespace)
+	for _, role := range project.Spec.Roles {
+		if role.Name == roleName {
+			if role.Description != rt.Spec.Description {
+				return false
+			}
+			if ar.Status.RequestState == api.GrantedStatus && !slices.Contains(role.Groups, ar.Spec.Subject.Username) {
+				return false
+			}
+			if !MatchRolePoliciesAndTokens(role, rt.Spec.Policies, []argocd.JWTToken{}) {
+				return false
+			}
+			inSync = true
+		}
+	}
+	return inSync
 }
 
 // updateProjectPolicies will update the given project to match all Policies

@@ -768,42 +768,61 @@ func ProjectChangeShouldTriggerReconcile(newProj, oldProj *argocd.AppProject) bo
 		return true
 	}
 
-	for _, newRole := range newProj.Spec.Roles {
-		if !slices.ContainsFunc(oldProj.Spec.Roles, func(oldRole argocd.ProjectRole) bool {
-			if newRole.Name != oldRole.Name ||
-				newRole.Description != oldRole.Description {
-				return false
-			}
-			if len(newRole.Policies) != len(oldRole.Policies) {
-				return false
-			}
-			if len(newRole.JWTTokens) != len(oldRole.JWTTokens) {
-				return false
-			}
-			if len(newRole.Groups) != len(oldRole.Groups) {
-				return false
-			}
-			for _, policy := range newRole.Policies {
-				if !slices.Contains(oldRole.Policies, policy) {
-					return false
-				}
-			}
-			for _, jwtToken := range newRole.JWTTokens {
-				if !slices.Contains(oldRole.JWTTokens, jwtToken) {
-					return false
-				}
-			}
-			for _, group := range newRole.Groups {
-				if !slices.Contains(oldRole.Groups, group) {
-					return false
-				}
-			}
-			return true
-		}) {
+	for _, oldRole := range oldProj.Spec.Roles {
+		if !HasRole(newProj.Spec.Roles, oldRole) {
 			return true
 		}
 	}
 	return false
+}
+
+// HasRole checks if the given role exists in the list of roles.
+// It compares the role's Name and Description, and ensures that the Policies,
+// JWTTokens, and Groups slices are of equal length and contain the same elements.
+// Returns true if an equivalent role is found, otherwise returns false.
+func HasRole(roles []argocd.ProjectRole, role argocd.ProjectRole) bool {
+	for _, r := range roles {
+		if r.Name == role.Name && r.Description == role.Description {
+			if !MatchRolePoliciesAndTokens(r, role.Policies, role.JWTTokens) {
+				return false
+			}
+			if len(r.Groups) != len(role.Groups) {
+				return false
+			}
+			for _, group := range r.Groups {
+				if !slices.Contains(role.Groups, group) {
+					return false
+				}
+			}
+
+			return true
+		}
+	}
+	return false
+}
+
+// MatchRolePoliciesAndTokens compares two ProjectRole objects and returns true
+// if both have identical Policies and JWTTokens slices (regardless of order).
+// Returns false if the lengths differ or any element is missing in either slice.
+func MatchRolePoliciesAndTokens(role argocd.ProjectRole, policies []string, tokens []argocd.JWTToken) bool {
+	if len(role.Policies) != len(policies) {
+		return false
+	}
+	if len(role.JWTTokens) != len(tokens) {
+		return false
+	}
+
+	for _, policy := range role.Policies {
+		if !slices.Contains(policies, policy) {
+			return false
+		}
+	}
+	for _, jwtToken := range role.JWTTokens {
+		if !slices.Contains(tokens, jwtToken) {
+			return false
+		}
+	}
+	return true
 }
 
 // ApplicationChangedPredicate returns a predicate that triggers reconciliation

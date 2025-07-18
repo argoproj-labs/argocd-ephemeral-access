@@ -24,6 +24,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// RoleNamePrefix defines the prefix used for all ephemeral role names.
+	RoleNamePrefix = "ephemeral-"
+)
+
 // RoleTemplate is the Schema for the roletemplates API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
@@ -116,7 +121,7 @@ func (rt *RoleTemplate) execTemplate(tmpl *template.Template, projName, appName,
 // roleName will return the role name to be used in the AppProject
 func (rt *RoleTemplate) AppProjectRoleName(appName, namespace string) string {
 	roleName := rt.Spec.Name
-	return fmt.Sprintf("ephemeral-%s-%s-%s", roleName, namespace, appName)
+	return fmt.Sprintf("%s%s-%s-%s", RoleNamePrefix, roleName, namespace, appName)
 }
 
 func init() {
