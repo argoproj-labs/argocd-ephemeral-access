@@ -388,7 +388,7 @@ func (s *Service) ensureRoleIsSynced(ctx context.Context, ar *api.AccessRequest,
 			return fmt.Errorf("error getting Argo CD Project %s/%s: %w", projNamespace, projName, err)
 		}
 
-		if roleInSync(project, ar, rt) {
+		if isRoleInSync(project, ar, rt) {
 			logger.Debug("Project role is already in sync")
 			return nil
 		}
@@ -580,11 +580,11 @@ func removeSubjectFromRole(project *argocd.AppProject, ar *api.AccessRequest, rt
 	}
 }
 
-// roleInSync checks if the given AppProject's role corresponding to the AccessRequest and RoleTemplate
+// isRoleInSync checks if the given AppProject's role corresponding to the AccessRequest and RoleTemplate
 // is synchronized. It verifies that the role exists, its description matches, the subject is present
 // in the role's groups if the request is granted, and the role's policies and tokens match the template.
 // Returns true if the role is in sync, false otherwise.
-func roleInSync(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) bool {
+func isRoleInSync(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) bool {
 	// This variable is used to track if the role was deleted.
 	inSync := false
 	roleName := rt.AppProjectRoleName(ar.Spec.Application.Name, ar.Spec.Application.Namespace)

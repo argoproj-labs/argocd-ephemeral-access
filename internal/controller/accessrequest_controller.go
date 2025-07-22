@@ -769,18 +769,18 @@ func ProjectChangeShouldTriggerReconcile(newProj, oldProj *argocd.AppProject) bo
 	}
 
 	for _, oldRole := range oldProj.Spec.Roles {
-		if !HasRole(newProj.Spec.Roles, oldRole) {
+		if !hasRole(newProj.Spec.Roles, oldRole) {
 			return true
 		}
 	}
 	return false
 }
 
-// HasRole checks if the given role exists in the list of roles.
+// hasRole checks if the given role exists in the list of roles.
 // It compares the role's Name and Description, and ensures that the Policies,
 // JWTTokens, and Groups slices are of equal length and contain the same elements.
 // Returns true if an equivalent role is found, otherwise returns false.
-func HasRole(roles []argocd.ProjectRole, role argocd.ProjectRole) bool {
+func hasRole(roles []argocd.ProjectRole, role argocd.ProjectRole) bool {
 	for _, r := range roles {
 		if r.Name == role.Name && r.Description == role.Description {
 			if !MatchRolePoliciesAndTokens(r, role.Policies, role.JWTTokens) {
