@@ -59,7 +59,7 @@ func TestUpdateAccessRequests(t *testing.T) {
 	access_request_resources{role_name="role2",role_namespace="roleNs",status="invalid"} 1
 	`
 
-	ar1 := utils.NewAccessRequest("ar1", "ns", "app", "appNs", "role1", "roleNs", "subject")
+	ar1 := utils.NewAccessRequest("ar1", "ns", "app", "appNs", "role1", "roleNs", "user-id", "username")
 	ar2 := ar1.DeepCopy()
 	utils.WithName("ar2")(ar2)
 	utils.ToExpiredState()(ar2)

@@ -117,7 +117,7 @@ func TestHandlePermission(t *testing.T) {
 					return nil
 				}).Maybe()
 			clientMock.EXPECT().Status().Return(resourceWriterMock).Maybe()
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-to-be-removed")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "user-to-be-removed")
 			svc := controller.NewService(clientMock, nil, nil)
 
 			// When
@@ -154,7 +154,7 @@ func TestHandlePermission(t *testing.T) {
 
 			clientMock := mocks.NewMockK8sClient(t)
 			setup(clientMock, app, rt, prj, updatedProject, updatedAR)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-to-be-removed")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "user-to-be-removed")
 			ar.Status.TargetProject = "someProject"
 			ar.Status.RequestState = api.GrantedStatus
 			svc := controller.NewService(clientMock, nil, nil)
@@ -195,7 +195,7 @@ func TestHandlePermission(t *testing.T) {
 
 			clientMock := mocks.NewMockK8sClient(t)
 			setup(clientMock, app, rt, prj, updatedProject, updatedAR)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "new-user")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "new-user")
 			ar.Status.TargetProject = "someProject"
 			ar.Status.RequestState = api.RequestedStatus
 			svc := controller.NewService(clientMock, nil, nil)
@@ -240,7 +240,7 @@ func TestHandlePermission(t *testing.T) {
 				}).Maybe()
 			clientMock.EXPECT().Status().Return(resourceWriterMock).Maybe()
 			svc := controller.NewService(clientMock, nil, nil)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
 			}
@@ -271,7 +271,7 @@ func TestHandlePermission(t *testing.T) {
 					return nil
 				})
 			svc := controller.NewService(clientMock, nil, nil)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
 			}
@@ -318,7 +318,7 @@ func TestHandlePermission(t *testing.T) {
 
 			clientMock := mocks.NewMockK8sClient(t)
 			setup(clientMock, app, rt, prj, updatedProject, updatedAR)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "removed-user")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "removed-user")
 			ar.Status.TargetProject = "some-project"
 			ar.Status.RequestState = api.GrantedStatus
 			svc := controller.NewService(clientMock, nil, nil)
@@ -373,7 +373,7 @@ func TestHandlePermission(t *testing.T) {
 			setup(clientMock, nil, roleTemplate, currentProj, updatedProject, updatedAR)
 
 			svc := controller.NewService(clientMock, nil, nil)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-to-be-removed")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "user-to-be-removed")
 			ar.Status.TargetProject = "someProject"
 
 			// When
@@ -426,7 +426,7 @@ func TestHandlePermission(t *testing.T) {
 			setup(clientMock, nil, roleTemplate, tamperedProj, updatedProject, updatedAR)
 
 			svc := controller.NewService(clientMock, nil, nil)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "another-user")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "another-user")
 			ar.Status.TargetProject = "someProject"
 
 			// When
@@ -485,7 +485,7 @@ func TestHandlePermission(t *testing.T) {
 			setup(clientMock, nil, roleTemplate, currentProj, updatedProject, updatedAR)
 
 			svc := controller.NewService(clientMock, nil, nil)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-to-be-removed")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "user-to-be-removed")
 
 			// When
 			status, err := svc.HandlePermission(context.Background(), ar)
@@ -530,7 +530,7 @@ func TestHandlePermission(t *testing.T) {
 				Return(expectedError).
 				Once()
 			svc := controller.NewService(clientMock, nil, nil)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "")
 			past := &metav1.Time{
 				Time: time.Now().Add(time.Minute * -1),
 			}
@@ -610,7 +610,7 @@ func TestHandlePermission(t *testing.T) {
 				Once()
 
 			svc := controller.NewService(clientMock, nil, pluginMock)
-			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "")
+			ar := utils.NewAccessRequest("test", "default", "someApp", "someAppNs", "someRole", "someRoleNs", "user-id", "")
 			ar.Status.TargetProject = "some-project"
 
 			// When

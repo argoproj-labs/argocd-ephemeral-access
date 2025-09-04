@@ -126,7 +126,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		By("Instantiate the RoleTemplate initial state")
 		rt := utils.NewRoleTemplate(r.roleTemplateName, r.roleTemplateNamespace, r.roleName, r.policies)
 		By("Instantiate the AccessRequest initial state")
-		ar := utils.NewAccessRequest(r.arName, r.namespace, r.appName, r.namespace, r.roleTemplateName, r.roleTemplateNamespace, r.subject)
+		ar := utils.NewAccessRequest(r.arName, r.namespace, r.appName, r.namespace, r.roleTemplateName, r.roleTemplateNamespace, "user-id", r.subject)
 
 		return &fixture{
 			namespace:      ns,
@@ -814,7 +814,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating conflicting AccessRequest", func() {
 			It("will create conflicting AccessRequest", func() {
-				conflictAR := utils.NewAccessRequest("conflict", namespace, appName, namespace, roleTemplateName, roleTemplateNamespace, subject01)
+				conflictAR := utils.NewAccessRequest("conflict", namespace, appName, namespace, roleTemplateName, roleTemplateNamespace, "user-id", subject01)
 				err := k8sClient.Create(ctx, conflictAR)
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -836,7 +836,7 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating an AccessRequest for the same user/app but different role", func() {
 			It("will create the AccessRequest successfully", func() {
-				anotherroleAR := utils.NewAccessRequest("anotherrole", namespace, appName, namespace, "anotherrole", roleTemplateNamespace, subject01)
+				anotherroleAR := utils.NewAccessRequest("anotherrole", namespace, appName, namespace, "anotherrole", roleTemplateNamespace, "user-id", subject01)
 				anotherroleAR.Spec.Duration = metav1.Duration{Duration: time.Minute}
 				err := k8sClient.Create(ctx, anotherroleAR)
 				Expect(err).NotTo(HaveOccurred())
@@ -860,9 +860,9 @@ var _ = Describe("AccessRequest Controller", func() {
 		})
 		When("creating two AccessRequests at the same time", func() {
 			It("will create them successfully", func() {
-				race1AR := utils.NewAccessRequest("race1", namespace, appName, namespace, "racerole", roleTemplateNamespace, subject01)
+				race1AR := utils.NewAccessRequest("race1", namespace, appName, namespace, "racerole", roleTemplateNamespace, "user-id", subject01)
 				race1AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
-				race2AR := utils.NewAccessRequest("race2", namespace, appName, namespace, "racerole", roleTemplateNamespace, subject01)
+				race2AR := utils.NewAccessRequest("race2", namespace, appName, namespace, "racerole", roleTemplateNamespace, "user-id", subject01)
 				race2AR.Spec.Duration = metav1.Duration{Duration: time.Minute}
 				go func() {
 					err := k8sClient.Create(ctx, race1AR)

@@ -127,11 +127,16 @@ spec:
               subject:
                 description: Subject defines the subject for this access request
                 properties:
+                  userId:
+                    description: UserId refers to the entity id requesting the elevated
+                      permission as authenticated in ArgoCD.
+                    type: string
                   username:
                     description: Username refers to the entity requesting the elevated
                       permission
                     type: string
                 required:
+                - userId
                 - username
                 type: object
                 x-kubernetes-validations:

@@ -50,6 +50,7 @@ type AccessRequestKey struct {
 	ApplicationName      string
 	ApplicationNamespace string
 	Username             string
+	UserId               string
 }
 
 // DefaultService is the real Service implementation.
@@ -258,6 +259,7 @@ func (s *DefaultService) CreateAccessRequest(ctx context.Context, key *AccessReq
 			},
 			Subject: api.Subject{
 				Username: key.Username,
+				UserId:   &key.UserId,
 			},
 		},
 	}

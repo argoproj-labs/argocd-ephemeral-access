@@ -40,19 +40,27 @@ func apiSetup(t *testing.T) *apiFixture {
 	}
 }
 
-func headers(namespace, username, groups, appNs, appName, projName string) []any {
-	return []any{
+func headers(namespace, userId, username, groups, appNs, appName, projName string) []any {
+	required := []any{
 		fmt.Sprintf("Argocd-Namespace: %s", namespace),
 		fmt.Sprintf("Argocd-Username: %s", username),
 		fmt.Sprintf("Argocd-User-Groups: %s", groups),
 		fmt.Sprintf("Argocd-Application-Name: %s:%s", appNs, appName),
 		fmt.Sprintf("Argocd-Project-Name: %s", projName),
 	}
+
+	optional := []any{}
+	if userId != "" {
+		optional = append(optional, fmt.Sprintf("Argocd-User-Id: %s", userId))
+	}
+
+	return append(required, optional...)
 }
 
-func newArgoCDHeaders(namespace, username, groups, appNs, appName, projName string) *backend.ArgoCDHeaders {
+func newArgoCDHeaders(namespace, userId, username, groups, appNs, appName, projName string) *backend.ArgoCDHeaders {
 	return &backend.ArgoCDHeaders{
 		ArgoCDNamespace:       namespace,
+		ArgoCDUserId:          userId,
 		ArgoCDUsername:        username,
 		ArgoCDUserGroups:      groups,
 		ArgoCDApplicationName: fmt.Sprintf("%s:%s", appNs, appName),
@@ -82,9 +90,10 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			Namespace:            ar.GetNamespace(),
 			ApplicationName:      ar.Spec.Application.Name,
 			ApplicationNamespace: ar.Spec.Application.Namespace,
+			UserId:               *ar.Spec.Subject.UserId,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		project := &unstructured.Unstructured{}
 		app := &unstructured.Unstructured{}
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
@@ -119,7 +128,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: "app-ns",
 			Username:             "some-user",
 		}
-		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
+		headers := headers(key.Namespace, key.UserId, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		headers = headers[1:]
 
 		// When
@@ -142,7 +151,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: "app-ns",
 			Username:             "some-user",
 		}
-		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
+		headers := headers(key.Namespace, key.UserId, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 
 		// When
 		payload := backend.CreateAccessRequestBody{
@@ -167,7 +176,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(nil, nil)
 
@@ -194,7 +203,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		app := &unstructured.Unstructured{}
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(app, nil)
@@ -223,7 +232,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(ar, nil)
 
 		// When
@@ -249,7 +258,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		project := &unstructured.Unstructured{}
 		app := &unstructured.Unstructured{}
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
@@ -280,7 +289,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(nil, fmt.Errorf("some-error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
@@ -308,7 +317,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		app := &unstructured.Unstructured{}
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
 		f.service.EXPECT().GetApplication(mock.Anything, key.ApplicationName, key.ApplicationNamespace).Return(app, nil)
@@ -338,7 +347,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		project := &unstructured.Unstructured{}
 		app := &unstructured.Unstructured{}
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
@@ -370,7 +379,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, fmt.Errorf("some-error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
 
@@ -398,7 +407,7 @@ func TestApiCreateAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar.Spec.Application.Namespace,
 			Username:             ar.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
+		headers := headers(key.Namespace, key.UserId, key.Username, group, key.ApplicationNamespace, key.ApplicationName, projectName)
 		project := &unstructured.Unstructured{}
 		app := &unstructured.Unstructured{}
 		f.service.EXPECT().GetAccessRequestByRole(mock.Anything, key, roleName).Return(nil, nil)
@@ -432,7 +441,7 @@ func TestApiListAccessRequest(t *testing.T) {
 			ApplicationNamespace: ar1.Spec.Application.Namespace,
 			Username:             ar1.Spec.Subject.Username,
 		}
-		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
+		headers := headers(key.Namespace, key.UserId, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		f.service.EXPECT().ListAccessRequests(mock.Anything, key, true).Return([]*api.AccessRequest{ar1, ar2}, nil)
 
 		// When
@@ -459,7 +468,7 @@ func TestApiListAccessRequest(t *testing.T) {
 			ApplicationNamespace: "app-ns",
 			Username:             "some-user",
 		}
-		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
+		headers := headers(key.Namespace, key.UserId, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		headers = headers[1:]
 
 		// When
@@ -478,7 +487,7 @@ func TestApiListAccessRequest(t *testing.T) {
 			ApplicationNamespace: "app-ns",
 			Username:             "some-user",
 		}
-		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
+		headers := headers(key.Namespace, key.UserId, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 
 		// When
 		resp := f.api.Get("/accessrequests", headers...)
@@ -496,7 +505,7 @@ func TestApiListAccessRequest(t *testing.T) {
 			ApplicationNamespace: "app-ns",
 			Username:             "some-user",
 		}
-		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
+		headers := headers(key.Namespace, key.UserId, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		f.service.EXPECT().ListAccessRequests(mock.Anything, key, mock.Anything).Return(nil, fmt.Errorf("some-error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
 
@@ -516,7 +525,7 @@ func TestApiListAccessRequest(t *testing.T) {
 			ApplicationNamespace: "app-ns",
 			Username:             "some-user",
 		}
-		headers := headers(key.Namespace, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
+		headers := headers(key.Namespace, key.UserId, key.Username, "group1", key.ApplicationNamespace, key.ApplicationName, "some-project")
 		f.service.EXPECT().ListAccessRequests(mock.Anything, key, mock.Anything).Return(nil, nil)
 
 		// When
@@ -543,13 +552,13 @@ func TestArgoCDHeaders_Application(t *testing.T) {
 	}{
 		{
 			name:              "Argocd-Application-Name parsed correctly",
-			headers:           newArgoCDHeaders("ns", "username", "group", "appNs", "appName", "project"),
+			headers:           newArgoCDHeaders("ns", "userid", "username", "group", "appNs", "appName", "project"),
 			expectedNamespace: "appNs",
 			expectedName:      "appName",
 		},
 		{
 			name:    "Argocd-Application-Name error when invalid",
-			headers: newArgoCDHeaders("ns", "username", "group", "appNs", "app:Name", "project"),
+			headers: newArgoCDHeaders("ns", "userid", "username", "group", "appNs", "app:Name", "project"),
 			wantErr: true,
 		},
 	}
@@ -578,7 +587,7 @@ func TestArgoCDHeaders_Groups(t *testing.T) {
 	}{
 		{
 			name:     "Argocd-User-Groups parsed correctly",
-			headers:  newArgoCDHeaders("ns", "username", "group1,group2,group3", "appNs", "appName", "project"),
+			headers:  newArgoCDHeaders("ns", "userid", "username", "group1,group2,group3", "appNs", "appName", "project"),
 			expected: []string{"group1", "group2", "group3"},
 		},
 	}
@@ -761,6 +770,7 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := "group1,group2,group3"
 		groupsList := strings.Split(groups, ",")
 		appNamespace := "some-namespace"
@@ -774,7 +784,7 @@ func TestApiListAllowedRoles(t *testing.T) {
 		}
 		app := &unstructured.Unstructured{}
 		appproj := &unstructured.Unstructured{}
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, argocdNamespace).Return(appproj, nil)
 		f.service.EXPECT().GetAccessBindingsForGroups(mock.Anything, argocdNamespace, groupsList, app, appproj).Return(abList, nil)
@@ -797,11 +807,12 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := ""
 		appNamespace := "some-namespace"
 		appName := "some-app"
 		projectName := "some-project"
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 
 		// When
 		resp := f.api.Get("/roles", headers...)
@@ -815,11 +826,12 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := "group1,group2"
 		appNamespace := ""
 		appName := "some-app"
 		projectName := "some-project"
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 
 		// When
 		resp := f.api.Get("/roles", headers...)
@@ -833,11 +845,12 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := "group1,group2"
 		appNamespace := "some-namespace"
 		appName := ""
 		projectName := "some-project"
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 
 		// When
 		resp := f.api.Get("/roles", headers...)
@@ -851,11 +864,12 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := "group1,group2,group3"
 		appNamespace := "some-namespace"
 		appName := "some-app"
 		projectName := "some-project"
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(nil, errors.New("some error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
 
@@ -871,11 +885,12 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := "group1,group2,group3"
 		appNamespace := "some-namespace"
 		appName := "some-app"
 		projectName := "some-project"
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(nil, nil)
 
 		// When
@@ -890,12 +905,13 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := "group1,group2,group3"
 		appNamespace := "some-namespace"
 		appName := "some-app"
 		projectName := "some-project"
 		app := &unstructured.Unstructured{}
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, argocdNamespace).Return(nil, errors.New("some error"))
 		f.logger.EXPECT().Error(mock.Anything, mock.Anything)
@@ -912,12 +928,13 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := "group1,group2,group3"
 		appNamespace := "some-namespace"
 		appName := "some-app"
 		projectName := "some-project"
 		app := &unstructured.Unstructured{}
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, argocdNamespace).Return(nil, nil)
 
@@ -933,6 +950,7 @@ func TestApiListAllowedRoles(t *testing.T) {
 		f := apiSetup(t)
 		argocdNamespace := "argocd-namespace"
 		username := "some-user"
+		userId := "some-user-id"
 		groups := "group1,group2,group3"
 		groupsList := strings.Split(groups, ",")
 		appNamespace := "some-namespace"
@@ -940,7 +958,7 @@ func TestApiListAllowedRoles(t *testing.T) {
 		projectName := "some-project"
 		app := &unstructured.Unstructured{}
 		appproj := &unstructured.Unstructured{}
-		headers := headers(argocdNamespace, username, groups, appNamespace, appName, projectName)
+		headers := headers(argocdNamespace, userId, username, groups, appNamespace, appName, projectName)
 		f.service.EXPECT().GetApplication(mock.Anything, appName, appNamespace).Return(app, nil)
 		f.service.EXPECT().GetAppProject(mock.Anything, projectName, argocdNamespace).Return(appproj, nil)
 		f.service.EXPECT().GetAccessBindingsForGroups(mock.Anything, argocdNamespace, groupsList, app, appproj).Return(nil, errors.New("some error"))

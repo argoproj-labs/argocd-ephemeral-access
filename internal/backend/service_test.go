@@ -77,6 +77,7 @@ func TestServiceCreateAccessRequest(t *testing.T) {
 			Namespace:            "some-namespace",
 			ApplicationName:      "some-app",
 			ApplicationNamespace: "app-ns",
+			UserId:               "some-user-id",
 			Username:             "some-user",
 		}
 		ab := newDefaultAccessBinding()
@@ -95,6 +96,7 @@ func TestServiceCreateAccessRequest(t *testing.T) {
 		assert.Equal(t, key.Namespace, result.GetNamespace())
 		assert.Equal(t, key.ApplicationName, result.Spec.Application.Name)
 		assert.Equal(t, key.ApplicationNamespace, result.Spec.Application.Namespace)
+		assert.Equal(t, key.UserId, *result.Spec.Subject.UserId)
 		assert.Equal(t, key.Username, result.Spec.Subject.Username)
 		assert.Equal(t, ab.Spec.FriendlyName, result.Spec.Role.FriendlyName)
 		assert.Equal(t, ab.Spec.Ordinal, result.Spec.Role.Ordinal)

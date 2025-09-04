@@ -9,7 +9,7 @@ import (
 )
 
 func newAccessRequest(key *backend.AccessRequestKey, roleName string) *api.AccessRequest {
-	return utils.NewAccessRequest("test-acccess-request", key.Namespace, key.ApplicationName, key.ApplicationNamespace, roleName, key.Namespace, key.Username)
+	return utils.NewAccessRequest("test-acccess-request", key.Namespace, key.ApplicationName, key.ApplicationNamespace, roleName, key.Namespace, key.UserId, key.Username)
 }
 
 func newDefaultAccessBinding() *api.AccessBinding {

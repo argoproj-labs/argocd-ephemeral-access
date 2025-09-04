@@ -27,6 +27,7 @@ type ArgoCDHeaders struct {
 	ArgoCDApplicationName string `header:"Argocd-Application-Name" required:"true" example:"some-namespace:app-name" doc:"The trusted ArgoCD application header. This should be automatically sent by Argo CD API server."`
 	ArgoCDProjectName     string `header:"Argocd-Project-Name" required:"true" example:"some-project-name" doc:"The trusted ArgoCD project header. This should be automatically sent by Argo CD API server."`
 	ArgoCDNamespace       string `header:"Argocd-Namespace" required:"true" example:"argocd" doc:"The trusted namespace of the ArgoCD control plane. This should be automatically sent by Argo CD API server."`
+	ArgoCDUserId          string `header:"Argocd-User-Id" required:"false" example:"some-user" doc:"The trusted ArgoCD user ID header. This should be automatically sent by Argo CD API server 3.2+."`
 }
 
 func (h *ArgoCDHeaders) Application() (namespace string, name string, err error) {
@@ -212,6 +213,7 @@ func (h *APIHandler) createAccessRequestHandler(ctx context.Context, input *Crea
 		Namespace:            input.ArgoCDNamespace,
 		ApplicationName:      appName,
 		ApplicationNamespace: appNamespace,
+		UserId:               input.ArgoCDUserId,
 		Username:             input.ArgoCDUsername,
 	}
 	ar, err := h.service.GetAccessRequestByRole(ctx, key, input.Body.RoleName)

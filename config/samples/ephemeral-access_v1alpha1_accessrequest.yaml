@@ -19,3 +19,4 @@ spec:
     namespace: the-app-ns
   subject:
     username: some_user@fakedomain.com
+    userId: some-user-id

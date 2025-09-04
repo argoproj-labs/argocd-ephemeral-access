@@ -170,7 +170,7 @@ func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
 }
 
 // NewAccessRequest creates an AccessRequest
-func NewAccessRequest(name, namespace, appName, appNamespace, roleName, roleNamespace, subject string) *api.AccessRequest {
+func NewAccessRequest(name, namespace, appName, appNamespace, roleName, roleNamespace, userId, username string) *api.AccessRequest {
 	return &api.AccessRequest{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "AccessRequest",
@@ -193,7 +193,8 @@ func NewAccessRequest(name, namespace, appName, appNamespace, roleName, roleName
 				Namespace: appNamespace,
 			},
 			Subject: api.Subject{
-				Username: subject,
+				Username: username,
+				UserId:   &userId,
 			},
 		},
 	}
@@ -329,6 +330,7 @@ func newAccessRequest() *api.AccessRequest {
 			},
 			Subject: api.Subject{
 				Username: "my@user.com",
+				UserId:   ptr.To("my-user-id"),
 			},
 		},
 	}
