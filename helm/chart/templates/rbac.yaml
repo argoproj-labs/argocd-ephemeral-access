@@ -1,0 +1,281 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    {{- include "chart.labels" . | nindent 4 }}
+  name: backend
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    {{- include "chart.labels" . | nindent 4 }}
+  name: controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    {{- include "chart.labels" . | nindent 4 }}
+  name: leader-election-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: accessrequest-viewer-role
+rules:
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    {{- include "chart.labels" . | nindent 4 }}
+  name: backend-role
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - get
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessbindings
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    {{- include "chart.labels" . | nindent 4 }}
+  name: controller-role
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests/finalizers
+  - roletemplates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - accessrequests/status
+  - roletemplates/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: roletemplate-editor-role
+rules:
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: roletemplate-viewer-role
+rules:
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ephemeral-access.argoproj-labs.io
+  resources:
+  - roletemplates/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    {{- include "chart.labels" . | nindent 4 }}
+  name: leader-election-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    {{- include "chart.labels" . | nindent 4 }}
+  name: backend-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: backend-role
+subjects:
+- kind: ServiceAccount
+  name: backend
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    {{- include "chart.labels" . | nindent 4 }}
+  name: controller-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: controller-role
+subjects:
+- kind: ServiceAccount
+  name: controller
+  namespace: {{ .Release.Namespace }}

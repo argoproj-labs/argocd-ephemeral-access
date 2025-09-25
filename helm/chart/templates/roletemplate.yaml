@@ -1,0 +1,16 @@
+{{- range $rt := .Values.roleTemplates }}
+---
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: RoleTemplate
+metadata:
+  labels:
+    {{- include "chart.labels" $ | nindent 4 }}
+  name: {{ $rt.name }}
+spec:
+  name: {{ $rt.name }}
+  {{- with $rt.description }}
+  description: {{ . }}
+  {{- end }}
+  policies:
+    {{- $rt.policies | toYaml | nindent 4 }}
+{{- end }}

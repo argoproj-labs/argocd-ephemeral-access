@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: backend
+    {{- include "chart.labels" . | nindent 4 }}
+  name: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: backend
+      labels:
+        app.kubernetes.io/component: backend
+        {{- include "chart.labels" . | nindent 8 }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: backend
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-ephemeral-access
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      containers:
+      - args:
+        - backend
+        env:
+        - name: EPHEMERAL_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: backend.log.level
+              name: backend-cm
+              optional: true
+        - name: EPHEMERAL_LOG_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: backend.log.format
+              name: backend-cm
+              optional: true
+        - name: EPHEMERAL_BACKEND_METRICS_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: backend.metrics.port
+              name: backend-cm
+              optional: true
+        - name: EPHEMERAL_BACKEND_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: backend.port
+              name: backend-cm
+              optional: true
+        - name: EPHEMERAL_BACKEND_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION
+          valueFrom:
+            configMapKeyRef:
+              key: backend.defaultAccessDuration
+              name: backend-cm
+              optional: true
+        image: quay.io/argoprojlabs/argocd-ephemeral-access:v1.0.0-rc11
+        imagePullPolicy: Always
+        livenessProbe:
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          tcpSocket:
+            port: 8888
+        name: backend
+        ports:
+        - containerPort: 8888
+          name: backend
+          protocol: TCP
+        - containerPort: 8091
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          tcpSocket:
+            port: 8888
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: backend
+      terminationGracePeriodSeconds: 10

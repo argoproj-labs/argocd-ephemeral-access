@@ -1,0 +1,36 @@
+---
+# -- String to fully override chart.fullname
+fullnameOverride: argocd-ephemeral-access
+roleTemplates:
+- name: elevated
+  friendlyName: Elevated
+  description: "Elevated permissions to sync applications and delete pods"
+  ordinal: 1
+  subjects: []
+  policies:
+    - p, {{.role}}, applications, get, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow
+    - p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow
+backend:
+  replicas: 1
+  config:
+    backend.log.level: info
+    backend.log.format: json
+    backend.port: '8888'
+    backend.metrics.port: 8091
+    backend.defaultAccessDuration: 4h
+controller:
+  replicas: 1
+  config:
+    controller.log.level: info
+    controller.log.format: json
+    controller.port: '8081'
+    controller.leader.election.enabled: 'true'
+    controller.health.probe.address: :8082
+    controller.http2.enabled: 'true'
+    controller.requeue.interval: 1s
+    controller.metrics.address: :8090
+    controller.metrics.secure: 'true'
+    controller.request.timeout: 4h
+    controller.access.request.ttl: 120h

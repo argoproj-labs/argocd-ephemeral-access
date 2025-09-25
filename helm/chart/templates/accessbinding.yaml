@@ -1,0 +1,16 @@
+{{- range $rt := .Values.roleTemplates}}
+---
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: AccessBinding
+metadata:
+  labels:
+    {{- include "chart.labels" $ | nindent 4 }}
+  name: {{ $rt.name }}
+spec:
+  friendlyName: {{ default ($rt.name | title) $rt.friendlyName }}
+  ordinal: {{ required "ordinal is required" $rt.ordinal }}
+  roleTemplateRef:
+    name: {{ $rt.name }}
+  subjects:
+    {{- $rt.subjects | toYaml | nindent 4 }}
+{{- end }}
