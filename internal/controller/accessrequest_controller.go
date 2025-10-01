@@ -134,7 +134,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// stop if the reconciliation was previously concluded
 	if ar.IsConcluded() {
 		logger.Debug(fmt.Sprintf("Reconciliation concluded as the AccessRequest is %s: skipping...", string(ar.Status.RequestState)))
-		return ctrl.Result{}, nil
+		return buildResult(ar.Status.RequestState, ar, r.Config), nil
 	}
 
 	// check if the AccessRequest is in conflict with existing requests
