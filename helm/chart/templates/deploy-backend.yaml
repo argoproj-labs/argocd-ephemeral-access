@@ -71,7 +71,7 @@ spec:
               key: backend.defaultAccessDuration
               name: backend-cm
               optional: true
-        image: quay.io/argoprojlabs/argocd-ephemeral-access:v1.0.0-rc11
+        image: "{{ .Values.backend.image.repository }}:{{ default .Chart.AppVersion .Values.backend.image.tag }}"
         imagePullPolicy: Always
         livenessProbe:
           initialDelaySeconds: 15

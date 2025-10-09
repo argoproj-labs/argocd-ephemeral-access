@@ -103,7 +103,7 @@ spec:
               key: controller.access.request.ttl
               name: controller-cm
               optional: true
-        image: quay.io/argoprojlabs/argocd-ephemeral-access:v1.0.0-rc11
+        image: "{{ .Values.controller.image.repository }}:{{ default .Chart.AppVersion .Values.controller.image.tag }}"
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

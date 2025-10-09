@@ -13,6 +13,10 @@ roleTemplates:
     - p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow
     - p, {{.role}}, applications, delete/*/Pod/*, {{.project}}/{{.application}}, allow
 backend:
+  image:
+    repository: quay.io/argoprojlabs/argocd-ephemeral-access
+    # -- defaults to appVersion
+    # tag:
   replicas: 1
   config:
     backend.log.level: info
@@ -21,6 +25,10 @@ backend:
     backend.metrics.port: 8091
     backend.defaultAccessDuration: 4h
 controller:
+  image:
+    repository: quay.io/argoprojlabs/argocd-ephemeral-access
+    # -- defaults to appVersion
+    # tag:
   replicas: 1
   config:
     controller.log.level: info
