@@ -195,17 +195,6 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest) (
 		}
 	}
 
-	// if accessRequest is already granted but not yet expired there is no
-	// permission to be modified but it is still necessary to ensure that
-	// the AppProject role is synced.
-	if ar.Status.RequestState == api.GrantedStatus {
-		err = s.ensureRoleIsSynced(ctx, ar, role)
-		if err != nil {
-			return "", fmt.Errorf("error while ensuring role is synced: %w", err)
-		}
-		return api.GrantedStatus, nil
-	}
-
 	// invoke the configured plugin to check if the ar.Spec.Subject
 	// is allowed to get their access elevated. If no plugin is configured
 	// it will always allow.
@@ -213,6 +202,20 @@ func (s *Service) HandlePermission(ctx context.Context, ar *api.AccessRequest) (
 	if err != nil {
 		return "", fmt.Errorf("error verifying if subject is allowed: %w", err)
 	}
+
+	// if accessRequest is already granted but not yet expired there is no
+	// permission to be modified but it is still necessary to ensure that
+	// the AppProject role is synced.
+	if ar.Status.RequestState == api.GrantedStatus {
+		if resp.Allowed {
+			err = s.ensureRoleIsSynced(ctx, ar, role)
+			if err != nil {
+				return "", fmt.Errorf("error while ensuring role is synced: %w", err)
+			}
+		}
+		return api.GrantedStatus, nil
+	}
+
 	if !resp.Allowed {
 		rtHash := RoleTemplateHash(role)
 		switch resp.Status {
