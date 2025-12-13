@@ -265,6 +265,28 @@ func TestServiceGetAccessRequestByRole(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, ar)
 	})
+	t.Run("will return nil if active access request has different role name", func(t *testing.T) {
+		// Given
+		f := serviceSetup(t)
+		key := &backend.AccessRequestKey{
+			Namespace:            "some-namespace",
+			ApplicationName:      "some-app",
+			ApplicationNamespace: "app-ns",
+			Username:             "some-user",
+		}
+		requestedRole := "requested-role"
+		existingRole := "different-role"
+		grantedAR := newAccessRequest(key, existingRole)
+		grantedAR.Status.RequestState = api.GrantedStatus
+		f.persister.EXPECT().ListAccessRequests(mock.Anything, key).Return(&api.AccessRequestList{Items: []api.AccessRequest{*grantedAR}}, nil)
+
+		// When
+		result, err := f.svc.GetAccessRequestByRole(context.Background(), key, requestedRole)
+
+		// Then
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
 	t.Run("will return error if k8s request fails", func(t *testing.T) {
 		// Given
 		f := serviceSetup(t)
