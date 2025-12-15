@@ -109,7 +109,7 @@ func (s *DefaultService) GetAccessRequestByRole(ctx context.Context, key *Access
 
 	// find the first access request matching the requested role
 	for _, ar := range accessRequests {
-		if !ar.IsConcluded() {
+		if ar.Spec.Role.TemplateRef.Name == roleName && !ar.IsConcluded() {
 			return ar, nil
 		}
 	}
