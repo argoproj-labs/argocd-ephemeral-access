@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -627,5 +628,186 @@ func TestHandlePermission(t *testing.T) {
 			assert.Equal(t, approvedMessage, ar.GetLastStatusDetails(api.GrantedStatus))
 			assert.Len(t, ar.Status.History, 4)
 		})
+	})
+}
+
+func newAR(history ...api.AccessRequestHistory) *api.AccessRequest {
+	return &api.AccessRequest{
+		Status: api.AccessRequestStatus{History: history},
+	}
+}
+
+func TestGetLastHistory(t *testing.T) {
+	t1 := metav1.NewTime(time.Now().Add(-2 * time.Second))
+	t2 := metav1.NewTime(time.Now().Add(-1 * time.Second))
+
+	tests := []struct {
+		name     string
+		ar       *api.AccessRequest
+		status   api.Status
+		wantNil  bool
+		wantTime metav1.Time
+	}{
+		{
+			name:    "returns nil when history is empty",
+			ar:      newAR(),
+			status:  api.GrantedStatus,
+			wantNil: true,
+		},
+		{
+			name:    "returns nil when status not in history",
+			ar:      newAR(api.AccessRequestHistory{TransitionTime: t1, RequestState: api.InitiatedStatus}),
+			status:  api.GrantedStatus,
+			wantNil: true,
+		},
+		{
+			name: "returns the last matching entry when multiple exist",
+			ar: newAR(
+				api.AccessRequestHistory{TransitionTime: t1, RequestState: api.GrantedStatus},
+				api.AccessRequestHistory{TransitionTime: t2, RequestState: api.GrantedStatus},
+			),
+			status:   api.GrantedStatus,
+			wantTime: t2,
+		},
+		{
+			name: "skips non-matching trailing entries",
+			ar: newAR(
+				api.AccessRequestHistory{TransitionTime: t1, RequestState: api.GrantedStatus},
+				api.AccessRequestHistory{TransitionTime: t2, RequestState: api.ExpiredStatus},
+			),
+			status:   api.GrantedStatus,
+			wantTime: t1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.ar.Status.GetLastHistory(tt.status)
+			if tt.wantNil {
+				assert.Nil(t, got)
+			} else {
+				assert.Equal(t, tt.wantTime, got.TransitionTime)
+			}
+		})
+	}
+}
+
+func TestGetLastStatusDetails(t *testing.T) {
+	tests := []struct {
+		name string
+		ar   *api.AccessRequest
+		want string
+	}{
+		{
+			name: "returns empty string when history is empty",
+			ar:   newAR(),
+			want: "",
+		},
+		{
+			name: "returns empty string when Details is nil",
+			ar:   newAR(api.AccessRequestHistory{RequestState: api.GrantedStatus}),
+			want: "",
+		},
+		{
+			name: "returns details when present",
+			ar:   newAR(api.AccessRequestHistory{RequestState: api.GrantedStatus, Details: ptr.To("some detail")}),
+			want: "some detail",
+		},
+		{
+			name: "returns details from the last matching entry",
+			ar: newAR(
+				api.AccessRequestHistory{RequestState: api.GrantedStatus, Details: ptr.To("first")},
+				api.AccessRequestHistory{RequestState: api.GrantedStatus, Details: ptr.To("last")},
+			),
+			want: "last",
+		},
+		{
+			name: "returns empty string when status is not in history",
+			ar:   newAR(api.AccessRequestHistory{RequestState: api.InitiatedStatus, Details: ptr.To("some detail")}),
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.ar.GetLastStatusDetails(api.GrantedStatus))
+		})
+	}
+}
+
+func TestUpdateStatusHistory(t *testing.T) {
+	t.Run("updates transition time instead of appending when status and details match last entry", func(t *testing.T) {
+		ar := newAR(
+			api.AccessRequestHistory{RequestState: api.InitiatedStatus},
+			api.AccessRequestHistory{RequestState: api.GrantedStatus, Details: ptr.To("msg")},
+		)
+		before := ar.Status.History[1].TransitionTime
+
+		time.Sleep(time.Millisecond) // ensure clock advances
+		ar.UpdateStatusHistory(api.GrantedStatus, "msg")
+
+		assert.Len(t, ar.Status.History, 2)
+		assert.True(t, ar.Status.History[1].TransitionTime.After(before.Time))
+	})
+
+	t.Run("appends new entry when details differ from last matching entry", func(t *testing.T) {
+		ar := newAR(
+			api.AccessRequestHistory{RequestState: api.InitiatedStatus},
+			api.AccessRequestHistory{RequestState: api.GrantedStatus, Details: ptr.To("old")},
+		)
+
+		ar.UpdateStatusHistory(api.GrantedStatus, "new")
+
+		assert.Len(t, ar.Status.History, 3)
+		assert.Equal(t, api.GrantedStatus, ar.Status.History[2].RequestState)
+		assert.Equal(t, "new", *ar.Status.History[2].Details)
+	})
+
+	t.Run("do now append new entry when history is the same (initiated)", func(t *testing.T) {
+		ar := newAR(
+			api.AccessRequestHistory{RequestState: api.InitiatedStatus},
+		)
+
+		ar.UpdateStatusHistory(api.InitiatedStatus, "")
+
+		assert.Len(t, ar.Status.History, 1)
+	})
+
+	t.Run("do now append new entry when history is the same (initiated)", func(t *testing.T) {
+		ar := newAR(
+			api.AccessRequestHistory{RequestState: api.InitiatedStatus},
+			api.AccessRequestHistory{RequestState: api.RequestedStatus, Details: ptr.To("no aproved CR found")},
+		)
+
+		ar.UpdateStatusHistory(api.RequestedStatus, "no aproved CR found")
+		ar.UpdateStatusHistory(api.RequestedStatus, "no aproved CR found")
+		ar.UpdateStatusHistory(api.RequestedStatus, "no aproved CR found")
+		ar.UpdateStatusHistory(api.RequestedStatus, "no aproved CR found")
+
+		assert.Len(t, ar.Status.History, 2)
+	})
+
+	t.Run("appends new entry when no prior entry exists for that status", func(t *testing.T) {
+		ar := newAR(
+			api.AccessRequestHistory{RequestState: api.InitiatedStatus},
+			api.AccessRequestHistory{RequestState: api.RequestedStatus},
+		)
+
+		ar.UpdateStatusHistory(api.GrantedStatus, "")
+
+		assert.Len(t, ar.Status.History, 3)
+		assert.Equal(t, api.GrantedStatus, ar.Status.History[2].RequestState)
+	})
+
+	t.Run("appends new entry when last entry has a different status and no prior entry matches", func(t *testing.T) {
+		ar := newAR(
+			api.AccessRequestHistory{RequestState: api.InitiatedStatus},
+			api.AccessRequestHistory{RequestState: api.RequestedStatus},
+		)
+
+		ar.UpdateStatusHistory(api.ExpiredStatus, "")
+
+		assert.Len(t, ar.Status.History, 3)
+		assert.Equal(t, api.ExpiredStatus, ar.Status.History[2].RequestState)
 	})
 }

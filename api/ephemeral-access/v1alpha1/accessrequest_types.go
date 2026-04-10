@@ -172,30 +172,59 @@ func (ar *AccessRequest) UpdateStatusHistory(newStatus Status, details string) {
 		status.ExpiresAt = &expiresAt
 	}
 
-	var detailsPtr *string
-	if details != "" {
-		detailsPtr = &details
+	// if the last status details is the same as the new one, just update the transition time.
+	// this is to avoid having multiple entries in the history with the same status and details.
+	if isLastHistorySameAsCurrent(status.History, newStatus, details) {
+		status.History[len(status.History)-1].TransitionTime = metav1.Now()
+	} else {
+		var detailsPtr *string
+		if details != "" {
+			detailsPtr = &details
+		}
+		history := AccessRequestHistory{
+			TransitionTime: metav1.Now(),
+			RequestState:   newStatus,
+			Details:        detailsPtr,
+		}
+		status.History = append(status.History, history)
 	}
-	history := AccessRequestHistory{
-		TransitionTime: metav1.Now(),
-		RequestState:   newStatus,
-		Details:        detailsPtr,
-	}
-	status.History = append(status.History, history)
 	ar.Status = *status
+}
+
+// isLastHistorySameAsCurrent will check if the last history entry has the same status and details as the new one.
+func isLastHistorySameAsCurrent(history []AccessRequestHistory, newStatus Status, details string) bool {
+	if len(history) > 0 {
+		lastHistory := history[len(history)-1]
+		if lastHistory.RequestState == newStatus {
+			if details == "" && lastHistory.Details == nil {
+				return true
+			}
+			if details != "" && lastHistory.Details != nil && *lastHistory.Details == details {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// GetLastHistory will return the last recorded AccessRequestHistory associated
+// with the given status. If there is no history associated with the given status,
+// it will return nil.
+func (s AccessRequestStatus) GetLastHistory(status Status) *AccessRequestHistory {
+	for i := len(s.History) - 1; i >= 0; i-- {
+		if s.History[i].RequestState == status {
+			return &s.History[i]
+		}
+	}
+	return nil
 }
 
 // GetLastStatusDetails will return the last recorded details message in the
 // history associated with the given status.
 func (ar *AccessRequest) GetLastStatusDetails(status Status) string {
-	for i := len(ar.Status.History) - 1; i >= 0; i-- {
-		if ar.Status.History[i].RequestState == status {
-			msg := ""
-			if ar.Status.History[i].Details != nil {
-				msg = *ar.Status.History[i].Details
-			}
-			return msg
-		}
+	lastHistory := ar.Status.GetLastHistory(status)
+	if lastHistory != nil && lastHistory.Details != nil {
+		return *lastHistory.Details
 	}
 	return ""
 }

@@ -405,6 +405,7 @@ var _ = Describe("AccessRequest Controller", func() {
 					}
 					if ar.GetName() == arName {
 						pluginResponse.Status = plugin.GrantStatusPending
+						pluginResponse.Message = "Simulating timeout by keeping the request in pending status"
 					}
 					return pluginResponse, nil
 				})
