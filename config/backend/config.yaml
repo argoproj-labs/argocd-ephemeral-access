@@ -20,3 +20,16 @@ metadata:
 
 #   # Defines the default duration to be used when creating AccessRequests. (Default: 4h)
 #   backend.defaultAccessDuration: 4h
+
+#   # OTLP/HTTP endpoint for OpenTelemetry traces. When unset, tracing is disabled. (Default: '')
+#   # Example: http://otel-collector.observability.svc.cluster.local:4318
+#   backend.tracing.endpoint: ''
+
+#   # Disable TLS for the OTLP/HTTP exporter. Use 'true' for collectors reachable
+#   # over http:// (e.g. in-cluster). (Default: false)
+#   backend.tracing.insecure: 'false'
+
+#   # Comma-separated list of OpenTelemetry propagators used for inbound extraction
+#   # and outbound injection of trace context. Supported values: tracecontext,
+#   # baggage, b3, b3multi, jaeger, none. (Default: tracecontext,baggage)
+#   backend.tracing.propagators: tracecontext,baggage
