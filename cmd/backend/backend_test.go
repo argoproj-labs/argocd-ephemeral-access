@@ -24,6 +24,7 @@ func TestReadEnvConfigs(t *testing.T) {
 		assert.Equal(t, "argocd", opts.Backend.Namespace)
 		assert.Equal(t, 4*time.Hour, opts.Backend.DefaultAccessDuration)
 
+		assert.Equal(t, "argocd-ephemeral-access-backend", opts.Backend.Tracing.ServiceName)
 		assert.Empty(t, opts.Backend.Tracing.Endpoint)
 		assert.False(t, opts.Backend.Tracing.Insecure)
 		assert.Empty(t, opts.Backend.Tracing.Propagators)
@@ -39,6 +40,7 @@ func TestReadEnvConfigs(t *testing.T) {
 		t.Setenv("KUBECONFIG", "/tmp/kube.cfg")
 		t.Setenv("EPHEMERAL_BACKEND_NAMESPACE", "ephemeral")
 		t.Setenv("EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION", "30m")
+		t.Setenv("OTEL_SERVICE_NAME", "custom-backend")
 		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
 		t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 		t.Setenv("OTEL_PROPAGATORS", "tracecontext,baggage,b3")
@@ -56,6 +58,7 @@ func TestReadEnvConfigs(t *testing.T) {
 		assert.Equal(t, "ephemeral", opts.Backend.Namespace)
 		assert.Equal(t, 30*time.Minute, opts.Backend.DefaultAccessDuration)
 
+		assert.Equal(t, "custom-backend", opts.Backend.Tracing.ServiceName)
 		assert.Equal(t, "http://collector:4318", opts.Backend.Tracing.Endpoint)
 		assert.True(t, opts.Backend.Tracing.Insecure)
 		assert.Equal(t, "tracecontext,baggage,b3", opts.Backend.Tracing.Propagators)

@@ -37,9 +37,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// tracingServiceName identifies the backend in trace data.
-const tracingServiceName = "argocd-ephemeral-access-backend"
-
 // Options for the CLI.
 type Options struct {
 	Log     LogConfig `env:", prefix=EPHEMERAL_LOG_"`
@@ -68,6 +65,9 @@ type BackendConfig struct {
 // mirror the OpenTelemetry specification so standard OTel tooling and docs
 // apply directly. Tracing is enabled when Endpoint is set.
 type TracingConfig struct {
+	// ServiceName is reported as service.name on every span emitted by the
+	// backend.
+	ServiceName string `env:"OTEL_SERVICE_NAME, default=argocd-ephemeral-access-backend"`
 	// Endpoint is the OTLP endpoint
 	Endpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 	// Insecure disables TLS for the OTLP/HTTP exporter when true. Use for
@@ -155,7 +155,7 @@ func run(cmd *cobra.Command, args []string) error {
 	handler := backend.NewAPIHandler(service, logger)
 
 	tracingShutdown, err := tracing.Init(context.Background(), tracing.Config{
-		ServiceName: tracingServiceName,
+		ServiceName: opts.Backend.Tracing.ServiceName,
 		Endpoint:    opts.Backend.Tracing.Endpoint,
 		Insecure:    opts.Backend.Tracing.Insecure,
 		Propagators: opts.Backend.Tracing.Propagators,

@@ -61,6 +61,12 @@ spec:
                   name: backend-cm
                   key: backend.defaultAccessDuration
                   optional: true
+            - name: OTEL_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-cm
+                  key: backend.tracing.serviceName
+                  optional: true
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               valueFrom:
                 configMapKeyRef:
