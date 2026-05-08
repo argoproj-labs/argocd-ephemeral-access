@@ -17,7 +17,7 @@ jobs:
       contents: read
     steps:
       - name: Set up Go
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # pin@v5
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # pin@v5
         with:
           go-version: '1.24'
           # see https://github.com/actions/setup-go?tab=readme-ov-file#caching-dependency-files-and-build-outputs
