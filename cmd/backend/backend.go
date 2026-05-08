@@ -24,6 +24,7 @@ import (
 
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend"
 	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend/metrics"
+	"github.com/argoproj-labs/argocd-ephemeral-access/internal/backend/tracing"
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -31,6 +32,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/sethvargo/go-envconfig"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -55,6 +57,27 @@ type BackendConfig struct {
 	// DefaultAccessDuration defines the default duration to be used when creating
 	// AccessRequests
 	DefaultAccessDuration time.Duration `env:"EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION, default=4h"`
+	// Tracing configures OpenTelemetry tracing.
+	Tracing TracingConfig
+}
+
+// TracingConfig defines OpenTelemetry tracing configurations. Variable names
+// mirror the OpenTelemetry specification so standard OTel tooling and docs
+// apply directly. Tracing is enabled when Endpoint is set.
+type TracingConfig struct {
+	// ServiceName is reported as service.name on every span emitted by the
+	// backend.
+	ServiceName string `env:"OTEL_SERVICE_NAME, default=argocd-ephemeral-access-backend"`
+	// Endpoint is the OTLP endpoint
+	Endpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
+	// Insecure disables TLS for the OTLP/HTTP exporter when true. Use for
+	// collectors reachable over http:// (e.g. in-cluster, dev).
+	Insecure bool `env:"OTEL_EXPORTER_OTLP_INSECURE"`
+	// Propagators is a comma-separated list of propagators used for both
+	// inbound extraction and outbound injection of trace context. Supported
+	// values: tracecontext, baggage, b3, b3multi, jaeger, none. Empty falls
+	// back to "tracecontext,baggage".
+	Propagators string `env:"OTEL_PROPAGATORS"`
 }
 
 // LogConfig defines the log configurations
@@ -131,15 +154,36 @@ func run(cmd *cobra.Command, args []string) error {
 	service := backend.NewDefaultService(persister, logger, opts.Backend.Namespace, opts.Backend.DefaultAccessDuration)
 	handler := backend.NewAPIHandler(service, logger)
 
+	tracingShutdown, err := tracing.Init(context.Background(), tracing.Config{
+		ServiceName: opts.Backend.Tracing.ServiceName,
+		Endpoint:    opts.Backend.Tracing.Endpoint,
+		Insecure:    opts.Backend.Tracing.Insecure,
+		Propagators: opts.Backend.Tracing.Propagators,
+	}, logger)
+	if err != nil {
+		// Tracing setup failures should not stop the service from starting.
+		logger.Error(err, "Error initializing tracing. Continuing without tracing")
+	}
+
 	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {
 		router := chi.NewMux()
 		router.Use(metrics.MetricsMiddleware)
 		api := humachi.New(router, huma.DefaultConfig(backend.APITitle, backend.APIVersion))
 		backend.RegisterRoutes(api, handler)
 
+		// otelhttp wraps the chi router so each incoming request becomes a span
+		// with HTTP semantic-convention attributes and propagates trace context
+		// from upstream callers. SpanNameFormatter uses the URL path so that
+		// route grouping in tracing UIs matches the existing Prometheus labels.
+		tracedHandler := otelhttp.NewHandler(router, "http.server",
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+				return fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+			}),
+		)
+
 		server := http.Server{
 			Addr:    fmt.Sprintf(":%d", opts.Backend.Port),
-			Handler: router,
+			Handler: tracedHandler,
 		}
 
 		// Metrics server
@@ -205,6 +249,11 @@ func run(cmd *cobra.Command, args []string) error {
 			shutdownServer(&server, logger)
 			logger.Info("Shutting down Metrics Server: Context done")
 			shutdownServer(&metricsServer, logger)
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer shutdownCancel()
+			if err := tracingShutdown(shutdownCtx); err != nil {
+				logger.Error(err, "error shutting down tracer provider")
+			}
 		})
 	})
 	cli.Run()

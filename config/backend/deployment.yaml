@@ -61,6 +61,30 @@ spec:
                   name: backend-cm
                   key: backend.defaultAccessDuration
                   optional: true
+            - name: OTEL_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-cm
+                  key: backend.tracing.serviceName
+                  optional: true
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-cm
+                  key: backend.tracing.endpoint
+                  optional: true
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-cm
+                  key: backend.tracing.insecure
+                  optional: true
+            - name: OTEL_PROPAGATORS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-cm
+                  key: backend.tracing.propagators
+                  optional: true
           image: argoproj-labs/argocd-ephemeral-access:latest
           imagePullPolicy: Always
           name: backend
