@@ -8,7 +8,7 @@
     "@fortawesome/free-solid-svg-icons": "^6.6.0",
     "@fortawesome/react-fontawesome": "^0.2.2",
     "antd": "^5.20.0",
-    "axios": "1.6.2",
+    "axios": "1.15.2",
     "classnames": "^2.5.1",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.33",
