@@ -80,4 +80,3 @@ func TestReadEnvConfigs(t *testing.T) {
 		assert.Nil(t, opts)
 	})
 }
-

@@ -13,8 +13,7 @@ import (
 
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 
-	"go.opentelemetry.io/contrib/propagators/b3"
-	"go.opentelemetry.io/contrib/propagators/jaeger"
+	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -96,41 +95,29 @@ func Init(ctx context.Context, cfg Config, logger log.Logger) (ShutdownFunc, err
 }
 
 // buildPropagator parses a comma-separated list of propagator names into a
-// composite TextMapPropagator. An empty list defaults to W3C tracecontext +
-// baggage. The "none" sentinel disables propagation entirely.
+// composite TextMapPropagator using autoprop. An empty list yields autoprop's
+// default (W3C tracecontext + baggage). Supported names include tracecontext,
+// baggage, b3, b3multi, jaeger, ottrace, xray, and the "none" sentinel.
+// Unknown names cause an error so misconfigurations surface at startup.
 func buildPropagator(names string) (propagation.TextMapPropagator, error) {
-	if strings.TrimSpace(names) == "" {
-		return propagation.NewCompositeTextMapPropagator(
-			propagation.TraceContext{},
-			propagation.Baggage{},
-		), nil
+	trimmed := strings.TrimSpace(names)
+	if trimmed == "" {
+		return autoprop.NewTextMapPropagator(), nil
 	}
 
-	var props []propagation.TextMapPropagator
-	for _, raw := range strings.Split(names, ",") {
-		name := strings.ToLower(strings.TrimSpace(raw))
-		if name == "" {
-			continue
-		}
-		switch name {
-		case "none":
-			// "none" is exclusive; ignore any other entries.
-			return propagation.NewCompositeTextMapPropagator(), nil
-		case "tracecontext":
-			props = append(props, propagation.TraceContext{})
-		case "baggage":
-			props = append(props, propagation.Baggage{})
-		case "b3":
-			props = append(props, b3.New())
-		case "b3multi":
-			props = append(props, b3.New(b3.WithInjectEncoding(b3.B3MultipleHeader)))
-		case "jaeger":
-			props = append(props, jaeger.Jaeger{})
-		default:
-			return nil, fmt.Errorf("unknown OTel propagator %q; supported: tracecontext, baggage, b3, b3multi, jaeger, none", name)
+	parts := strings.Split(trimmed, ",")
+	cleaned := make([]string, 0, len(parts))
+	for _, raw := range parts {
+		name := strings.TrimSpace(raw)
+		if name != "" {
+			cleaned = append(cleaned, name)
 		}
 	}
-	return propagation.NewCompositeTextMapPropagator(props...), nil
+	p, err := autoprop.TextMapPropagator(cleaned...)
+	if err != nil {
+		return nil, fmt.Errorf("error building OTel propagator: %w", err)
+	}
+	return p, nil
 }
 
 func noopShutdown(context.Context) error { return nil }
