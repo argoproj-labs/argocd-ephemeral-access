@@ -165,7 +165,7 @@ func run(cmd *cobra.Command, args []string) error {
 		logger.Error(err, "Error initializing tracing. Continuing without tracing")
 	}
 
-	cli := humacli.New(func(hooks humacli.Hooks, options *BackendConfig) {
+	cli := humacli.New(func(hooks humacli.Hooks, _ *struct{}) {
 		router := chi.NewMux()
 		router.Use(metrics.MetricsMiddleware)
 		api := humachi.New(router, huma.DefaultConfig(backend.APITitle, backend.APIVersion))
