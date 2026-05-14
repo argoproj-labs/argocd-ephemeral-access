@@ -64,11 +64,20 @@ type Config struct {
 //
 // All other OTLP exporter env vars (headers, TLS, compression, timeouts) per
 // the OTel specification are honored automatically by the selected exporter.
-func Init(ctx context.Context, cfg Config, logger log.Logger) (ShutdownFunc, error) {
+func Init(ctx context.Context, cfg Config, logger *log.LogWrapper) (ShutdownFunc, error) {
 	if cfg.Endpoint == "" {
 		logger.Info("OpenTelemetry tracing disabled: no OTLP endpoint configured")
 		return noopShutdown, nil
 	}
+
+	// Route SDK internal log lines and exporter export errors through our
+	// logger so operators can confirm export attempts by setting
+	// EPHEMERAL_LOG_LEVEL=debug, and so any exporter failure surfaces in
+	// production logs instead of being swallowed.
+	otel.SetLogger(*logger.Logger)
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		logger.Error(err, "OpenTelemetry SDK error")
+	}))
 
 	propagator, err := buildPropagator(cfg.Propagators)
 	if err != nil {

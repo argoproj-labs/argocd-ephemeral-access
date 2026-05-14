@@ -10,8 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newTestLogger(t *testing.T) *log.LogWrapper {
+	t.Helper()
+	logger, err := log.New()
+	require.NoError(t, err)
+	return logger
+}
+
 func TestInit_DisabledWhenNoEndpoint(t *testing.T) {
-	shutdown, err := tracing.Init(context.Background(), tracing.Config{ServiceName: "test"}, log.NewFake())
+	shutdown, err := tracing.Init(context.Background(), tracing.Config{ServiceName: "test"}, newTestLogger(t))
 	require.NoError(t, err)
 	require.NotNil(t, shutdown)
 
@@ -25,7 +32,7 @@ func TestInit_EnabledWithEndpoint(t *testing.T) {
 		Endpoint:       "http://localhost:4318/v1/traces",
 		Protocol:       tracing.ProtocolHTTPProtobuf,
 		Insecure:       true,
-	}, log.NewFake())
+	}, newTestLogger(t))
 	require.NoError(t, err)
 	require.NotNil(t, shutdown)
 
@@ -51,7 +58,7 @@ func TestInit_ProtocolSelection(t *testing.T) {
 				Endpoint:    "http://localhost:4317",
 				Protocol:    tc.protocol,
 				Insecure:    true,
-			}, log.NewFake())
+			}, newTestLogger(t))
 			if tc.wantErr {
 				assert.Error(t, err)
 				return
@@ -82,7 +89,7 @@ func TestInit_PropagatorParsing(t *testing.T) {
 				Endpoint:    "http://localhost:4318",
 				Insecure:    true,
 				Propagators: tc.propagators,
-			}, log.NewFake())
+			}, newTestLogger(t))
 			if tc.wantErr {
 				assert.Error(t, err)
 				return
