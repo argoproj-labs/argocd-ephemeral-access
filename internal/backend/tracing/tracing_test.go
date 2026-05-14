@@ -23,6 +23,7 @@ func TestInit_EnabledWithEndpoint(t *testing.T) {
 		ServiceName:    "test",
 		ServiceVersion: "0.0.0",
 		Endpoint:       "http://localhost:4318/v1/traces",
+		Protocol:       tracing.ProtocolHTTPProtobuf,
 		Insecure:       true,
 	}, log.NewFake())
 	require.NoError(t, err)
@@ -31,6 +32,35 @@ func TestInit_EnabledWithEndpoint(t *testing.T) {
 	// Shutdown must succeed even though no collector is reachable — the batcher
 	// will just drop spans on the configured retry/timeout.
 	assert.NoError(t, shutdown(context.Background()))
+}
+
+func TestInit_ProtocolSelection(t *testing.T) {
+	tests := map[string]struct {
+		protocol string
+		wantErr  bool
+	}{
+		"empty defaults to grpc": {protocol: "", wantErr: false},
+		"explicit grpc":          {protocol: tracing.ProtocolGRPC, wantErr: false},
+		"http/protobuf":          {protocol: tracing.ProtocolHTTPProtobuf, wantErr: false},
+		"unknown":                {protocol: "http/json", wantErr: true},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			shutdown, err := tracing.Init(context.Background(), tracing.Config{
+				ServiceName: "test",
+				Endpoint:    "http://localhost:4317",
+				Protocol:    tc.protocol,
+				Insecure:    true,
+			}, log.NewFake())
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, shutdown)
+			assert.NoError(t, shutdown(context.Background()))
+		})
+	}
 }
 
 func TestInit_PropagatorParsing(t *testing.T) {

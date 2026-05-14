@@ -70,7 +70,10 @@ type TracingConfig struct {
 	ServiceName string `env:"OTEL_SERVICE_NAME, default=argocd-ephemeral-access-backend"`
 	// Endpoint is the OTLP endpoint
 	Endpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
-	// Insecure disables TLS for the OTLP/HTTP exporter when true. Use for
+	// Protocol selects the OTLP wire protocol. Supported values: "grpc"
+	// (default, port 4317) and "http/protobuf" (port 4318).
+	Protocol string `env:"OTEL_EXPORTER_OTLP_PROTOCOL, default=grpc"`
+	// Insecure disables TLS for the OTLP exporter when true. Use for
 	// collectors reachable over http:// (e.g. in-cluster, dev).
 	Insecure bool `env:"OTEL_EXPORTER_OTLP_INSECURE"`
 	// Propagators is a comma-separated list of propagators used for both
@@ -157,6 +160,7 @@ func run(cmd *cobra.Command, args []string) error {
 	tracingShutdown, err := tracing.Init(context.Background(), tracing.Config{
 		ServiceName: opts.Backend.Tracing.ServiceName,
 		Endpoint:    opts.Backend.Tracing.Endpoint,
+		Protocol:    opts.Backend.Tracing.Protocol,
 		Insecure:    opts.Backend.Tracing.Insecure,
 		Propagators: opts.Backend.Tracing.Propagators,
 	}, logger)

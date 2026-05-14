@@ -25,11 +25,16 @@ metadata:
 #   # (Default: argocd-ephemeral-access-backend)
 #   backend.tracing.serviceName: argocd-ephemeral-access-backend
 
-#   # OTLP/HTTP endpoint for OpenTelemetry traces. When unset, tracing is disabled. (Default: '')
-#   # Example: http://otel-collector.observability.svc.cluster.local:4318
+#   # OTLP endpoint for OpenTelemetry traces. When unset, tracing is disabled. (Default: '')
+#   # Example (grpc):          http://otel-collector.observability.svc.cluster.local:4317
+#   # Example (http/protobuf): http://otel-collector.observability.svc.cluster.local:4318
 #   backend.tracing.endpoint: ''
 
-#   # Disable TLS for the OTLP/HTTP exporter. Use 'true' for collectors reachable
+#   # OTLP wire protocol. Supported values: 'grpc' (port 4317),
+#   # 'http/protobuf' (port 4318). (Default: grpc)
+#   backend.tracing.protocol: grpc
+
+#   # Disable TLS for the OTLP exporter. Use 'true' for collectors reachable
 #   # over http:// (e.g. in-cluster). (Default: false)
 #   backend.tracing.insecure: 'false'
 

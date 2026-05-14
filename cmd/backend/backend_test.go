@@ -26,6 +26,7 @@ func TestReadEnvConfigs(t *testing.T) {
 
 		assert.Equal(t, "argocd-ephemeral-access-backend", opts.Backend.Tracing.ServiceName)
 		assert.Empty(t, opts.Backend.Tracing.Endpoint)
+		assert.Equal(t, "grpc", opts.Backend.Tracing.Protocol)
 		assert.False(t, opts.Backend.Tracing.Insecure)
 		assert.Empty(t, opts.Backend.Tracing.Propagators)
 
@@ -42,6 +43,7 @@ func TestReadEnvConfigs(t *testing.T) {
 		t.Setenv("EPHEMERAL_BACKEND_DEFAULT_ACCESS_DURATION", "30m")
 		t.Setenv("OTEL_SERVICE_NAME", "custom-backend")
 		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
+		t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
 		t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 		t.Setenv("OTEL_PROPAGATORS", "tracecontext,baggage,b3")
 		t.Setenv("EPHEMERAL_LOG_LEVEL", "debug")
@@ -60,6 +62,7 @@ func TestReadEnvConfigs(t *testing.T) {
 
 		assert.Equal(t, "custom-backend", opts.Backend.Tracing.ServiceName)
 		assert.Equal(t, "http://collector:4318", opts.Backend.Tracing.Endpoint)
+		assert.Equal(t, "http/protobuf", opts.Backend.Tracing.Protocol)
 		assert.True(t, opts.Backend.Tracing.Insecure)
 		assert.Equal(t, "tracecontext,baggage,b3", opts.Backend.Tracing.Propagators)
 
