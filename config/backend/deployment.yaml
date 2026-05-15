@@ -73,6 +73,12 @@ spec:
                   name: backend-cm
                   key: backend.tracing.endpoint
                   optional: true
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-cm
+                  key: backend.tracing.protocol
+                  optional: true
             - name: OTEL_EXPORTER_OTLP_INSECURE
               valueFrom:
                 configMapKeyRef:

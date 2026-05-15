@@ -16,11 +16,19 @@ import (
 	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+)
+
+// Supported values for Config.Protocol. Names match the OpenTelemetry
+// specification env var OTEL_EXPORTER_OTLP_PROTOCOL.
+const (
+	ProtocolGRPC         = "grpc"
+	ProtocolHTTPProtobuf = "http/protobuf"
 )
 
 // ShutdownFunc flushes any buffered spans and releases exporter resources.
@@ -33,10 +41,15 @@ type Config struct {
 	ServiceName string
 	// ServiceVersion is reported as service.version on all spans. Optional.
 	ServiceVersion string
-	// Endpoint is the resolved OTLP/HTTP endpoint. When empty, tracing is
-	// disabled and Init returns a no-op shutdown.
+	// Endpoint is the resolved OTLP endpoint. When empty, tracing is disabled
+	// and Init returns a no-op shutdown. The endpoint must be compatible with
+	// the chosen Protocol (gRPC collectors typically listen on :4317,
+	// HTTP/protobuf collectors on :4318).
 	Endpoint string
-	// Insecure disables TLS on the OTLP/HTTP exporter.
+	// Protocol selects the OTLP wire protocol. Supported values: "grpc"
+	// (default) and "http/protobuf". An unknown value causes Init to error.
+	Protocol string
+	// Insecure disables TLS on the OTLP exporter.
 	Insecure bool
 	// Propagators is a comma-separated list of propagator names. Empty means
 	// the default ("tracecontext,baggage"). Supported names: tracecontext,
@@ -44,28 +57,38 @@ type Config struct {
 	Propagators string
 }
 
-// Init configures the global OpenTelemetry tracer provider with an OTLP/HTTP
-// exporter when Config.Endpoint is set. When Endpoint is empty, Init logs that
-// tracing is disabled and returns a no-op ShutdownFunc.
+// Init configures the global OpenTelemetry tracer provider with an OTLP
+// exporter when Config.Endpoint is set. The wire protocol is selected by
+// Config.Protocol (grpc or http/protobuf). When Endpoint is empty, Init logs
+// that tracing is disabled and returns a no-op ShutdownFunc.
 //
-// All other OTLP/HTTP exporter env vars (headers, TLS, compression, timeouts)
-// per the OTel specification are honored automatically by otlptracehttp.
-func Init(ctx context.Context, cfg Config, logger log.Logger) (ShutdownFunc, error) {
+// All other OTLP exporter env vars (headers, TLS, compression, timeouts) per
+// the OTel specification are honored automatically by the selected exporter.
+func Init(ctx context.Context, cfg Config, logger *log.LogWrapper) (ShutdownFunc, error) {
 	if cfg.Endpoint == "" {
 		logger.Info("OpenTelemetry tracing disabled: no OTLP endpoint configured")
 		return noopShutdown, nil
 	}
+
+	// Route SDK internal log lines and exporter export errors through our
+	// logger so operators can confirm export attempts by setting
+	// EPHEMERAL_LOG_LEVEL=debug, and so any exporter failure surfaces in
+	// production logs instead of being swallowed.
+	otel.SetLogger(*logger.Logger)
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		logger.Error(err, "OpenTelemetry SDK error")
+	}))
 
 	propagator, err := buildPropagator(cfg.Propagators)
 	if err != nil {
 		return noopShutdown, err
 	}
 
-	clientOpts := []otlptracehttp.Option{}
-	if cfg.Insecure {
-		clientOpts = append(clientOpts, otlptracehttp.WithInsecure())
+	client, err := newExporterClient(cfg)
+	if err != nil {
+		return noopShutdown, err
 	}
-	exporter, err := otlptrace.New(ctx, otlptracehttp.NewClient(clientOpts...))
+	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
 		return noopShutdown, fmt.Errorf("error creating OTLP trace exporter: %w", err)
 	}
@@ -90,8 +113,42 @@ func Init(ctx context.Context, cfg Config, logger log.Logger) (ShutdownFunc, err
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagator)
 
-	logger.Info("OpenTelemetry tracing enabled", "endpoint", cfg.Endpoint, "service", cfg.ServiceName, "insecure", cfg.Insecure)
+	logger.Info("OpenTelemetry tracing enabled",
+		"endpoint", cfg.Endpoint,
+		"protocol", normalizeProtocol(cfg.Protocol),
+		"service", cfg.ServiceName,
+		"insecure", cfg.Insecure,
+	)
 	return tp.Shutdown, nil
+}
+
+// newExporterClient builds the OTLP exporter client matching cfg.Protocol.
+// An empty Protocol defaults to gRPC, which matches the OpenTelemetry SDK
+// default and the in-cluster collector convention.
+func newExporterClient(cfg Config) (otlptrace.Client, error) {
+	switch normalizeProtocol(cfg.Protocol) {
+	case ProtocolGRPC:
+		opts := []otlptracegrpc.Option{}
+		if cfg.Insecure {
+			opts = append(opts, otlptracegrpc.WithInsecure())
+		}
+		return otlptracegrpc.NewClient(opts...), nil
+	case ProtocolHTTPProtobuf:
+		opts := []otlptracehttp.Option{}
+		if cfg.Insecure {
+			opts = append(opts, otlptracehttp.WithInsecure())
+		}
+		return otlptracehttp.NewClient(opts...), nil
+	default:
+		return nil, fmt.Errorf("unsupported OTLP protocol %q: must be %q or %q", cfg.Protocol, ProtocolGRPC, ProtocolHTTPProtobuf)
+	}
+}
+
+func normalizeProtocol(p string) string {
+	if p == "" {
+		return ProtocolGRPC
+	}
+	return p
 }
 
 // buildPropagator parses a comma-separated list of propagator names into a

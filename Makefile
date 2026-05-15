@@ -109,6 +109,19 @@ run-controller: build goreman ## Run a controller from your host.
 run-backend: build goreman ## Run the api backend server.
 	$(GOREMAN) start backend
 
+# Override these on the command line to target a different protocol/port, e.g.:
+#   make run-backend-tracing TRACING_PROTOCOL=http/protobuf TRACING_ENDPOINT=http://localhost:4318
+TRACING_ENDPOINT ?= http://localhost:4317
+TRACING_PROTOCOL ?= grpc
+
+.PHONY: run-backend-tracing
+run-backend-tracing: build goreman ## Run the api backend and a local Jaeger all-in-one with OTLP tracing wired up. UI at http://localhost:16686.
+	OTEL_EXPORTER_OTLP_ENDPOINT=$(TRACING_ENDPOINT) \
+	OTEL_EXPORTER_OTLP_PROTOCOL=$(TRACING_PROTOCOL) \
+	OTEL_EXPORTER_OTLP_INSECURE=true \
+	EPHEMERAL_LOG_LEVEL=debug \
+	$(GOREMAN) start backend tracing
+
 ##@ Build
 
 .PHONY: build
@@ -229,7 +242,7 @@ GOREMAN ?= $(LOCALBIN)/goreman-$(GOREMAN_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.5.0
-CONTROLLER_TOOLS_VERSION ?= v0.16.3
+CONTROLLER_TOOLS_VERSION ?= v0.18.0
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v2.1.0
 GORELEASER_VERSION ?= v2.6.1

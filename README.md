@@ -356,6 +356,68 @@ To build a docker image with custom namespace and tag run
 IMAGE_NAMESPACE="my.company.com/argoproj-labs" IMAGE_TAG="$(git rev-parse --abbrev-ref HEAD)" make docker-build
 ```
 
+#### Validating Tracing Locally
+
+The backend emits OpenTelemetry spans for every HTTP request when an OTLP
+endpoint is configured. To exercise that code path on your laptop without
+needing access to a company OTel collector, the project ships a make target
+that runs both the backend and a local
+[Jaeger all-in-one](https://www.jaegertracing.io/docs/latest/getting-started/)
+container under a single `goreman` process.
+
+Prerequisites:
+
+- Docker running on the host.
+- A valid `~/.kube/config` (the backend connects to a Kubernetes API on
+  startup — any reachable cluster is fine; trace generation does not depend
+  on actual API success).
+
+Start the backend together with Jaeger:
+
+```bash
+make run-backend-tracing
+```
+
+That target:
+
+- Builds the backend.
+- Starts the `backend` and `tracing` procs defined in the `Procfile`.
+- Exports `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317`,
+  `OTEL_EXPORTER_OTLP_PROTOCOL=grpc`, and `OTEL_EXPORTER_OTLP_INSECURE=true`
+  so spans flow into Jaeger's OTLP/gRPC receiver.
+- Sets `EPHEMERAL_LOG_LEVEL=debug` so OTLP export errors surface in the
+  backend logs.
+
+Once both procs are running, generate a request:
+
+```bash
+curl -i http://localhost:8888/accessrequests \
+  -H 'Argocd-Username: test-user@example.com' \
+  -H 'Argocd-User-Groups: developers' \
+  -H 'Argocd-Application-Name: argocd:guestbook' \
+  -H 'Argocd-Project-Name: default' \
+  -H 'Argocd-Namespace: argocd'
+```
+
+The handler may return an error (Kubernetes lookups will fail without the
+expected resources), but the span is recorded before the handler runs, so a
+trace is produced regardless of the response status.
+
+Open the Jaeger UI at <http://localhost:16686>, select the
+`argocd-ephemeral-access-backend` service, and click **Find Traces**. Each
+request appears as a span named after its HTTP method and path (for example
+`GET /accessrequests`) with the standard HTTP semantic-convention
+attributes.
+
+To exercise the OTLP/HTTP exporter instead of gRPC, override the defaults:
+
+```bash
+make run-backend-tracing TRACING_ENDPOINT=http://localhost:4318 TRACING_PROTOCOL=http/protobuf
+```
+
+Stop everything with `Ctrl+C`; goreman tears down both procs and the
+`--rm` flag on the Jaeger container ensures it is removed.
+
 #### Releasing
 
 Releasing the project involves creating a tag that follows the `v*`
