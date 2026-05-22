@@ -45,7 +45,7 @@ jobs:
           password: ${{ secrets.QUAY_TOKEN }}
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@5fdedb94abba051217030cc86d4523cf3f02243d # pin@v4
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # pin@v7.2.2
         with:
           distribution: goreleaser
           version: latest
