@@ -5,6 +5,7 @@ metadata:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
   name: developer
+  namespace: ephemeral
 spec:
   name: dev
   description: Developer Role Managed by the EphemeralAccess Controller
@@ -18,6 +19,7 @@ apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
 kind: AccessBinding
 metadata:
   name: developer
+  namespace: ephemeral
 spec:
   ordinal: 10
   friendlyName: Write (Developer)

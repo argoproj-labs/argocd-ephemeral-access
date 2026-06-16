@@ -5,6 +5,7 @@ metadata:
     app.kubernetes.io/name: argocd-ephemeral-access
     app.kubernetes.io/managed-by: kustomize
   name: admin
+  namespace: ephemeral
 spec:
   name: admin
   description: Admin Role Managed by the EphemeralAccess Controller
@@ -15,6 +16,7 @@ apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
 kind: AccessBinding
 metadata:
   name: admin
+  namespace: ephemeral
 spec:
   ordinal: 0
   friendlyName: Write (Admin)
