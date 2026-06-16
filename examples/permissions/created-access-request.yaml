@@ -1,0 +1,44 @@
+# Is created by the Ephemeral Access Extension when the user presses
+# "Permission" > Select Devops (Write) > "Request Access"
+
+apiVersion: v1
+items:
+- apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+  kind: AccessRequest
+  metadata:
+    creationTimestamp: "2025-06-07T06:49:37Z"
+    finalizers:
+    - accessrequest.ephemeral-access.argoproj-labs.io/finalizer
+    generateName: frederique.retsema-devops-
+    generation: 1
+    name: frederique.retsema-devops-8gjnf
+    namespace: argocd
+    resourceVersion: "6827"
+    uid: a10f81ea-db7e-4f4d-8045-78765134e370
+  spec:
+    application:
+      name: demoapp
+      namespace: argocd
+    duration: 4h0m0s
+    role:
+      friendlyName: Devops (Write)
+      ordinal: 1
+      templateRef:
+        name: devops
+        namespace: argocd
+    subject:
+      username: frederique.retsema@conclusionxforce.nl
+  status:
+    expiresAt: "2025-06-07T10:49:38Z"
+    history:
+    - status: initiated
+      transitionTime: "2025-06-07T06:49:38Z"
+    - status: granted
+      transitionTime: "2025-06-07T06:49:38Z"
+    requestState: granted
+    roleName: ephemeral-devops-argocd-demoapp
+    roleTemplateHash: 4d04dd261c924f73f60f040f99dba400710093e4
+    targetProject: demoproject
+kind: List
+metadata:
+  resourceVersion: ""
