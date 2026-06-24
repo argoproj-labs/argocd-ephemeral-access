@@ -32,6 +32,10 @@ associated with an `AppProjects` different than `default`.
 The Ephemeral Access extension requires Argo CD v2.13.0+ to be
 installed.
 
+Starting with `v1.1.0`, this extension requires **Argo CD v3.5 or
+later**. For Argo CD versions earlier than v3.5, use extension version
+`v1.0.x`.
+
 ## Installation
 
 The ephemeral-access functionality is provided by the following
