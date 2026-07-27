@@ -79,7 +79,12 @@ func main() {
 	// plugin process via the EPHEMERAL_LOG_LEVEL and EPHEMERAL_LOG_FORMAT env
 	// variables. Building the plugin logger from them makes its output respect
 	// the same level and format defined for the controller.
-	opts := []log.Opts{}
+	opts := []log.Opts{
+		// The name is relayed to the controller log stream (as the hclog
+		// "@module" field) so this plugin's entries can be identified there.
+		// Set it to a value that identifies your plugin.
+		log.WithName("some-plugin"),
+	}
 	if logLevel := os.Getenv(log.EphemeralLogLevel); logLevel != "" {
 		opts = append(opts, log.WithLevel(log.LogLevel(logLevel)))
 	}

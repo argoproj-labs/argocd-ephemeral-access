@@ -69,6 +69,24 @@ func TestPluginLogger(t *testing.T) {
 		assert.True(t, logger.IsInfo())
 		assert.Equal(t, "plugin", logger.Name())
 	})
+	t.Run("will use the provided name", func(t *testing.T) {
+		// When
+		logger, err := log.NewPluginLogger(log.WithName("my-plugin"))
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, logger)
+		assert.Equal(t, "my-plugin", logger.Name())
+	})
+	t.Run("will default the name to plugin", func(t *testing.T) {
+		// When
+		logger, err := log.NewPluginLogger()
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, logger)
+		assert.Equal(t, "plugin", logger.Name())
+	})
 }
 
 func TestPluginHostLogger(t *testing.T) {

@@ -3,6 +3,11 @@ FROM golang:1.25 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
+# GOPROXY can be overridden at build time to use a private module proxy, e.g.
+# for builds behind a firewall that blocks the public proxy.golang.org.
+ARG GOPROXY
+ENV GOPROXY=${GOPROXY:-https://proxy.golang.org,direct}
+
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod

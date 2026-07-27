@@ -44,6 +44,7 @@ func (l LogFormat) String() string {
 type LogConfig struct {
 	logLevel  LogLevel
 	logFormat LogFormat
+	logName   string
 }
 
 type Opts func(*LogConfig)
@@ -57,6 +58,15 @@ func WithLevel(level LogLevel) Opts {
 func WithFormat(format LogFormat) Opts {
 	return func(c *LogConfig) {
 		c.logFormat = format
+	}
+}
+
+// WithName sets the logger name. For plugin loggers this name is emitted as the
+// hclog "@module" field of each entry, which the go-plugin host relays into the
+// controller log stream, allowing a plugin to identify itself in that stream.
+func WithName(name string) Opts {
+	return func(c *LogConfig) {
+		c.logName = name
 	}
 }
 
@@ -200,6 +210,7 @@ func logConfig(opts ...Opts) *LogConfig {
 	cfg := &LogConfig{
 		logLevel:  InfoLevel,
 		logFormat: TextFormat,
+		logName:   "plugin",
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -221,11 +232,16 @@ const (
 // plugin subprocess (where the controller configs are not available) should
 // derive the opts from the EPHEMERAL_LOG_LEVEL and EPHEMERAL_LOG_FORMAT
 // environment variables, which the controller propagates to the plugin process.
+//
+// The logger name defaults to "plugin" and can be set with WithName. The name
+// is emitted as the hclog "@module" field of each entry, which the go-plugin
+// host relays into the controller log stream, allowing a plugin to identify
+// itself in that stream.
 func NewPluginLogger(opts ...Opts) (hclog.Logger, error) {
 	cfg := logConfig(opts...)
 	jsonFormat := cfg.logFormat == JsonFormat
 	return hclog.New(&hclog.LoggerOptions{
-		Name:            "plugin",
+		Name:            cfg.logName,
 		Level:           hclog.LevelFromString(string(cfg.logLevel)),
 		JSONFormat:      jsonFormat,
 		IncludeLocation: false,
