@@ -75,10 +75,12 @@ func (p *SomePlugin) RevokeAccess(ar *api.AccessRequest, app *argocd.Application
 // main must be defined as it is the plugin entrypoint. It will be automatically called
 // by the EphemeralAccess controller.
 func main() {
-	// The EphemeralAccess controller propagates its log level and format to the
-	// plugin process via the EPHEMERAL_LOG_LEVEL and EPHEMERAL_LOG_FORMAT env
-	// variables. Building the plugin logger from them makes its output respect
-	// the same level and format defined for the controller.
+	// The EphemeralAccess controller propagates its log level to the plugin
+	// process via the EPHEMERAL_LOG_LEVEL env variable so the plugin respects
+	// the same level defined for the controller. The log format is not
+	// configurable here: NewPluginLogger always emits hclog JSON so the
+	// go-plugin host can parse each entry and relay it into the controller log
+	// stream, which renders it in the controller's configured format.
 	opts := []log.Opts{
 		// The name is relayed to the controller log stream (as the hclog
 		// "@module" field) so this plugin's entries can be identified there.
@@ -88,10 +90,7 @@ func main() {
 	if logLevel := os.Getenv(log.EphemeralLogLevel); logLevel != "" {
 		opts = append(opts, log.WithLevel(log.LogLevel(logLevel)))
 	}
-	if logFormat := os.Getenv(log.EphemeralLogFormat); logFormat != "" {
-		opts = append(opts, log.WithFormat(log.LogFormat(logFormat)))
-	}
-	logger, err := log.NewPluginLogger(opts...)
+	logger, err := log.NewPluginLoggerWithOpts(opts...)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating plugin logger: %s", err))
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/argoproj-labs/argocd-ephemeral-access/pkg/log"
 	"github.com/go-logr/logr"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,21 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest"
 )
+
+// captureHCLogOutput redirects hclog's default output while fn runs and returns
+// what was written. NewPluginLogger does not set an explicit Output, so hclog
+// writes to hclog.DefaultOutput (which it snapshots at logger construction),
+// not to the current os.Stderr. The logger must therefore be built inside fn.
+func captureHCLogOutput(t *testing.T, fn func()) string {
+	t.Helper()
+	orig := hclog.DefaultOutput
+	var buf bytes.Buffer
+	hclog.DefaultOutput = &buf
+	defer func() { hclog.DefaultOutput = orig }()
+
+	fn()
+	return buf.String()
+}
 
 func TestLoggerConfiguration(t *testing.T) {
 	t.Run("will validate if default configurations are applied", func(t *testing.T) {
@@ -32,9 +48,55 @@ func TestLoggerConfiguration(t *testing.T) {
 }
 
 func TestPluginLogger(t *testing.T) {
+	t.Run("will return error when logger is nil", func(t *testing.T) {
+		// When
+		logger, err := log.NewPluginLogger(nil)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, logger)
+	})
+	t.Run("will derive the level from the provided zap logger", func(t *testing.T) {
+		// Given a zap logger enabled at debug level
+		core := zapcore.NewCore(
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+			zapcore.AddSync(io.Discard),
+			zapcore.DebugLevel,
+		)
+		zl := zap.New(core)
+
+		// When
+		logger, err := log.NewPluginLogger(zl)
+
+		// Then
+		require.NoError(t, err)
+		assert.NotNil(t, logger)
+		assert.True(t, logger.IsDebug())
+		assert.Equal(t, "plugin", logger.Name())
+	})
+	t.Run("will honor a higher level from the provided zap logger", func(t *testing.T) {
+		// Given a zap logger enabled only at info and above
+		core := zapcore.NewCore(
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+			zapcore.AddSync(io.Discard),
+			zapcore.InfoLevel,
+		)
+		zl := zap.New(core)
+
+		// When
+		logger, err := log.NewPluginLogger(zl)
+
+		// Then
+		require.NoError(t, err)
+		assert.False(t, logger.IsDebug())
+		assert.True(t, logger.IsInfo())
+	})
+}
+
+func TestPluginLoggerWithOpts(t *testing.T) {
 	t.Run("will validate if configs are applied without error", func(t *testing.T) {
 		// When
-		logger, err := log.NewPluginLogger(
+		logger, err := log.NewPluginLoggerWithOpts(
 			log.WithLevel(log.DebugLevel),
 			log.WithFormat(log.JsonFormat),
 		)
@@ -47,7 +109,7 @@ func TestPluginLogger(t *testing.T) {
 	})
 	t.Run("will validate if default configurations are applied", func(t *testing.T) {
 		// When
-		logger, err := log.NewPluginLogger()
+		logger, err := log.NewPluginLoggerWithOpts()
 
 		// Then
 		assert.NoError(t, err)
@@ -55,11 +117,10 @@ func TestPluginLogger(t *testing.T) {
 		assert.True(t, logger.IsInfo())
 		assert.Equal(t, "plugin", logger.Name())
 	})
-	t.Run("will validate if provided configs takes precedence", func(t *testing.T) {
+	t.Run("will validate if provided level takes precedence", func(t *testing.T) {
 		// When
-		logger, err := log.NewPluginLogger(
+		logger, err := log.NewPluginLoggerWithOpts(
 			log.WithLevel(log.InfoLevel),
-			log.WithFormat(log.TextFormat),
 		)
 
 		// Then
@@ -69,9 +130,32 @@ func TestPluginLogger(t *testing.T) {
 		assert.True(t, logger.IsInfo())
 		assert.Equal(t, "plugin", logger.Name())
 	})
+	t.Run("will always emit hclog JSON so the host can parse the message", func(t *testing.T) {
+		// When a logger built asking for text format logs an entry. hclog
+		// snapshots its output at construction, so it must be built inside the
+		// capture to observe its output.
+		out := captureHCLogOutput(t, func() {
+			logger, err := log.NewPluginLoggerWithOpts(
+				log.WithName("some-plugin"),
+				log.WithFormat(log.TextFormat),
+			)
+			require.NoError(t, err)
+			logger.Info("granted access", "user", "leo")
+		})
+
+		// Then the output is hclog JSON, so @message carries only the message
+		// and can be relayed into the host "msg" field verbatim.
+		var entry map[string]interface{}
+		require.NoError(t, json.Unmarshal([]byte(out), &entry),
+			"expected JSON output regardless of the requested format, got: %s", out)
+		assert.Equal(t, "granted access", entry["@message"])
+		assert.Equal(t, "info", entry["@level"])
+		assert.Equal(t, "some-plugin", entry["@module"])
+		assert.Equal(t, "leo", entry["user"])
+	})
 	t.Run("will use the provided name", func(t *testing.T) {
 		// When
-		logger, err := log.NewPluginLogger(log.WithName("my-plugin"))
+		logger, err := log.NewPluginLoggerWithOpts(log.WithName("my-plugin"))
 
 		// Then
 		assert.NoError(t, err)
@@ -80,7 +164,7 @@ func TestPluginLogger(t *testing.T) {
 	})
 	t.Run("will default the name to plugin", func(t *testing.T) {
 		// When
-		logger, err := log.NewPluginLogger()
+		logger, err := log.NewPluginLoggerWithOpts()
 
 		// Then
 		assert.NoError(t, err)

@@ -224,28 +224,63 @@ const (
 )
 
 // NewPluginLogger will initialize a native hclog.Logger to be used in
-// ephemeral-access plugins. It builds the logger so that its output is
-// formatted as hclog expects, which allows the go-plugin host to correctly
-// parse the log level and message of each entry relayed from the plugin
-// subprocess. The log level and format are defined by the provided opts,
-// defaulting to InfoLevel and TextFormat when not set. Callers running in the
-// plugin subprocess (where the controller configs are not available) should
-// derive the opts from the EPHEMERAL_LOG_LEVEL and EPHEMERAL_LOG_FORMAT
-// environment variables, which the controller propagates to the plugin process.
+// ephemeral-access plugins, deriving the log level from the provided zap.Logger
+// and emitting hclog JSON.
+//
+// Deprecated: use NewPluginLoggerWithOpts, which does not require a zap.Logger
+// and allows configuring the logger name (relayed to the controller as the
+// hclog "@module" field). This function is retained for backward compatibility;
+// it only reads the level from the given logger and otherwise ignores it (in
+// particular its encoder/format), because the plugin->host log channel requires
+// hclog JSON. See NewPluginLoggerWithOpts for details. Returns an error if the
+// provided logger is nil.
+func NewPluginLogger(logger *zap.Logger) (hclog.Logger, error) {
+	if logger == nil {
+		return nil, fmt.Errorf("no logger provided to NewPluginLogger")
+	}
+	return newPluginLogger(WithLevel(LogLevel(logger.Level().String()))), nil
+}
+
+// NewPluginLoggerWithOpts will initialize a native hclog.Logger to be used in
+// ephemeral-access plugins. The log level is defined by the provided opts,
+// defaulting to InfoLevel when not set. Callers running in the plugin
+// subprocess (where the controller configs are not available) should derive the
+// level from the EPHEMERAL_LOG_LEVEL environment variable, which the controller
+// propagates to the plugin process.
+//
+// The output is always encoded as hclog JSON regardless of any WithFormat
+// option. The plugin->host log channel is an internal protocol that only the
+// hclog JSON format can carry losslessly: it lets the go-plugin host parse the
+// level and message of each relayed entry and re-emit them through the
+// controller logger. With text output the host cannot parse the entry and
+// relays the whole line into the host "msg" field. The format the operator sees
+// is therefore defined by the controller logger, not by this plugin logger.
 //
 // The logger name defaults to "plugin" and can be set with WithName. The name
 // is emitted as the hclog "@module" field of each entry, which the go-plugin
 // host relays into the controller log stream, allowing a plugin to identify
 // itself in that stream.
-func NewPluginLogger(opts ...Opts) (hclog.Logger, error) {
+func NewPluginLoggerWithOpts(opts ...Opts) (hclog.Logger, error) {
+	return newPluginLogger(opts...), nil
+}
+
+// newPluginLogger builds the native hclog.Logger shared by the exported plugin
+// logger constructors.
+func newPluginLogger(opts ...Opts) hclog.Logger {
 	cfg := logConfig(opts...)
-	jsonFormat := cfg.logFormat == JsonFormat
 	return hclog.New(&hclog.LoggerOptions{
-		Name:            cfg.logName,
-		Level:           hclog.LevelFromString(string(cfg.logLevel)),
-		JSONFormat:      jsonFormat,
+		Name:  cfg.logName,
+		Level: hclog.LevelFromString(string(cfg.logLevel)),
+		// Always JSON: the go-plugin host requires hclog JSON to parse each
+		// relayed entry. See NewPluginLoggerWithOpts for details.
+		JSONFormat: true,
+		// Do not include the source location. When true, hclog adds an
+		// "@caller" file:line field resolved via runtime.Caller. That location
+		// would point at this logging package rather than the plugin call site,
+		// so it is misleading, and it adds a per-log runtime.Caller cost for no
+		// benefit once the entry is relayed to the controller.
 		IncludeLocation: false,
-	}), nil
+	})
 }
 
 // NewPluginHostLogger builds the host side hclog.Logger that the go-plugin host
