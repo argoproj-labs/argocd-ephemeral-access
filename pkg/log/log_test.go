@@ -71,6 +71,86 @@ func TestPluginLogger(t *testing.T) {
 	})
 }
 
+func TestPluginHostLogger(t *testing.T) {
+	t.Run("will return error when logger is nil", func(t *testing.T) {
+		// When
+		logger, err := log.NewPluginHostLogger(nil)
+
+		// Then
+		assert.Error(t, err)
+		assert.Nil(t, logger)
+	})
+	t.Run("will name the logger plugin", func(t *testing.T) {
+		// Given
+		zl := zaptest.NewLogger(t)
+
+		// When
+		logger, err := log.NewPluginHostLogger(zl)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, logger)
+		assert.Equal(t, "plugin", logger.Name())
+	})
+	t.Run("will report level from the wrapped zap logger", func(t *testing.T) {
+		// Given a zap logger enabled at debug level
+		core := zapcore.NewCore(
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+			zapcore.AddSync(io.Discard),
+			zapcore.DebugLevel,
+		)
+		zl := zap.New(core)
+
+		// When
+		logger, err := log.NewPluginHostLogger(zl)
+
+		// Then
+		require.NoError(t, err)
+		assert.True(t, logger.IsDebug())
+		assert.True(t, logger.IsInfo())
+	})
+	t.Run("will honor a higher level from the wrapped zap logger", func(t *testing.T) {
+		// Given a zap logger enabled only at warn and above
+		core := zapcore.NewCore(
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+			zapcore.AddSync(io.Discard),
+			zapcore.WarnLevel,
+		)
+		zl := zap.New(core)
+
+		// When
+		logger, err := log.NewPluginHostLogger(zl)
+
+		// Then
+		require.NoError(t, err)
+		assert.False(t, logger.IsDebug())
+		assert.False(t, logger.IsInfo())
+		assert.True(t, logger.IsWarn())
+		assert.True(t, logger.IsError())
+	})
+	t.Run("will relay entries through the wrapped zap logger", func(t *testing.T) {
+		// Given a zap logger writing JSON to a buffer
+		var buf bytes.Buffer
+		core := zapcore.NewCore(
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+			zapcore.AddSync(&buf),
+			zapcore.InfoLevel,
+		)
+		zl := zap.New(core)
+		logger, err := log.NewPluginHostLogger(zl)
+		require.NoError(t, err)
+
+		// When
+		logger.Info("relayed message", "key", "value")
+
+		// Then the entry is encoded by zap with the message and key/value pair
+		var entry map[string]interface{}
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+		assert.Equal(t, "relayed message", entry["msg"])
+		assert.Equal(t, "value", entry["key"])
+	})
+}
+
 func TestLogWrapper(t *testing.T) {
 	type fixture struct {
 		logger *log.LogWrapper

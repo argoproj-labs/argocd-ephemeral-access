@@ -232,6 +232,24 @@ func NewPluginLogger(opts ...Opts) (hclog.Logger, error) {
 	}), nil
 }
 
+// NewPluginHostLogger builds the host side hclog.Logger that the go-plugin host
+// uses to relay the plugin subprocess logs into the controller's log stream. It
+// wraps the provided zap.Logger so that the relayed entries are encoded exactly
+// like the controller's own logs, keeping the aggregated output consistent.
+//
+// This logger only produces output on the host and never crosses the plugin RPC
+// boundary, so wrapping zap here is safe. This is in contrast to NewPluginLogger
+// (the plugin's own emitter), whose output must remain native hclog so the host
+// can correctly parse the level and message of each relayed entry.
+//
+// It returns an error if the provided logger is nil.
+func NewPluginHostLogger(logger *zap.Logger) (hclog.Logger, error) {
+	if logger == nil {
+		return nil, fmt.Errorf("no logger provided to NewPluginHostLogger")
+	}
+	return newZapHCLogAdapter(logger).Named("plugin"), nil
+}
+
 // NewAppLogger creates a new logr.Logger instance using the provided zap.Logger.
 // It returns an error if the provided logger is nil.
 //

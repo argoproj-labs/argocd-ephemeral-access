@@ -23,6 +23,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"go.uber.org/zap"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	goPlugin "github.com/hashicorp/go-plugin"
@@ -140,7 +141,7 @@ func run(cmd *cobra.Command, args []string) error {
 	var accessRequester plugin.AccessRequester
 	// register the plugin when the path is provided
 	if config.PluginPath() != "" {
-		accessRequester, err = initPlugin(config.PluginPath(), level, format)
+		accessRequester, err = initPlugin(config.PluginPath(), zaplogger)
 		if err != nil {
 			return fmt.Errorf("plugin initialization error: %w", err)
 		}
@@ -177,14 +178,15 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 // initPlugin will initialize the AccessRequester plugin from the binary
-// provided in the given path. The given level and format are used to configure
-// the host side logger that relays the plugin subprocess logs.
-func initPlugin(path string, level log.LogLevel, format log.LogFormat) (plugin.AccessRequester, error) {
+// provided in the given path. The given zap logger is wrapped to build the host
+// side logger that relays the plugin subprocess logs into the controller's log
+// stream, keeping their format consistent with the controller's own logs.
+func initPlugin(path string, zaplogger *zap.Logger) (plugin.AccessRequester, error) {
 	setupLog.Info("Initializing AccessRequester plugin...", "path", path)
 
-	pluginLog, err := log.NewPluginLogger(log.WithLevel(level), log.WithFormat(format))
+	pluginLog, err := log.NewPluginHostLogger(zaplogger)
 	if err != nil {
-		return nil, fmt.Errorf("error building plugin logger: %w", err)
+		return nil, fmt.Errorf("error building plugin host logger: %w", err)
 	}
 	cliConfig := plugin.NewClientConfig(path, pluginLog)
 	client := goPlugin.NewClient(cliConfig)
