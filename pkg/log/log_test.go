@@ -32,14 +32,41 @@ func TestLoggerConfiguration(t *testing.T) {
 }
 
 func TestPluginLogger(t *testing.T) {
-	t.Run("will validate if named correctly", func(t *testing.T) {
+	t.Run("will validate if configs are applied without error", func(t *testing.T) {
 		// When
-		zl := zaptest.NewLogger(t)
-		logger, err := log.NewPluginLogger(zl)
+		logger, err := log.NewPluginLogger(
+			log.WithLevel(log.DebugLevel),
+			log.WithFormat(log.JsonFormat),
+		)
 
 		// Then
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
+		assert.True(t, logger.IsDebug())
+		assert.Equal(t, "plugin", logger.Name())
+	})
+	t.Run("will validate if default configurations are applied", func(t *testing.T) {
+		// When
+		logger, err := log.NewPluginLogger()
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, logger)
+		assert.True(t, logger.IsInfo())
+		assert.Equal(t, "plugin", logger.Name())
+	})
+	t.Run("will validate if provided configs takes precedence", func(t *testing.T) {
+		// When
+		logger, err := log.NewPluginLogger(
+			log.WithLevel(log.InfoLevel),
+			log.WithFormat(log.TextFormat),
+		)
+
+		// Then
+		assert.NoError(t, err)
+		assert.NotNil(t, logger)
+		assert.False(t, logger.IsDebug())
+		assert.True(t, logger.IsInfo())
 		assert.Equal(t, "plugin", logger.Name())
 	})
 }

@@ -18,7 +18,6 @@ require (
 	github.com/sethvargo/go-envconfig v1.3.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.11.1
-	github.com/zaffka/zap-to-hclog v0.10.6
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.66.0
 	go.opentelemetry.io/contrib/propagators/autoprop v0.66.0
 	go.opentelemetry.io/otel v1.43.0

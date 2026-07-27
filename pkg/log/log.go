@@ -8,7 +8,6 @@ import (
 	"github.com/go-logr/zapr"
 	hclog "github.com/hashicorp/go-hclog"
 
-	zaptohclog "github.com/zaffka/zap-to-hclog"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	k8slog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -213,20 +212,24 @@ const (
 	EphemeralLogFormat = "EPHEMERAL_LOG_FORMAT"
 )
 
-// NewPluginLogger creates a new hclog.Logger instance wrapped around the provided zap.Logger.
-// It returns an error if the provided logger is nil.
-//
-// Parameters:
-//   - logger: A *zap.Logger instance to be wrapped.
-//
-// Returns:
-//   - hclog.Logger: The wrapped logger instance.
-//   - error: An error if the logger is nil.
-func NewPluginLogger(logger *zap.Logger) (hclog.Logger, error) {
-	if logger == nil {
-		return nil, fmt.Errorf("No logger provided to NewPluginLogger")
-	}
-	return zaptohclog.Wrap(logger).Named("plugin"), nil
+// NewPluginLogger will initialize a native hclog.Logger to be used in
+// ephemeral-access plugins. It builds the logger so that its output is
+// formatted as hclog expects, which allows the go-plugin host to correctly
+// parse the log level and message of each entry relayed from the plugin
+// subprocess. The log level and format are defined by the provided opts,
+// defaulting to InfoLevel and TextFormat when not set. Callers running in the
+// plugin subprocess (where the controller configs are not available) should
+// derive the opts from the EPHEMERAL_LOG_LEVEL and EPHEMERAL_LOG_FORMAT
+// environment variables, which the controller propagates to the plugin process.
+func NewPluginLogger(opts ...Opts) (hclog.Logger, error) {
+	cfg := logConfig(opts...)
+	jsonFormat := cfg.logFormat == JsonFormat
+	return hclog.New(&hclog.LoggerOptions{
+		Name:            "plugin",
+		Level:           hclog.LevelFromString(string(cfg.logLevel)),
+		JSONFormat:      jsonFormat,
+		IncludeLocation: false,
+	}), nil
 }
 
 // NewAppLogger creates a new logr.Logger instance using the provided zap.Logger.

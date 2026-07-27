@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	argocd "github.com/argoproj-labs/argocd-ephemeral-access/api/argoproj/v1alpha1"
 	api "github.com/argoproj-labs/argocd-ephemeral-access/api/ephemeral-access/v1alpha1"
@@ -74,9 +75,18 @@ func (p *SomePlugin) RevokeAccess(ar *api.AccessRequest, app *argocd.Application
 // main must be defined as it is the plugin entrypoint. It will be automatically called
 // by the EphemeralAccess controller.
 func main() {
-	// NewPluginLogger will return a logger that will respect the same level and format
-	// defined to the EphemeralAccess controller.
-	logger, err := log.NewPluginLogger()
+	// The EphemeralAccess controller propagates its log level and format to the
+	// plugin process via the EPHEMERAL_LOG_LEVEL and EPHEMERAL_LOG_FORMAT env
+	// variables. Building the plugin logger from them makes its output respect
+	// the same level and format defined for the controller.
+	opts := []log.Opts{}
+	if logLevel := os.Getenv(log.EphemeralLogLevel); logLevel != "" {
+		opts = append(opts, log.WithLevel(log.LogLevel(logLevel)))
+	}
+	if logFormat := os.Getenv(log.EphemeralLogFormat); logFormat != "" {
+		opts = append(opts, log.WithFormat(log.LogFormat(logFormat)))
+	}
+	logger, err := log.NewPluginLogger(opts...)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating plugin logger: %s", err))
 	}
