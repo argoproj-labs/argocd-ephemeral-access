@@ -182,17 +182,18 @@ func TestPluginHostLogger(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, logger)
 	})
-	t.Run("will name the logger plugin", func(t *testing.T) {
+	t.Run("will not name the logger so the host can name it after the plugin", func(t *testing.T) {
 		// Given
 		zl := zaptest.NewLogger(t)
 
 		// When
 		logger, err := log.NewPluginHostLogger(zl)
 
-		// Then
+		// Then the logger is unnamed; the go-plugin host names it after the
+		// plugin binary, so naming it here would produce a redundant segment.
 		assert.NoError(t, err)
 		assert.NotNil(t, logger)
-		assert.Equal(t, "plugin", logger.Name())
+		assert.Equal(t, "", logger.Name())
 	})
 	t.Run("will report level from the wrapped zap logger", func(t *testing.T) {
 		// Given a zap logger enabled at debug level
@@ -250,6 +251,31 @@ func TestPluginHostLogger(t *testing.T) {
 		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
 		assert.Equal(t, "relayed message", entry["msg"])
 		assert.Equal(t, "value", entry["key"])
+	})
+	t.Run("will drop the timestamp re-injected by the go-plugin host", func(t *testing.T) {
+		// Given a zap logger writing JSON to a buffer
+		var buf bytes.Buffer
+		core := zapcore.NewCore(
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+			zapcore.AddSync(&buf),
+			zapcore.InfoLevel,
+		)
+		zl := zap.New(core)
+		logger, err := log.NewPluginHostLogger(zl)
+		require.NoError(t, err)
+
+		// When the host relays an entry, the go-plugin host appends a
+		// "timestamp" key/value pair carrying the plugin's original time.
+		logger.Info("relayed message", "timestamp", "2026-07-28T14:20:28.843Z", "key", "value")
+
+		// Then the relayed timestamp is dropped (zap already emits its own "ts"
+		// time field), while other key/value pairs are preserved.
+		var entry map[string]interface{}
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+		assert.Equal(t, "relayed message", entry["msg"])
+		assert.Equal(t, "value", entry["key"])
+		assert.NotContains(t, entry, "timestamp")
+		assert.Contains(t, entry, "ts")
 	})
 }
 

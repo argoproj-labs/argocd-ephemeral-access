@@ -293,12 +293,17 @@ func newPluginLogger(opts ...Opts) hclog.Logger {
 // (the plugin's own emitter), whose output must remain native hclog so the host
 // can correctly parse the level and message of each relayed entry.
 //
+// The returned logger is intentionally not named: the go-plugin host already
+// names the relay logger after the plugin binary (filepath.Base of the plugin
+// path). Naming it here too would prepend a redundant segment (e.g.
+// "plugin.plugin") to every relayed entry.
+//
 // It returns an error if the provided logger is nil.
 func NewPluginHostLogger(logger *zap.Logger) (hclog.Logger, error) {
 	if logger == nil {
 		return nil, fmt.Errorf("no logger provided to NewPluginHostLogger")
 	}
-	return newZapHCLogAdapter(logger).Named("plugin"), nil
+	return newZapHCLogAdapter(logger), nil
 }
 
 // NewAppLogger creates a new logr.Logger instance using the provided zap.Logger.

@@ -29,6 +29,14 @@ func newZapHCLogAdapter(z *zap.Logger) hclog.Logger {
 	return &zapHCLogAdapter{zap: z}
 }
 
+// relayedTimestampKey is the key under which the go-plugin host re-injects the
+// plugin entry's original timestamp as a key/value pair when relaying it to the
+// host logger (see go-plugin client.go logStderr:
+// out = append(out, "timestamp", entry.Timestamp...)). The zap encoder already
+// stamps its own time field, so this relayed key is dropped to avoid a
+// duplicate timestamp in the controller log stream.
+const relayedTimestampKey = "timestamp"
+
 // hclogToZapLevel maps an hclog level to the corresponding zap level. hclog has
 // a Trace level that zap does not, so it is mapped to DebugLevel.
 func hclogToZapLevel(level hclog.Level) zapcore.Level {
@@ -77,6 +85,11 @@ func toZapFields(args ...interface{}) []zapcore.Field {
 		if !ok {
 			key = hclog.MissingKey
 			fields = append(fields, zap.Any(key, args[i]))
+			continue
+		}
+		// Drop the timestamp the go-plugin host re-injects; the zap encoder
+		// already emits its own time field. See relayedTimestampKey.
+		if key == relayedTimestampKey {
 			continue
 		}
 		fields = append(fields, zap.Any(key, args[i+1]))
