@@ -1,16 +1,18 @@
 apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
 kind: AccessRequest
 metadata:
-  labels:
-    app.kubernetes.io/name: argocd-ephemeral-access
-    app.kubernetes.io/managed-by: kustomize
   name: some-application-username
-  namespace: ephemeral
+  namespace: argocd
 spec:
   duration: '1m'
-  targetRoleName: ephemeral-write-access
+  role:
+    friendlyName: Devops (Write)
+    ordinal: 1
+    templateRef:
+      name: devops
+      namespace: ephemeral
   application: 
-    name: some-application
-    namespace: ephemeral
+    name: example-app
+    namespace: argocd
   subject:
     username: some_user@fakedomain.com
