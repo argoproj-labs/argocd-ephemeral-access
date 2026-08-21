@@ -561,6 +561,16 @@ func (s *Service) updateStatus(ctx context.Context, ar *api.AccessRequest, statu
 	return s.k8sClient.Status().Update(ctx, ar)
 }
 
+// subjectRBACIdentity returns the identity Argo CD uses to evaluate RBAC.
+// Argo CD 3.2+ supplies this in the Argocd-User-Id header; older Argo CD
+// versions do not, so existing AccessRequests continue to use the username.
+func subjectRBACIdentity(ar *api.AccessRequest) string {
+	if ar.Spec.Subject.UserId != nil && *ar.Spec.Subject.UserId != "" {
+		return *ar.Spec.Subject.UserId
+	}
+	return ar.Spec.Subject.Username
+}
+
 // removeSubjectFromRole will iterate over the roles in the given project and
 // remove the subject from the given AccessRequest from the role specified in
 // the ar.TargetRoleName.
@@ -571,7 +581,7 @@ func removeSubjectFromRole(project *argocd.AppProject, ar *api.AccessRequest, rt
 			groups := []string{}
 			for _, group := range role.Groups {
 				remove := false
-				if group == ar.Spec.Subject.Username {
+				if group == subjectRBACIdentity(ar) {
 					remove = true
 				}
 				if !remove {
@@ -596,7 +606,7 @@ func isRoleInSync(project *argocd.AppProject, ar *api.AccessRequest, rt *api.Rol
 			if role.Description != rt.Spec.Description {
 				return false
 			}
-			if ar.Status.RequestState == api.GrantedStatus && !slices.Contains(role.Groups, ar.Spec.Subject.Username) {
+			if ar.Status.RequestState == api.GrantedStatus && !slices.Contains(role.Groups, subjectRBACIdentity(ar)) {
 				return false
 			}
 			if !MatchRolePoliciesAndTokens(role, rt.Spec.Policies, []argocd.JWTToken{}) {
@@ -636,13 +646,13 @@ func addSubjectInRole(project *argocd.AppProject, ar *api.AccessRequest, rt *api
 			roleFound = true
 			hasAccess := false
 			for _, group := range role.Groups {
-				if group == ar.Spec.Subject.Username {
+				if group == subjectRBACIdentity(ar) {
 					hasAccess = true
 					break
 				}
 			}
 			if !hasAccess {
-				project.Spec.Roles[idx].Groups = append(project.Spec.Roles[idx].Groups, ar.Spec.Subject.Username)
+				project.Spec.Roles[idx].Groups = append(project.Spec.Roles[idx].Groups, subjectRBACIdentity(ar))
 			}
 		}
 	}
@@ -654,7 +664,7 @@ func addSubjectInRole(project *argocd.AppProject, ar *api.AccessRequest, rt *api
 // addRoleInProject will initialize the role owned by the ephemeral-access
 // controller and associate it in the given project.
 func addRoleInProject(project *argocd.AppProject, ar *api.AccessRequest, rt *api.RoleTemplate) {
-	groups := []string{ar.Spec.Subject.Username}
+	groups := []string{subjectRBACIdentity(ar)}
 	role := argocd.ProjectRole{
 		Name:        rt.AppProjectRoleName(ar.Spec.Application.Name, ar.Spec.Application.Namespace),
 		Description: rt.Spec.Description,
