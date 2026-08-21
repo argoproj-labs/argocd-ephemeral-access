@@ -228,7 +228,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				Expect(appProj).NotTo(BeNil())
 				Expect(appProj.Spec.Roles).To(HaveLen(3))
 				Expect(appProj.Spec.Roles[2].Groups).To(HaveLen(1))
-				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal(subject))
+				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal("user-id"))
 
 				By("checking if roles are properly rendered from templates")
 				Expect(appProj.Spec.Roles[2].Policies).To(HaveLen(4))
@@ -505,6 +505,8 @@ var _ = Describe("AccessRequest Controller", func() {
 				ar2 := f.accessrequests[0].DeepCopy()
 				ar2.SetName(arName02)
 				ar2.Spec.Subject.Username = subject02
+				userID2 := "another-user-id"
+				ar2.Spec.Subject.UserId = &userID2
 				f.accessrequests = append(f.accessrequests, ar2)
 			})
 			It("will apply the roletemplate resource in k8s", func() {
@@ -544,8 +546,8 @@ var _ = Describe("AccessRequest Controller", func() {
 					return appProj.Spec.Roles[2].Groups
 				}, timeout, interval).Should(HaveLen(2))
 				By("checking if subjects are added in Argo CD role")
-				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal(subject01))
-				Expect(appProj.Spec.Roles[2].Groups[1]).To(Equal(subject02))
+				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal("user-id"))
+				Expect(appProj.Spec.Roles[2].Groups[1]).To(Equal("another-user-id"))
 			})
 			It("will reflect role template changes in AppProject", func() {
 				newPolicy := "update-policy-test"
@@ -642,7 +644,7 @@ var _ = Describe("AccessRequest Controller", func() {
 				}, timeout, interval).Should(Equal(expectedPolicy))
 
 				By("checking if subject is added in Argo CD role")
-				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal(subject01))
+				Expect(appProj.Spec.Roles[2].Groups[0]).To(Equal("user-id"))
 
 				By("modifying the AppProject managed role")
 				newPolicy := "update-policy-test"
