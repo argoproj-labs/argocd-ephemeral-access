@@ -1,4 +1,7 @@
-FROM golang:1.24 AS builder
+# Pinning the builder to BUILDPLATFORM keeps the Go compiler running natively
+# on the build host and cross-compiling to TARGETOS/TARGETARCH, instead of
+# emulating the whole compilation under QEMU in multi-platform builds.
+FROM --platform=$BUILDPLATFORM golang:1.25 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
