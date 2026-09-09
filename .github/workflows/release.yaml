@@ -38,7 +38,7 @@ jobs:
           cache: false
 
       - name: Docker Login in quay.io
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # pin@v4.1.0
+        uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c # pin@v4.5.2
         with:
           registry: quay.io
           username: ${{ secrets.QUAY_USERNAME }}
