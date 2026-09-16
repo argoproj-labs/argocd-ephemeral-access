@@ -1,3 +1,5 @@
+# This is an example file provided to ilustrate how RoleTemplate resources
+# can be applied.
 apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
 kind: RoleTemplate
 metadata:

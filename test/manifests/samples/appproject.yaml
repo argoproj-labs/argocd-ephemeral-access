@@ -1,43 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: sample-test-project
-  namespace: ephemeral
+  name: ephemeral
+  namespace: argocd
 spec:
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: Namespace
   description: Project for ephemeral access controller tests
   destinations:
-  - namespace: namespace-1
-    server: '*'
-  - namespace: namespace-2*
-    server: '*'
-  roles:
-  - description: admin
-    groups:
-    - test:admins
-    name: admin
-    policies:
-    - p, proj:sample-test-project:admin, applications, *, *, allow
-  - description: developer
-    jwtTokens:
-    - exp: 1733904302
-      iat: 1718001702
-      id: m961695727194dre8f7c46d2a9ea97b2
-    name: deployer
-    policies:
-    - p, proj:sample-test-project:deployer, applications, get, sample-test-app/*, allow
-    - p, proj:sample-test-project:deployer, applications, sync, sample-test-app/*, allow
-    - p, proj:sample-test-project:deployer, applications, update, sample-test-project/*, allow
-    - p, proj:sample-test-project:deployer, applications, create, sample-test-project/*, allow
-    - p, proj:sample-test-project:deployer, applications, override, sample-test-project/*, allow
-    - p, proj:sample-test-project:deployer, applications, delete, sample-test-project/*, allow
-    - p, proj:sample-test-project:deployer, applications, action/*, sample-test-project/*, allow
+    - namespace: ephemeral
+      server: '*'
   sourceRepos:
-  - https://github.com/argoproj-labs/argocd-ephemeral-access.git
-status:
-  jwtTokensByRole:
-    admin: {}
-    deployer:
-      items:
-      - exp: 1733904302
-        iat: 1718001702
-        id: m961695727194dre8f7c46d2a9ea97b2
+    - '*'
