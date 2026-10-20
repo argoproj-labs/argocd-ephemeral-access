@@ -148,7 +148,7 @@ func TestHandlePermission(t *testing.T) {
 						Description: "some role description",
 						Policies:    []string{"policy1", "policy2"},
 						JWTTokens:   []argocd.JWTToken{},
-						Groups:      []string{"some-user", "user-to-be-removed"},
+						Groups:      []string{"some-user", "user-id"},
 					},
 				},
 			)
@@ -333,7 +333,7 @@ func TestHandlePermission(t *testing.T) {
 			assert.Equal(t, api.GrantedStatus, status, "status must be granted")
 			assert.Len(t, updatedProject.Spec.Roles, 1, "project roles must not be changed")
 			assert.Len(t, updatedProject.Spec.Roles[0].Groups, 2, "project role groups must contain the removed user")
-			assert.Contains(t, updatedProject.Spec.Roles[0].Groups, "removed-user", "project role groups must contain the removed user")
+			assert.Contains(t, updatedProject.Spec.Roles[0].Groups, "user-id", "project role groups must contain the user ID")
 			assert.Len(t, updatedProject.Spec.Roles[0].Policies, 2, "project role policies must be reverted to the original policies")
 			assert.Contains(t, updatedProject.Spec.Roles[0].Policies, "policy1", "project role policies must contain policy1")
 			assert.Contains(t, updatedProject.Spec.Roles[0].Policies, "policy2", "project role policies must contain policy2")
@@ -364,7 +364,7 @@ func TestHandlePermission(t *testing.T) {
 							Description: "some role description",
 							Policies:    []string{"policy1", "policy2"},
 							JWTTokens:   []argocd.JWTToken{},
-							Groups:      []string{"some-user", "user-to-be-removed"},
+							Groups:      []string{"some-user", "user-id"},
 						},
 					},
 				},
@@ -476,7 +476,7 @@ func TestHandlePermission(t *testing.T) {
 							Description: "some role description",
 							Policies:    []string{"policy1", "policy2"},
 							JWTTokens:   []argocd.JWTToken{},
-							Groups:      []string{"some-user", "user-to-be-removed"},
+							Groups:      []string{"some-user", "user-id"},
 						},
 					},
 				},
