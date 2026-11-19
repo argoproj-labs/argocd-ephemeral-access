@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: example-app
+  namespace: argocd
+  labels:
+    some-company.com/enable-ephemeral-access: 'true'
+spec:
+  project: ephemeral
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps
+    targetRevision: 68657670d9131dc5bc5f538b14c1de3377d74591
+    path: kustomize-guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
