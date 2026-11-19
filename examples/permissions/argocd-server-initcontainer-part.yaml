@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+
+    spec:
+
+      initContainers:
+      - env:
+        - name: EXTENSION_NAME
+          value: ephemeral-access
+        - name: EXTENSION_URL
+          value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.1.6/extension.tar.gz
+        - name: EXTENSION_CHECKSUM_URL
+          value: https://github.com/argoproj-labs/argocd-ephemeral-access/releases/download/v0.1.6/extension_checksums.txt
+        - name: EXTENSION_JS_VARS
+          value: |
+            {
+              "EPHEMERAL_ACCESS_LABEL_KEY": "environment",
+              "EPHEMERAL_ACCESS_LABEL_VALUE": "production",
+              "EPHEMERAL_ACCESS_MAIN_BANNER": "All production changes require an associated change request. Click the REQUEST ACCESS button above to automatically create a change request associated with your user",
+              "EPHEMERAL_ACCESS_MAIN_BANNER_ADDITIONAL_INFO_LINK": "https://github.com/argoproj-labs/argocd-ephemeral-access",
+              "EPHEMERAL_ACCESS_DEFAULT_DISPLAY_ACCESS": "ReadOnly"
+            }
+        image: quay.io/argoprojlabs/argocd-extension-installer:v0.0.8@sha256:e7cb054207620566286fce2d809b4f298a72474e0d8779ffa8ec92c3b630f054
+        imagePullPolicy: IfNotPresent
+        name: extension-ephemeral-access
+        

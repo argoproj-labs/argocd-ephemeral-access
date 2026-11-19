@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  policy.csv: |-
+    p, role:readonly, extensions, invoke, ephemeral, allow
+    g, xforce-admins, role:readonly
+  scopes: '[cognito:groups, email]'

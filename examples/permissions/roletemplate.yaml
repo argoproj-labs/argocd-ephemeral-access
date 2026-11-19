@@ -1,0 +1,30 @@
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: RoleTemplate
+metadata:
+  name: readonly
+spec:
+  description: readonly permission in application {{.application}}
+  name: "readonly"
+  policies:
+  - p, {{.role}}, applications, readonly, {{.project}}/{{.application}}, allow
+---
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: RoleTemplate
+metadata:
+  name: "devops"
+spec:
+  description: write permission in application {{.application}}
+  name: "devops"
+  policies:
+  - p, {{.role}}, applications, sync, {{.project}}/{{.application}}, allow
+  - p, {{.role}}, applications, action/*, {{.project}}/{{.application}}, allow
+---
+apiVersion: ephemeral-access.argoproj-labs.io/v1alpha1
+kind: RoleTemplate
+metadata:
+  name: "administrator"
+spec:
+  description: write permission in application {{.application}}
+  name: "admininistrator"
+  policies:
+  - p, {{.role}}, applications, *, {{.project}}/{{.application}}, allow
